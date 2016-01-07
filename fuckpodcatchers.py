@@ -4,6 +4,8 @@ import urllib
 
 import feedparser
 
+import puckError
+
 # TODO xdg base directory support.
 ROOT = os.path.dirname(os.path.realpath(__file__))
 
@@ -37,24 +39,36 @@ def downloadFeedFiles(entry, directory=ROOT):
         urllib.urlretrieve(url, os.path.join(directory, filename))
 
 
-def checkIsLatestEntry(feedUrl, entryDict):
-    """
-    Given a dictionary, check if it represents the latest entry.  Because this
-    requires downloading a new entry, return the latest entry if what we were
-    given was not the latest entry.
-    Return None otherwise.
-    """
-    latestEntry = getLatestEntry(feedUrl)
-    if entryDict is not None and isinstance(entryDict, dict):
-        if entryDict == latestEntry:
-            return None
-
-    return latestEntry
-
-
 def getLatestEntry(feedUrl):
     """Get latest entry from a feed."""
     parsed = feedparser.parse(feedUrl)
+
+    # Detect bozo errors (malformed RSS/ATOM feeds).
+    if parsed['bozo'] == 1:
+        msg = parsed['bozo_exception'].getMessage()
+        print "Bozo exception!", msg
+        raise puckError.MalformedFeedError("Malformed Feed", msg)
+
+    status = parsed.status
+    if status == 301:
+        print "Permanent Redirect! It's rude to keep using this url!"
+        # TODO Have some mechanism to not check this URL again.
+        return None
+    elif status == 302:
+        print "Temporary Redirect, nothing to do."
+    elif status == 404:
+        print "Not found! Check url!"
+        # TODO Have some mechanism to figure out this URL.
+        return None
+    elif status == 410:
+        print "Gone! It's rude to keep using this url!"
+        # TODO Have some mechanism to not check this URL again.
+        return None
+    elif status != 200:
+        print "Something has gone wrong, better check that url!"
+        # TODO Have some catch-all for everything that isn't OK.
+        return None
+
     entries = parsed['entries']
 
     return entries[0]
