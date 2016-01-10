@@ -1,0 +1,7 @@
+language: python
+python:
+    - 3.5
+    - nightly
+
+install: python setup.py install
+test: nosetests3 --nocapture
