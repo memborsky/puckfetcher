@@ -26,7 +26,7 @@ setup(name='PuckCatcher',
 
       packages=find_packages(),
       test_suite='nose.collector',
-      tests_require=['nose'],
+      tests_require=['nose', 'coveralls'],
 
       # Project's main homepage
       url='https://github.com/andrewmichaud/FuckPodcatchers',
