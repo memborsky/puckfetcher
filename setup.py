@@ -4,7 +4,7 @@ setuptools-based setup module for FuckPodcatchers
 
 # Modeled on Python sample project setup.py -
 # https://github.com/pypa/sampleproject
-# Prefer setuptools over distutils
+# Prefer setuptools over distutils.
 from setuptools import setup, find_packages
 
 # Use a consistent encoding.
@@ -19,7 +19,7 @@ with open(path.join(here, 'README'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='PuckCatcher',
-      version='0.1.5',
+      version='0.1.6',
 
       description='A simple podcatcher',
       long_description=long_description,
