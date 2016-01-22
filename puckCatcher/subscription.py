@@ -131,4 +131,4 @@ class Subscription():
 
     def getLatestEntry(self):
         """Get latest entry for this subscription. Return None if an error occurs."""
-        self.getLatestEntryhelper(0)
+        self.getLatestEntryHelper(0)
