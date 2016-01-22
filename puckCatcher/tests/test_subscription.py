@@ -16,13 +16,11 @@ http410Address = rssTestHost + "410rss.xml"
 def test_emptyUrlConstructionErrors():
     """An empty URL should throw a MalformedFeedError"""
     sub = SUB.Subscription(url="", name="emptyConstruction")
-    sub.getLatestEntry()
 
 @raises(PE.MalformedFeedError)
 def test_noneUrlConstructionErrors():
     """An None URL should throw a MalformedFeedError"""
     sub = SUB.Subscription(name="noneConstruction")
-    sub.getLatestEntry()
 
 def test_emptyDaysConstructedCorrectly():
     """
@@ -127,7 +125,7 @@ def test_notFoundFails():
     assert(sub.providedUrl == http404Address)
 
 
-def test_notFoundFails():
+def test_goneFails():
     """
     If the URL is Gone, the currentUrl should be set to None, and we should return None.
     """
