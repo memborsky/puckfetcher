@@ -1,11 +1,20 @@
+import datetime
+import os
+import urllib
+
 import feedparser
 
 import puckCatcher.puckError as PE
 
 MAX_RECURSIVE_ATTEMPTS = 10
 
+# TODO XDG defaults
+DEFAULT_ROOT = "~/downloads"
+
 # TODO Switch to some kind of proper log library.
 
+
+# TODO describe field members, function parameters in docstrings.
 class Subscription():
     """
     Object describing a podcast subscription.
@@ -18,6 +27,10 @@ class Subscription():
 
         self.providedUrl = url
         self.currentUrl = url
+
+        # Entry we currently care about. Either the latest entry, or a historical entry if we are
+        # trying to catch up.
+        self.entry = None
 
         # Maintain name of podcast.
         self.name = name
@@ -60,6 +73,16 @@ class Subscription():
                     internalDays[6] = True
 
         self.days = internalDays
+        self.check = days
+
+        # We start checking this podcast today. Do not check days before today even if there should
+        # have been a podcast on those days.
+        # TODO test
+        self.today = datetime.now()
+        if self.today.isoweekday() > 0:
+            for elem in xrange(0, self.today.isoweekday()):
+                if self.check[elem]:
+                    self.check[elem] = False
 
         self.checkEvery = checkEvery
 
@@ -68,31 +91,30 @@ class Subscription():
         feedparser.USER_AGENT = "PuckCatcher/Alpha " + \
                                 "+https://github.com/andrewmichaud/FuckPodcatchers"
 
-
-    def getLatestEntryHelper(self, count):
+    def getEntryHelper(self, entryAge, attemptCount):
         """
-           Helper method to get latest entry that can be called recursively.  Limited to
-           MAX_RECURSIVE_ATTEMPTS attempts.
+        Helper method to get entry that can be called recursively.  Limited to
+        MAX_RECURSIVE_ATTEMPTS attempts.
         """
 
         # TODO We should return a reason/error along with None.
         # Then testing can be stricter.
-        if count > MAX_RECURSIVE_ATTEMPTS:
-            print("Too many recursive attempts ({0}) to get the latest entry for {1}, \
-                  cancelling.".format(count, self.name))
+        if attemptCount > MAX_RECURSIVE_ATTEMPTS:
+            print("Too many recursive attempts ({0}) to get entry with age {1} for subcription " +
+                  "{2}, cancelling.".format(attemptCount, entryAge, self.name))
             return None
 
-        if self.currentUrl is None:
-            print("URL is None, cannot get latest entry for \
-                  {0}".format(self.name))
+        if self.currentUrl is None or self.currentUrl == "":
+            print("URL is empty or None, cannot get entry with age {0} for subscription " +
+                  "{1}".format(entryAge, self.name))
             return None
 
-        if self.currentUrl == "":
-            print("URL is empty, cannot get latest entry for \
-                  {0}".format(self.name))
+        if not isinstance(entryAge, int) or entryAge < 0:
+            print("Invalid entry age {0}.".format(entryAge))
             return None
 
-        print("Attempting to get latest entry (attempt {0}) for {1}".format(count, self.name))
+        print("Attempting to get entry with age {0} (attempt {1}) for subscription {2} " +
+              "with URL {3}.".format(entryAge, attemptCount, self.name, self.currentUrl))
 
         parsed = feedparser.parse(self.currentUrl)
 
@@ -105,7 +127,7 @@ class Subscription():
             self.currentUrl = parsed.href
 
             print("Attempting get with new URL {0}.".format(parsed.href))
-            return self.getLatestEntryHelper(count+1)
+            return self.getEntryHelper(entryAge, attemptCount+1)
 
         elif status == 302:
             print("Temporary Redirect, attempting with new URL {0}.".format(parsed.href))
@@ -113,45 +135,96 @@ class Subscription():
 
             oldUrl = self.currentUrl
             self.currentUrl = parsed.href
-            result = self.getLatestEntryHelper(count+1)
+            result = self.getEntryHelper(entryAge, attemptCount+1)
             self.currentUrl = oldUrl
 
             return result
 
         elif status == 404:
-            print("Page not found at {0}! Unable to retrieve latest entry for \
-                  {0}.".format(self.currentUrl, self.name))
+            print("Page not found at {0}! Unable to retrieve entry with age {1} for " +
+                  "{2}.".format(self.currentUrl, entryAge, self.name))
             print("Current URL will be preserved and checked again on next attempt.")
             return None
 
         elif status == 410:
-
-            print("Saw 410 - Gone at {0}. Unable to retrieve latest entry for \
-                  {1}.".format(self.currentUrl, self.name))
+            print("Saw 410 - Gone at {0}. Unable to retrieve entry with age {1} for " +
+                  "{2}.".format(self.currentUrl, entryAge, self.name))
             print("Clearing stored URL {0}.".format(self.currentUrl))
-            print("Originally provided URL {0} will be preserved, but not \
-                  used.".format(self.providedUrl))
+            print("Originally provided URL {0} will be preserved, but no longer " +
+                  "used.".format(self.providedUrl))
             print("Please provide new URL for subscription {0}.".format(self.name))
             self.currentUrl = None
 
             return None
 
         elif status != 200:
-            print("Saw {0}. Attempting retrieve for {1} with URL {2} again.".format(status,
-                                                                                    self.name,
-                                                                                    self.currentUrl))
-            return self.getLatestEntryHelper(count+1)
+            print("Saw non-200 status {0}. Attempting retrieve for entry with age {1} with URL " +
+                  "{2} anyways.".format(status, self.name, self.currentUrl))
+            return self.getEntryHelper(entryAge, attemptCount+1)
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
         print("status: {0}".format(parsed.status))
         if parsed['bozo'] == 1:
             msg = parsed['bozo_exception'].getMessage()
-            print("Bozo exception!", msg)
+            print("Bozo exception! Unable to retrieve entry with age {0} with URL " +
+                  "{1}.".format(entryAge, self.currentUrl))
             raise PE.MalformedFeedError("Malformed Feed", msg)
 
-        # No errors detected, continue with fetching latest entry.
-        return parsed['entries'][0]
+        # See if the entry we want exists, or if there are not enough entries present.
+        entryCount = len(parsed['entries'])
+        if entryCount < entryAge + 1:
+            print("There are only {0} entries at URL {1}: entry with age {2} does not " +
+                  "exist.".format(entryCount, entryAge, self.currentUrl))
+            return None
 
-    def getLatestEntry(self):
-        """Get latest entry for this subscription. Return None if an error occurs."""
-        return self.getLatestEntryHelper(0)
+        # No errors detected, return entry. What an adventure.
+        return parsed['entries'][entryAge]
+
+    def getEntry(self, entryAge):
+        """
+        Get entry for this subscription. 0 is the newest entry and every higher number is one
+        entry older than that. Return None if an error occurs.
+        """
+        return self.getEntryHelper(entryAge=entryAge, attemptCount=0)
+
+    def downloadFeedFiles(self, directory=None):
+        """
+        Download feed enclosure(s) to specified directory, or ROOT if no directory is specified.
+        """
+
+        if directory is None:
+            directory = os.path.join(DEFAULT_ROOT, self.name)
+            print("Given no directory, defaulting to {0}.".format(directory))
+
+        enclosures = self.entry.enclosures
+        print("Retrieved {0} enclosures for the latest entry.".format(len(enclosures)))
+
+        # Create directory just for enclosures for this entry if there are many.
+        if len(enclosures) > 1:
+            directory = os.path.join(directory, self.entry.title)
+            print("More than 1 enclosure, creating directory {0} to house \
+                  enclosures.".format(directory))
+
+        # TODO Check directory permissions.
+        # TODO verbose output.
+        print("Working with directory {0}.".format(directory))
+        if not os.path.isdir(directory):
+            print("Creating directory {0}.".format(directory))
+            os.mkdir(directory)
+        os.chdir(directory)
+
+        for elem in xrange(len(enclosures)):
+            print("Handling enclosure {0} of {1}.".format(elem, len(enclosures)))
+            url = elem.href
+            print("Extracted url {0}.".format(url))
+            filename = url.split('/')[-1]
+
+            fileLocation = os.path.join(directory, filename)
+            # If there is a file with the name we intend to save to, assume the podcast has been
+            # downloaded already.
+            if not os.path.exists(fileLocation):
+                print("Saving file for enclosure {0} to {1}.".format(elem, fileLocation))
+                urllib.request.urlretrieve(url, fileLocation)
+            else:
+                print("file {0} already exists, assuming already downloaded and not \
+                      overwriting.".format(fileLocation))
