@@ -13,6 +13,9 @@ class Subscription():
     def __init__(self, url=None, name="", days=["ALL"], checkEvery="1 hour"):
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
+        if (url is None or url == ""):
+            raise PE.MalformedFeedError("Malformed Feed", "No URL provided")
+
         self.providedUrl = url
         self.currentUrl = url
 
@@ -60,25 +63,38 @@ class Subscription():
 
         self.checkEvery = checkEvery
 
+        # Set a custom user agent.
+        # TODO include version properly
+        feedparser.USER_AGENT = "PuckCatcher/Alpha " + \
+                                "+https://github.com/andrewmichaud/FuckPodcatchers"
+
+
     def getLatestEntryHelper(self, count):
         """
            Helper method to get latest entry that can be called recursively.  Limited to
            MAX_RECURSIVE_ATTEMPTS attempts.
         """
+
+        # TODO We should return a reason/error along with None.
+        # Then testing can be stricter.
         if count > MAX_RECURSIVE_ATTEMPTS:
             print("Too many recursive attempts ({0}) to get the latest entry for {1}, \
                   cancelling.".format(count, self.name))
             return None
 
+        if self.currentUrl is None:
+            print("URL is None, cannot get latest entry for \
+                  {0}".format(self.name))
+            return None
+
+        if self.currentUrl == "":
+            print("URL is empty, cannot get latest entry for \
+                  {0}".format(self.name))
+            return None
+
         print("Attempting to get latest entry (attempt {0}) for {1}".format(count, self.name))
 
         parsed = feedparser.parse(self.currentUrl)
-
-        # Detect bozo errors (malformed RSS/ATOM feeds).
-        if parsed['bozo'] == 1:
-            msg = parsed['bozo_exception'].getMessage()
-            print("Bozo exception!", msg)
-            raise PE.MalformedFeedError("Malformed Feed", msg)
 
         # Detect some kinds of HTTP status codes signalling failure.
         status = parsed.status
@@ -88,16 +104,16 @@ class Subscription():
                                                                    parsed.href))
             self.currentUrl = parsed.href
 
-            print("Attempting get with new URL {1}.".format(parsed.href))
-            return getLatestEntryHelper(count+1)
+            print("Attempting get with new URL {0}.".format(parsed.href))
+            return self.getLatestEntryHelper(count+1)
 
         elif status == 302:
             print("Temporary Redirect, attempting with new URL {0}.".format(parsed.href))
             print("Stored URL {0} for {1} will be unchanged.".format(self.currentUrl, self.name))
 
             oldUrl = self.currentUrl
-            self.currentUrl = status.href
-            result = getLatestEntryHelper(count+1)
+            self.currentUrl = parsed.href
+            result = self.getLatestEntryHelper(count+1)
             self.currentUrl = oldUrl
 
             return result
@@ -116,7 +132,7 @@ class Subscription():
             print("Originally provided URL {0} will be preserved, but not \
                   used.".format(self.providedUrl))
             print("Please provide new URL for subscription {0}.".format(self.name))
-            self.currentUrl = parsed.href
+            self.currentUrl = None
 
             return None
 
@@ -124,11 +140,18 @@ class Subscription():
             print("Saw {0}. Attempting retrieve for {1} with URL {2} again.".format(status,
                                                                                     self.name,
                                                                                     self.currentUrl))
-            return getLatestEntryHelper(count+1)
+            return self.getLatestEntryHelper(count+1)
+
+        # Detect bozo errors (malformed RSS/ATOM feeds).
+        print("status: {0}".format(parsed.status))
+        if parsed['bozo'] == 1:
+            msg = parsed['bozo_exception'].getMessage()
+            print("Bozo exception!", msg)
+            raise PE.MalformedFeedError("Malformed Feed", msg)
 
         # No errors detected, continue with fetching latest entry.
         return parsed['entries'][0]
 
     def getLatestEntry(self):
         """Get latest entry for this subscription. Return None if an error occurs."""
-        self.getLatestEntryHelper(0)
+        return self.getLatestEntryHelper(0)
