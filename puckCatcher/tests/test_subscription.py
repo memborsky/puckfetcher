@@ -8,7 +8,7 @@ import puckCatcher.puckError as PE
 def test_emptyUrlBozos():
     """An empty URL should throw a MalformedFeedError"""
     emptyURLSubscription = SUB.Subscription(url="")
-    emptyURLSubscription.getLatestEntry("")
+    emptyURLSubscription.getLatestEntry()
 
 def test_emptyDaysParsedCorrectly():
     """
