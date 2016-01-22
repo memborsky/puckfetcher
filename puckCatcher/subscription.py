@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 import urllib
@@ -23,10 +24,10 @@ class Subscription():
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
         if (url is None or url == ""):
-            raise PE.MalformedFeedError("Malformed Feed", "No URL provided")
+            raise PE.MalformedSubscriptionError("No URL provided.")
 
-        self.providedUrl = url
-        self.currentUrl = url
+        self.providedUrl = copy.deepcopy(url)
+        self.currentUrl = copy.deepcopy(url)
 
         # Entry we currently care about. Either the latest entry, or a historical entry if we are
         # trying to catch up.
@@ -72,15 +73,15 @@ class Subscription():
                 elif lowerDay.startswith("sun"):
                     internalDays[6] = True
 
-        self.days = internalDays
-        self.check = days
+        self.days = copy.deepcopy(internalDays)
+        self.check = copy.deepcopy(internalDays)
 
         # We start checking this podcast today. Do not check days before today even if there should
         # have been a podcast on those days.
         # TODO test
-        self.today = datetime.now()
+        self.today = datetime.datetime.now()
         if self.today.isoweekday() > 0:
-            for elem in xrange(0, self.today.isoweekday()):
+            for elem in range(0, self.today.isoweekday()):
                 if self.check[elem]:
                     self.check[elem] = False
 
@@ -100,14 +101,14 @@ class Subscription():
         # TODO We should return a reason/error along with None.
         # Then testing can be stricter.
         if attemptCount > MAX_RECURSIVE_ATTEMPTS:
-            print("Too many recursive attempts ({0}) to get entry with age {1} for subcription " +
+            print("Too many recursive attempts ({0}) to get entry with age {1} for subscription " +
                   "{2}, cancelling.".format(attemptCount, entryAge, self.name))
-            return None
+            raise PE.UnreachableFeedError(desc="Too many attempts needed to reach feed.")
 
         if self.currentUrl is None or self.currentUrl == "":
             print("URL is empty or None, cannot get entry with age {0} for subscription " +
                   "{1}".format(entryAge, self.name))
-            return None
+            raise PE.MalformedSubscriptionError(desc="No URL after construction of subscription.")
 
         if not isinstance(entryAge, int) or entryAge < 0:
             print("Invalid entry age {0}.".format(entryAge))
@@ -144,7 +145,7 @@ class Subscription():
             print("Page not found at {0}! Unable to retrieve entry with age {1} for " +
                   "{2}.".format(self.currentUrl, entryAge, self.name))
             print("Current URL will be preserved and checked again on next attempt.")
-            return None
+            raise PE.UnreachableFeedError(desc="Unable to retrieve podcast.", code=status)
 
         elif status == 410:
             print("Saw 410 - Gone at {0}. Unable to retrieve entry with age {1} for " +
@@ -155,7 +156,7 @@ class Subscription():
             print("Please provide new URL for subscription {0}.".format(self.name))
             self.currentUrl = None
 
-            return None
+            raise PE.UnreachableFeedError(desc="Unable to retrieve podcast.", code=status)
 
         elif status != 200:
             print("Saw non-200 status {0}. Attempting retrieve for entry with age {1} with URL " +
@@ -213,7 +214,7 @@ class Subscription():
             os.mkdir(directory)
         os.chdir(directory)
 
-        for elem in xrange(len(enclosures)):
+        for elem in range(len(enclosures)):
             print("Handling enclosure {0} of {1}.".format(elem, len(enclosures)))
             url = elem.href
             print("Extracted url {0}.".format(url))

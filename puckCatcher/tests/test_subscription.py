@@ -1,5 +1,4 @@
-import nose
-from nose.tools import *
+import nose.tools as NT
 
 import puckCatcher.subscription as SUB
 import puckCatcher.puckError as PE
@@ -12,15 +11,26 @@ http301Address = rssTestHost + "301rss.xml"
 http404Address = rssTestHost + "404rss.xml"
 http410Address = rssTestHost + "410rss.xml"
 
-@raises(PE.MalformedFeedError)
-def test_emptyUrlConstructionErrors():
-    """An empty URL should throw a MalformedFeedError"""
-    sub = SUB.Subscription(url="", name="emptyConstruction")
 
-@raises(PE.MalformedFeedError)
+def test_emptyUrlConstructionErrors():
+    """
+    Constructing a subscription with a URL that is empty should throw a MalformedSubscriptionError.
+    """
+    with NT.assert_raises(PE.MalformedSubscriptionError) as e:
+        SUB.Subscription(url="", name="emptyConstruction")
+
+    NT.assert_equal(e.exception.desc, "No URL provided.")
+
+
 def test_noneUrlConstructionErrors():
-    """An None URL should throw a MalformedFeedError"""
-    sub = SUB.Subscription(name="noneConstruction")
+    """
+    Constructing a subscription with a URL that is None should throw a MalformedSubscriptionError.
+    """
+    with NT.assert_raises(PE.MalformedSubscriptionError) as e:
+        SUB.Subscription(name="noneConstruction")
+
+    NT.assert_equal(e.exception.desc, "No URL provided.")
+
 
 def test_emptyDaysConstructedCorrectly():
     """
@@ -28,7 +38,8 @@ def test_emptyDaysConstructedCorrectly():
     of all false for its days list.
     """
     emptySubscription = SUB.Subscription(url=rssAddress)
-    assert(emptySubscription.days == [False]*7)
+    NT.assert_equal(emptySubscription.days, [False]*7)
+
 
 def test_numberDaysConstructedCorrectly():
     """
@@ -36,7 +47,8 @@ def test_numberDaysConstructedCorrectly():
     Invalid days should be silently ignored.
     """
     sub = SUB.Subscription(name="numberDaysTest", url=rssAddress, days=[1, 2, 42, 5, 7, 0, 0, 1, 2])
-    assert(sub.days == [True, True, False, False, True, False, True])
+    NT.assert_equal(sub.days, [True, True, False, False, True, False, True])
+
 
 def test_stringDaysConstructedCorrectly():
     """
@@ -51,7 +63,8 @@ def test_stringDaysConstructedCorrectly():
                                 , "Fish"
                                 , "Friiiiiiiiiiiday"
                                 , "Sunblargl"])
-    assert(sub.days == [True, True, True, False, True, False, True])
+    NT.assert_equal(sub.days, [True, True, True, False, True, False, True])
+
 
 def test_mixedDaysParsedCorrectly():
     """
@@ -67,27 +80,36 @@ def test_mixedDaysParsedCorrectly():
                                 , 42
                                 , "Friiiiiiiiiiiday"
                                 , "Sunblargl"])
-    assert(sub.days == [True, True, True, False, True, False, True])
+    NT.assert_equal(sub.days, [True, True, True, False, True, False, True])
 
 
 def test_emptyURLAfterConstructionFails():
     """If we set the URL to empty after construction, getting latest entry should fail."""
     sub = SUB.Subscription(url=http302Address, name="emptyTest")
     sub.currentUrl = ""
-    assert(sub.getLatestEntry() is None);
+    with NT.assert_raises(PE.MalformedSubscriptionError) as e:
+        sub.getEntry(0)
+
+    NT.assert_equal(e.exception.desc, "No URL after construction of subscription.")
 
 
 def test_noneURLAfterConstructionFails():
     """If we set the URL to None after construction, getting latest entry should fail."""
     sub = SUB.Subscription(url=http302Address, name="noneTest")
     sub.currentUrl = None
-    assert(sub.getLatestEntry() is None);
+    with NT.assert_raises(PE.MalformedSubscriptionError) as e:
+        sub.getEntry(0)
+
+    NT.assert_equal(e.exception.desc, "No URL after construction of subscription.")
 
 
-def test_getLatestEntryHelperFailsAfterMax():
+def test_getEntryHelperFailsAfterMax():
     """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
     sub = SUB.Subscription(url=http302Address, name="tooManyAttemptsTest")
-    assert(sub.getLatestEntryHelper(SUB.MAX_RECURSIVE_ATTEMPTS+1) == None)
+    with NT.assert_raises(PE.UnreachableFeedError) as e:
+        sub.getEntryHelper(entryAge=0, attemptCount=SUB.MAX_RECURSIVE_ATTEMPTS+1)
+
+    NT.assert_equal(e.exception.desc, "Too many attempts needed to reach feed.")
 
 
 def test_validTemporaryRedirectSucceeds():
@@ -97,9 +119,9 @@ def test_validTemporaryRedirectSucceeds():
     """
 
     sub = SUB.Subscription(url=http302Address, name="302Test")
-    assert(sub.getLatestEntry()["link"] == rssResourceAddress)
-    assert(sub.currentUrl == http302Address)
-    assert(sub.providedUrl == http302Address)
+    NT.assert_equal(sub.getEntry(0)["link"], rssResourceAddress)
+    NT.assert_equal(sub.currentUrl, http302Address)
+    NT.assert_equal(sub.providedUrl, http302Address)
 
 
 def test_validPermanentRedirectSucceeds():
@@ -109,9 +131,9 @@ def test_validPermanentRedirectSucceeds():
     """
 
     sub = SUB.Subscription(url=http301Address, name="301Test")
-    assert(sub.getLatestEntry()["link"] == rssResourceAddress)
-    assert(sub.currentUrl == rssAddress)
-    assert(sub.providedUrl == http301Address)
+    NT.assert_equal(sub.getEntry(0)["link"], rssResourceAddress)
+    NT.assert_equal(sub.currentUrl, rssAddress)
+    NT.assert_equal(sub.providedUrl, http301Address)
 
 
 def test_notFoundFails():
@@ -119,10 +141,13 @@ def test_notFoundFails():
     If the URL is Not Found, we should not change the saved URL, but we should return None.
     """
 
-    sub = SUB.Subscription(url=http404Address, name="404Test")
-    assert(sub.getLatestEntry() is None)
-    assert(sub.currentUrl == http404Address)
-    assert(sub.providedUrl == http404Address)
+    with NT.assert_raises(PE.UnreachableFeedError) as e:
+        sub = SUB.Subscription(url=http404Address, name="404Test")
+        NT.assert_equal(sub.getEntry(entryAge=0), None)
+        NT.assert_equal(sub.currentUrl, http404Address)
+        NT.assert_equal(sub.providedUrl, http404Address)
+
+    NT.assert_equal(e.exception.desc, "Unable to retrieve podcast.")
 
 
 def test_goneFails():
@@ -130,7 +155,10 @@ def test_goneFails():
     If the URL is Gone, the currentUrl should be set to None, and we should return None.
     """
 
-    sub = SUB.Subscription(url=http410Address, name="410Test")
-    assert(sub.getLatestEntry() is None)
-    assert(sub.currentUrl is None)
-    assert(sub.providedUrl == http410Address)
+    with NT.assert_raises(PE.UnreachableFeedError) as e:
+        sub = SUB.Subscription(url=http410Address, name="410Test")
+        NT.assert_equal(sub.getEntry(entryAge=0), None)
+        NT.assert_equal(sub.currentUrl, None)
+        NT.assert_equal(sub.providedUrl, http410Address)
+
+    NT.assert_equal(e.exception.desc, "Unable to retrieve podcast.")
