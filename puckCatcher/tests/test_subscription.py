@@ -2,6 +2,13 @@ import nose
 from nose.tools import *
 
 import puckCatcher.subscription as SUB
+import puckCatcher.puckError as PE
+
+@raises(PE.MalformedFeedError)
+def test_emptyUrlBozos():
+    """An empty URL should throw a MalformedFeedError"""
+    emptyURLSubscription = SUB.Subscription(url="")
+    emptyURLSubscription.getLatestEntry("")
 
 def test_emptyDaysParsedCorrectly():
     """
