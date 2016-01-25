@@ -19,7 +19,7 @@ with open(path.join(here, "README"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(name="PuckCatcher",
-      version="0.1.9",
+      version="0.2.0",
 
       description="A simple podcatcher",
       long_description=long_description,
