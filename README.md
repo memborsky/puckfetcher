@@ -1,4 +1,4 @@
-# FuckPodcatchers
+# puckfetcher
 [![BSD3 License](http://img.shields.io/badge/license-BSD3-brightgreen.svg)](https://tldrlegal.com/license/bsd-3-clause-license-%28revised%29)
 
 [![Build Status](https://travis-ci.org/andrewmichaud/JustSudoku.svg?branch=master)](https://travis-ci.org/andrewmichaud/FuckPodcatchers)
