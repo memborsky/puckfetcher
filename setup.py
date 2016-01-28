@@ -35,7 +35,7 @@ setup(name="puckfetcher",
       author="Andrew Michaud",
       author_email="",
 
-      license="BSD2",
+      license="BSD3",
 
       classifiers=[
           "Development Status :: 3 - Alpha"
