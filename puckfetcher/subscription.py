@@ -5,8 +5,8 @@ import urllib
 
 import feedparser
 
-import puckCatcher.puckError as PE
-import puckCatcher.util as U
+import puckfetcher.error as PE
+import puckfetcher.util as U
 
 MAX_RECURSIVE_ATTEMPTS = 10
 
@@ -166,8 +166,22 @@ class Subscription():
                   "{0}.".format(self.currentUrl))
             raise PE.MalformedFeedError("Malformed Feed", msg)
 
-        # No errors detected, save feed. What an adventure.
-        self.feed = parsed
+        # If we didn't detect any errors, we can save the feed.
+        # However, only save the feed if it is different than the saved feed.
+        # Return a boolean showing whether we changed the saved feed or not.
+        if self.feed is None:
+            print("No existing feed, saving.")
+            self.feed = parsed
+            return True
+
+        elif self.feed != parsed:
+            print("New feed is different than current feed, saving.")
+            self.feed = parsed
+            return True
+
+        else:
+            print("New feed is identical to saved feed, not changing it.")
+            return False
 
     # TODO provide a way to skip rate-limiting for my sites while testing (not in production).
     @U.RateLimited(60)
@@ -243,11 +257,27 @@ class Subscription():
             print("Dates match, checking if we should download.")
             if self.days[self.today.isoweekday()-1]:
                 print("Triggering download.")
-                self.getFeed()
-                self.downloadEntryFiles(0)
+                feedChanged = self.getFeed()
+                if (feedChanged):
+                    self.downloadEntryFiles(0)
+                else:
+                    print("Stored feed not changed, not downloading anything.")
 
         elif (offset.days > 0):
             print("Stored date is behind the actual current date.")
+
+            # Check if there have been new podcasts, so we know if we should bother downloading
+            # anything.
+            print("Retrieving feed for subscription {0}.".format(self.name))
+            feedUpdated = self.getFeed()
+
+            if not feedUpdated:
+                print("Feed not updated, not bothering to download anything.")
+                return
+
+            # TODO if an rss feed doesn't have set days, we can't pull this neat(?) trick to see
+            # how many podcasts to download. We'll just have to compare the feeds and see how many
+            # entries have been added.
             # Determine how many of the days we're behind are days where we would want to check for
             # a podcast.
 
@@ -306,8 +336,6 @@ class Subscription():
 
             print("Missed {0} podcasts for subscription {1}.".format(missed, self.name))
 
-            print("Retrieving feed for subscription {0}.".format(self.name))
-            self.getFeed()
             for i in reversed(range(0, missed)):
                 print("Downloading entry with age {0}.".format(i))
                 self.downloadEntryFiles(i)

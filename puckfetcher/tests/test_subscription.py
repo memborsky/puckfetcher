@@ -4,8 +4,8 @@ import os
 
 import nose.tools as NT
 
-import puckCatcher.subscription as SUB
-import puckCatcher.puckError as PE
+import puckfetcher.subscription as SUB
+import puckfetcher.error as PE
 
 rssTestHost = "https://www.andrewmichaud.com/"
 rssAddress = rssTestHost + "rss.xml"

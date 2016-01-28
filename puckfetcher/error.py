@@ -1,7 +1,7 @@
 import http.client
 
 
-# TODO inherit desc from PuckError in whatever the Python way is.
+# TODO inherit desc from this error in whatever the Python way is.
 class PuckError(Exception):
     """
     Generic Exception for errors in this project.

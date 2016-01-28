@@ -1,5 +1,5 @@
 """
-setuptools-based setup module for FuckPodcatchers
+setuptools-based setup module for puckfetcher
 """
 
 # Modeled on Python sample project setup.py -
@@ -18,8 +18,8 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README"), encoding="utf-8") as f:
     long_description = f.read()
 
-setup(name="PuckCatcher",
-      version="0.2.0",
+setup(name="puckfetcher",
+      version="0.2.1",
 
       description="A simple podcatcher",
       long_description=long_description,
@@ -29,7 +29,7 @@ setup(name="PuckCatcher",
       tests_require=["nose"],
 
       # Project"s main homepage
-      url="https://github.com/andrewmichaud/FuckPodcatchers",
+      url="https://github.com/andrewmichaud/puckfetcher",
 
       # Author details
       author="Andrew Michaud",

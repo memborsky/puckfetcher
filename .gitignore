@@ -1,2 +1,6 @@
 *.pyc
+.eggs
 .ropeproject
+puckfetcher/lib
+puckfetcher/bin
+puckfetcher/include
