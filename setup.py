@@ -19,14 +19,14 @@ with open(path.join(here, "README"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(name="puckfetcher",
-      version="0.2.1",
+      version="0.2.2",
 
       description="A simple podcatcher",
       long_description=long_description,
 
       packages=find_packages(),
       test_suite="nose.collector",
-      tests_require=["nose"],
+      tests_require=["feedparser", "nose", "pyyaml"],
 
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
@@ -41,4 +41,4 @@ setup(name="puckfetcher",
           "Development Status :: 3 - Alpha"
       ],
 
-      install_requires=["feedparser"])
+      install_requires=["feedparser", "pyyaml"])
