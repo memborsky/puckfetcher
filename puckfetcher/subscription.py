@@ -1,5 +1,4 @@
 import copy
-import datetime
 import os
 import urllib
 
@@ -10,82 +9,62 @@ import puckfetcher.util as U
 
 MAX_RECURSIVE_ATTEMPTS = 10
 
-# TODO XDG defaults
-DEFAULT_ROOT = os.path.join(os.getcwd(), "store")
-
 # TODO Switch to some kind of proper log library.
 # TODO clean up prints to not have weird gaps.
 
 
 # TODO describe field members, function parameters in docstrings.
 class Subscription():
-    """
-    Object describing a podcast subscription.
-    """
+    """Object describing a podcast subscription."""
 
-    def __init__(self, url=None, name="", days=["ALL"]):
+    def __init__(self, url=None, name=None, directory=None, download_backlog=True,
+                 backlog_limit=None):
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
         if (url is None or url == ""):
             raise PE.MalformedSubscriptionError("No URL provided.")
-
-        self.providedUrl = copy.deepcopy(url)
-        self.currentUrl = copy.deepcopy(url)
-
-        # Save feed so we can retrieve multiple entries without retrieving it again.
-        # TODO allow multiple downloads at once.
-        self.feed = None
+        else:
+            self.provided_url = copy.deepcopy(url)
+            self.current_url = copy.deepcopy(url)
 
         # Maintain name of podcast.
-        self.name = name
+        if (name is None or name == ""):
+            raise PE.MalformedSubscriptionError("No name provided.")
+        else:
+            self.name = name
 
-        # Attempt to parse date array. It will be stored internally as a list
-        # of seven bools, to show whether we should look for a podcast on that
-        # day. Weeks start on a Monday.
+        # Save feed so we can retrieve multiple entries without retrieving it again.
+        # Maintain old feed so we can
+        # TODO allow multiple downloads at once.
+        self.feed = None
+        self.old_feed = None
 
-        # Allow either a string (Tuesday) or integer (2) day.
-        uniqueDays = set(days)
-        internalDays = [False] * 7
-        # TODO should probably loudly fail if we can't parse.
-        for day in uniqueDays:
+        if directory is None:
+            self.directory = U.get_xdg_data_dir_path(__package__, self.name)
 
-            # Allow integer for day of week.
-            if isinstance(day, int):
-                if day < 1 or day > 7:
-                    pass
-                else:
-                    internalDays[day-1] = True
+            if not os.path.isdir(self.directory):
+                os.makedirs(self.directory)
+        else:
+            self.directory = directory
 
-            # Allow three-letter abbreviations, or full names.
-            elif isinstance(day, str):
-                lowerDay = day.lower()
+        self.download_backlog = download_backlog
+        if download_backlog:
+            self.backlog_limit = backlog_limit
 
-                # User can put in 'monblarg', 'wedgargl', etc. if they want.
-                if lowerDay.startswith("mon"):
-                    internalDays[0] = True
-                elif lowerDay.startswith("tue"):
-                    internalDays[1] = True
-                elif lowerDay.startswith("wed"):
-                    internalDays[2] = True
-                elif lowerDay.startswith("thur"):
-                    internalDays[3] = True
-                elif lowerDay.startswith("fri"):
-                    internalDays[4] = True
-                elif lowerDay.startswith("sat"):
-                    internalDays[5] = True
-                elif lowerDay.startswith("sun"):
-                    internalDays[6] = True
-
-        self.days = copy.deepcopy(internalDays)
-
-        self.today = datetime.datetime.now().date()
+        else:
+            self.get_feed()
 
         # Set a custom user agent.
         # TODO include version properly
-        feedparser.USER_AGENT = "PuckCatcher/Alpha " + \
-                                "+https://github.com/andrewmichaud/FuckPodcatchers"
+        # TODO pull url from setup.py or something
+        feedparser.USER_AGENT = __package__ + \
+            "/Alpha +https://github.com/andrewmichaud/puckfetcher"
 
-    def getFeedHelper(self, attemptCount):
+        # Provide rate limiting.
+        self.get_feed = U.rate_limited(60, self.name)(self.get_feed)
+        self.download_entry_files = U.rate_limited(30, self.name)(self.download_entry_files)
+
+    def get_feed_helper(self, attempt_count):
         """
         Helper method to get feed text that can be called recursively. Limited to
         MAX_RECURSIVE_ATTEMPTS attempts.
@@ -93,89 +72,85 @@ class Subscription():
 
         # TODO We should return a reason/error along with None.
         # Then testing can be stricter.
-        if attemptCount > MAX_RECURSIVE_ATTEMPTS:
-            print("Too many recursive attempts ({0}) to get feed text for subscription " +
-                  "{1}, cancelling.".format(attemptCount, self.name))
+        if attempt_count > MAX_RECURSIVE_ATTEMPTS:
+            print("""Too many recursive attempts ({0}) to get feed text for subscription
+                   {1}, cancelling.""".format(attempt_count, self.name))
             raise PE.UnreachableFeedError(desc="Too many attempts needed to reach feed.")
 
-        if self.currentUrl is None or self.currentUrl == "":
-            print("URL is empty or None, cannot get feed text for subscription " +
-                  "{0}".format(self.name))
+        if self.current_url is None or self.current_url == "":
+            print("""URL is empty or None, cannot get feed text for subscription
+             {0}""".format(self.name))
             raise PE.MalformedSubscriptionError(desc="No URL after construction of subscription.")
 
         print("""Attempting to get feed text (attempt {0}) for subscription {1}
-              with URL {2}.""".format(attemptCount, self.name, self.currentUrl))
+         with URL {2}.""".format(attempt_count, self.name, self.current_url))
 
-        parsed = feedparser.parse(self.currentUrl)
+        parsed = feedparser.parse(self.current_url)
 
         # Detect some kinds of HTTP status codes signalling failure.
         status = parsed.status
         if status == 301:
             print("Permanent redirect to {0}.".format(parsed.href))
-            print("Changing stored URL {0} for {1} to {2}.".format(self.currentUrl, self.name,
+            print("Changing stored URL {0} for {1} to {2}.".format(self.current_url, self.name,
                                                                    parsed.href))
-            self.currentUrl = parsed.href
+            self.current_url = parsed.href
 
             print("Attempting get with new URL {0}.".format(parsed.href))
-            return self.getFeedHelper(attemptCount+1)
+            return self.get_feed_helper(attempt_count+1)
 
         elif status == 302:
             print("Temporary Redirect, attempting with new URL {0}.".format(parsed.href))
-            print("Stored URL {0} for {1} will be unchanged.".format(self.currentUrl, self.name))
+            print("Stored URL {0} for {1} will be unchanged.".format(self.current_url, self.name))
 
-            oldUrl = self.currentUrl
-            self.currentUrl = parsed.href
-            result = self.getFeedHelper(attemptCount+1)
-            self.currentUrl = oldUrl
+            old_url = self.current_url
+            self.current_url = parsed.href
+            result = self.get_feed_helper(attempt_count+1)
+            self.current_url = old_url
 
             return result
 
         elif status == 404:
-            print("Page not found at {0}! Unable to retrieve feed text for " +
-                  "{1}.".format(self.currentUrl, self.name))
+            print("""Page not found at {0}! Unable to retrieve feed text for
+             {1}.""".format(self.current_url, self.name))
             print("Current URL will be preserved and checked again on next attempt.")
             raise PE.UnreachableFeedError(desc="Unable to retrieve feed.", code=status)
 
         elif status == 410:
-            print("Saw 410 - Gone at {0}. Unable to retrieve feed text for " +
-                  "{1}.".format(self.currentUrl, self.name))
-            print("Clearing stored URL {0}.".format(self.currentUrl))
-            print("Originally provided URL {0} will be preserved, but no longer " +
-                  "used.".format(self.providedUrl))
+            print("""Saw 410 - Gone at {0}. Unable to retrieve feed text for
+             {1}.""".format(self.current_url, self.name))
+            print("Clearing stored URL {0}.".format(self.current_url))
+            print("""Originally provided URL {0} will be preserved, but no longer
+             used.""".format(self.provided_url))
             print("Please provide new URL for subscription {0}.".format(self.name))
-            self.currentUrl = None
+            self.current_url = None
 
             raise PE.UnreachableFeedError(desc="Unable to retrieve feed.", code=status)
 
         # TODO hook for dealing with password-protected feeds.
         elif status == 401:
             print("""Saw 401 - Forbidden at {0}. Unable to retrieve feed text for
-                  {1}.""".format(self.currentUrl, self.name))
+             {1}.""".format(self.current_url, self.name))
             return None
 
         elif status != 200:
-            print("Saw non-200 status {0}. Attempting retrieve for feed text for URL " +
-                  "{1} anyways.".format(status, self.name, self.currentUrl))
-            return self.getFeedHelper(attemptCount+1)
+            print("""Saw non-200 status {0}. Attempting retrieve for feed text for URL
+             {1} anyways.""".format(status, self.name, self.current_url))
+            return self.get_feed_helper(attempt_count+1)
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
         print("status: {0}".format(parsed.status))
         if parsed['bozo'] == 1:
             msg = parsed['bozo_exception'].getMessage()
-            print("Bozo exception! Unable to retrieve feed text for URL " +
-                  "{0}.".format(self.currentUrl))
+            print("""Bozo exception! Unable to retrieve feed text for URL
+             {0}.""".format(self.current_url))
             raise PE.MalformedFeedError("Malformed Feed", msg)
 
         # If we didn't detect any errors, we can save the feed.
         # However, only save the feed if it is different than the saved feed.
         # Return a boolean showing whether we changed the saved feed or not.
-        if self.feed is None:
-            print("No existing feed, saving.")
-            self.feed = parsed
-            return True
-
-        elif self.feed != parsed:
+        if self.feed is None or self.feed != parsed:
             print("New feed is different than current feed, saving.")
+            self.old_feed = copy.deepcopy(self.feed)
             self.feed = parsed
             return True
 
@@ -183,35 +158,28 @@ class Subscription():
             print("New feed is identical to saved feed, not changing it.")
             return False
 
-    # TODO provide a way to skip rate-limiting for my sites while testing (not in production).
-    @U.RateLimited(60)
-    def getFeed(self):
+    # TODO provide a way to skip rate-limiting in dev mode.
+    def get_feed(self):
         """Get RSS structure for this subscription. Return None if an error occurs."""
-        return self.getFeedHelper(attemptCount=0)
+        return self.get_feed_helper(attempt_count=0)
 
-    @U.RateLimited(30)
-    def downloadEntryFiles(self, entryAge=0, directory=None):
-        """
-        Download feed enclosure(s) to specified directory, or DEFAULT_ROOT if no directory is
-        specified.
-        """
+    def download_entry_files(self, entry_age=0):
+        """Download feed enclosure(s) to object directory."""
 
-        if directory is None:
-            directory = os.path.join(DEFAULT_ROOT, self.name)
-            print("Given no directory, defaulting to {0}.".format(directory))
+        directory = self.directory
+        if entry_age < 0 or entry_age > len(self.feed["entries"]):
+            print("Invalid entry age {0}.".format(entry_age))
 
-        if entryAge < 0 or entryAge > len(self.feed["entries"]):
-            print("Invalid entry age {0}.".format(entryAge))
-
-        entry = self.feed["entries"][entryAge]
+        entry = self.feed["entries"][entry_age]
         enclosures = entry.enclosures
-        print("Retrieved {0} enclosures for the latest entry.".format(len(enclosures)))
+        print("Retrieved {0} enclosures for entry with age {1}.".format(len(enclosures),
+                                                                        entry_age))
 
         # Create directory just for enclosures for this entry if there are many.
         if len(enclosures) > 1:
             directory = os.path.join(directory, entry.title)
-            print("More than 1 enclosure, creating directory {0} to house \
-                  enclosures.".format(directory))
+            print("""More than 1 enclosure, creating directory {0} to house
+             enclosures.""".format(directory))
 
         # TODO Check directory permissions.
         print("Working with directory {0}.".format(directory))
@@ -225,121 +193,56 @@ class Subscription():
             print("Extracted url {0}.".format(url))
             filename = url.split('/')[-1]
 
-            fileLocation = os.path.join(directory, filename)
+            file_location = os.path.join(directory, filename)
             # If there is a file with the name we intend to save to, assume the podcast has been
             # downloaded already.
-            if not os.path.exists(fileLocation):
-                print("Saving file for enclosure {0} to {1}.".format(elem+1, fileLocation))
-                urllib.request.urlretrieve(url, fileLocation)
+            if not os.path.exists(file_location):
+                print("Saving file for enclosure {0} to {1}.".format(elem+1, file_location))
+                urllib.request.urlretrieve(url, file_location)
             else:
-                print("file {0} already exists, assuming already downloaded and not \
-                      overwriting.".format(fileLocation))
+                print("""File {0} already exists, assuming already downloaded and not
+                 overwriting.""".format(file_location))
 
-    def attemptUpdate(self):
+    def attempt_update(self):
         """Attempt to download new podcasts for a subscription."""
 
-        # Detect how far we've drifted from the correct current date.
-        # This lets us estimate how many podcasts we should download.
-        currentToday = datetime.datetime.now().date()
-        offset = currentToday - self.today
-        oneDelta = datetime.timedelta(1)
-        newDate = currentToday + oneDelta
-        print("Stored date: {0}.".format(self.today))
-        print("Current date: {0}.".format(currentToday))
-        print("Difference: {0}.".format(offset))
+        # Check how many entries we've missed.
+        print("Current feed: {0}.".format(self.feed))
+        print("Old feed: {0}.".format(self.old_feed))
 
-        if offset.days < 0:
-            print("Stored date is ahead of the actual current date.")
-            print("Doing nothing until it catches up.")
-            return
+        # TODO attempt to clean up this logic.
+        if self.feed is None or self.feed != self.old_feed:
+            # Handle backlog if necessary.
+            if self.feed is None:
+                self.get_feed()
 
-        elif offset.days == 0:
-            print("Dates match, checking if we should download.")
-            if self.days[self.today.isoweekday()-1]:
-                print("Triggering download.")
-                feedChanged = self.getFeed()
-                if (feedChanged):
-                    self.downloadEntryFiles(0)
+            if self.download_backlog:
+                feed_len = len(self.feed["entries"])
+                if self.backlog_limit is not None and self.backlog_limit < feed_len:
+                    new_feeds_count = self.backlog_limit
                 else:
-                    print("Stored feed not changed, not downloading anything.")
+                    new_feeds_count = feed_len
 
-        elif (offset.days > 0):
-            print("Stored date is behind the actual current date.")
+            else:
 
-            # Check if there have been new podcasts, so we know if we should bother downloading
-            # anything.
-            print("Retrieving feed for subscription {0}.".format(self.name))
-            feedUpdated = self.getFeed()
+                # Get count of new feeds.
+                if self.old_feed is None:
+                    new_feeds_count = len(self.feed["entries"])
+                else:
+                    new_feeds_count = len(self.feed["entries"]) - len(self.old_feed["entries"])
 
-            if not feedUpdated:
-                print("Feed not updated, not bothering to download anything.")
+            if new_feeds_count is None or new_feeds_count == 0:
+                print("No new entries, no need to update.")
                 return
 
-            # TODO if an rss feed doesn't have set days, we can't pull this neat(?) trick to see
-            # how many podcasts to download. We'll just have to compare the feeds and see how many
-            # entries have been added.
-            # Determine how many of the days we're behind are days where we would want to check for
-            # a podcast.
+            elif new_feeds_count < 0:
+                print("Something bizarre has happened. Less than zero new feeds? Not updating.")
+                return
 
-            missed = 0
-            dayBuckets = [0]*7
-
-            # If the offset is small enough, just go through every day and record what days of the
-            # week we missed.
-            if (offset.days <= 7):
-                print("Offset ({0}), less than 7.".format(offset))
-                for i in range(offset.days):
-                    index = (self.today + datetime.timedelta(i)).isoweekday()
-                    print("Incrementing bucket {0}.".format(i))
-                    dayBuckets[index-1] += 1
-
-            # Otherwise, handle the weeks of self.today and currentToday like we did in the other
-            # if case, and then just divide by 7 to figure out how many other days we missed.
             else:
-                while self.today.isoweekday() < 7:
-                    print("""Handling first week of offset. self.today is now
-                          {0}.""".format(self.today))
-                    print("Offset is now {0}.".format(offset))
-                    print("Current ISO weekday is {0}.".format(self.today.isoweekday()))
-                    dayBuckets[self.today.isoweekday()-1] += 1
-                    self.today += oneDelta
-                    offset -= oneDelta
-
-                dayBuckets[self.today.isoweekday()-1] += 1
-                offset -= oneDelta
-
-                while currentToday.isoweekday() > 1:
-                    print("Handling last week of offset. currentToday is now " +
-                          "{0}.".format(currentToday))
-                    print("Offset is now {0}.".format(offset))
-                    print("Current ISO weekday is {0}.".format(currentToday.isoweekday()))
-                    dayBuckets[currentToday.isoweekday()-1] += 1
-                    currentToday -= oneDelta
-                    offset -= oneDelta
-
-                dayBuckets[currentToday.isoweekday()-1] += 1
-                offset -= oneDelta
-
-                perWeekdayPassed = offset / 7
-                print("Incrementing every day by {0}.".format(perWeekdayPassed))
-                for day in range(len(dayBuckets)):
-                    dayBuckets[day] += perWeekdayPassed.days
-
-            print("Final daybucket contents:")
-            for day in range(len(dayBuckets)):
-                print("daybucket {0} has {1}.".format(day, dayBuckets[day]))
-
-            # Determine how many of the days that have passed would have had a podcast.
-            for i in range(len(dayBuckets)):
-                if self.days[i]:
-                    missed += dayBuckets[i]
-
-            print("Missed {0} podcasts for subscription {1}.".format(missed, self.name))
-
-            for i in reversed(range(0, missed)):
-                print("Downloading entry with age {0}.".format(i))
-                self.downloadEntryFiles(i)
-
-        print("Incrementing stored day from {0} to {1}.".format(self.today, self.today + oneDelta))
-        self.today = newDate
-        print("Stored day is {0}.".format(self.today))
+                for i in reversed(range(0, new_feeds_count)):
+                    print("Downloading entry with age {0}.".format(i))
+                    self.download_entry_files(i)
+        else:
+            print("No new entries, no need to update.")
+            return

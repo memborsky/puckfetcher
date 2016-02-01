@@ -43,8 +43,16 @@ class MalformedFeedError(PuckError):
 
     Attributes:
         desc    -- short message describing error
-        bozoMsg -- bozo exception message
+        bozo_msg -- bozo exception message
     """
-    def __init__(self, desc, bozoMsg):
+    def __init__(self, desc, bozo_msg):
         self.desc = desc
-        self.bozoMsg = bozoMsg
+        self.bozo_msg = bozo_msg
+
+
+class InvalidConfigError(PuckError):
+    """
+    Exception raised when the config file provides invalid options and we can't recover.
+    """
+    def __init__(self, desc):
+        self.desc = desc
