@@ -9,7 +9,8 @@ install:
     - python setup.py install
     - pip install coveralls
 script:
-    - coverage run --source=puckCatcher setup.py test --verbosity=2
+    - coverage run --source=puckfetcher setup.py test
+    - coverage report -m
 
 after_success:
     - coveralls

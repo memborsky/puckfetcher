@@ -6,7 +6,7 @@ LAST_CALLED = {}
 
 
 # Modified from https://stackoverflow.com/a/667706
-def rate_limited(max_per_hour, *args):
+def rate_limited(production, max_per_hour, *args):
     """Decorator to limit function to N calls/hour."""
     min_interval = 3600.0 / float(max_per_hour)
 
@@ -24,7 +24,7 @@ def rate_limited(max_per_hour, *args):
             remaining = min_interval - elapsed
             print("last_called", last_called)
             print("remaining", remaining)
-            if remaining > 0 and last_called > 0.0:
+            if production and remaining > 0 and last_called > 0.0:
                 print("Self-enforced rate limit hit, sleeping {0} seconds.".format(remaining))
                 time.sleep(remaining)
 

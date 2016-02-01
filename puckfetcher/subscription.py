@@ -17,8 +17,12 @@ MAX_RECURSIVE_ATTEMPTS = 10
 class Subscription():
     """Object describing a podcast subscription."""
 
+    # TODO Specify production vs test properly, somehow.
     def __init__(self, url=None, name=None, directory=None, download_backlog=True,
-                 backlog_limit=None):
+                 backlog_limit=None, production=True):
+
+        self.production=production
+
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
         if (url is None or url == ""):
@@ -61,8 +65,9 @@ class Subscription():
             "/Alpha +https://github.com/andrewmichaud/puckfetcher"
 
         # Provide rate limiting.
-        self.get_feed = U.rate_limited(60, self.name)(self.get_feed)
-        self.download_entry_files = U.rate_limited(30, self.name)(self.download_entry_files)
+        self.get_feed = U.rate_limited(self.production, 60, self.name)(self.get_feed)
+        self.download_entry_files = U.rate_limited(self.production, 30,
+                                                   self.name)(self.download_entry_files)
 
     def get_feed_helper(self, attempt_count):
         """

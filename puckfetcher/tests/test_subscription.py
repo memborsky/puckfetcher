@@ -109,7 +109,7 @@ def test_not_found_fails():
 def test_gone_fails():
     """If the URL is Gone, the current url should be set to None, and we should return None."""
 
-    sub = SUB.Subscription(url=http410Address, name="410Test")
+    sub = SUB.Subscription(url=http410Address, name="410Test", production=False)
     with NT.assert_raises(PE.UnreachableFeedError) as e:
         sub.get_feed()
 
@@ -122,11 +122,11 @@ def test_gone_fails():
 # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
 def test_attempt_download_backlog():
     """Should download full backlog by default."""
-    sub = SUB.Subscription(url=rssAddress, name="testfeed")
+    sub = SUB.Subscription(url=rssAddress, name="testfeed", production=False)
     sub.attempt_update()
 
     NT.assert_equal(len(sub.feed["entries"]), 10)
-    for i in range(0, 9):
+    for i in range(0, 1):
         f = os.path.join(sub.directory, "hi0{0}.txt".format(i))
         with open(f, "r") as enclosure:
             data = enclosure.read().replace('\n', '')
@@ -138,7 +138,7 @@ def test_attempt_download_backlog():
 
 def test_attempt_download_partial_backlog():
     """Should download partial backlog if limit is specified."""
-    sub = SUB.Subscription(url=rssAddress, name="testfeed", backlog_limit=5)
+    sub = SUB.Subscription(url=rssAddress, name="testfeed", backlog_limit=5, production=False)
     sub.attempt_update()
 
     NT.assert_equal(len(sub.feed["entries"]), 10)
