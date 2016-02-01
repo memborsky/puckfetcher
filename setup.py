@@ -1,6 +1,4 @@
-"""
-setuptools-based setup module for puckfetcher
-"""
+"""setuptools-based setup module for puckfetcher."""
 
 # Modeled on Python sample project setup.py -
 # https://github.com/pypa/sampleproject
@@ -15,22 +13,25 @@ here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file.
 # Python standard seems to be .rst, but I prefer Markdown.
-with open(path.join(here, "README"), encoding="utf-8") as f:
+with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
-setup(
-      # Author details
-      author="Andrew Michaud",
+setup(author="Andrew Michaud",
       author_email="",
 
-      classifiers=["Development Status :: 3 - Alpha"],
+      classifiers=["Development Status :: 4 - Beta"
+                   "Environment :: Console",
+                   "Intended Audience :: End Users/Desktop",
+                   "License :: OSI Approved :: BSD License",
+                   "Operating System :: MacOS :: MacOS X",
+                   "Operating System :: POSIX",
+                   "Programming Language :: Python",
+                   "Topic :: Utilities"],
 
-      description="A simple podcatcher",
+      description="A simple command-line podcatcher.",
 
       entry_points={
-          "console_scripts": [
-              "puckfetcher = puckfetcher.__main__:main"
-          ]
+          "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
       },
 
       install_requires=["feedparser", "pyyaml"],
@@ -49,4 +50,4 @@ setup(
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
 
-      version="0.3.0")
+      version="0.3.1")

@@ -54,5 +54,9 @@ class Config():
             else:
                 url = sub_yaml["url"]
 
-            sub = S.Subscription(name=name, url=url)
+            download_backlog = sub_yaml.get("download_backlog", True)
+            backlog_limit = sub_yaml.get("backlog_limit", None)
+
+            sub = S.Subscription(name=name, url=url, download_backlog=download_backlog,
+                                 backlog_limit=backlog_limit)
             self.subscriptions.append(sub)
