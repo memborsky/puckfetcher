@@ -123,6 +123,7 @@ def test_gone_fails():
 def test_attempt_download_backlog():
     """Should download full backlog by default."""
     sub = SUB.Subscription(url=rssAddress, name="testfeed", production=False)
+    sub.get_feed()
     sub.attempt_update()
 
     NT.assert_equal(len(sub.feed["entries"]), 10)
@@ -139,6 +140,7 @@ def test_attempt_download_backlog():
 def test_attempt_download_partial_backlog():
     """Should download partial backlog if limit is specified."""
     sub = SUB.Subscription(url=rssAddress, name="testfeed", backlog_limit=5, production=False)
+    sub.get_feed()
     sub.attempt_update()
 
     NT.assert_equal(len(sub.feed["entries"]), 10)

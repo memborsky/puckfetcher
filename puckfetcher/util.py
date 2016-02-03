@@ -1,8 +1,12 @@
+import logging
 import os
 import platform
+import textwrap
 import time
 
 LAST_CALLED = {}
+
+logger = logging.getLogger("root")
 
 
 # Modified from https://stackoverflow.com/a/667706
@@ -14,7 +18,9 @@ def rate_limited(production, max_per_hour, *args):
         things = [func.__name__]
         things.extend(args)
         key = "".join(things)
+        logger.debug("Rate limiter called for {0}.".format(key))
         if key not in LAST_CALLED:
+            logger.debug("Initializing entry for {0}.".format(key))
             LAST_CALLED[key] = 0.0
 
         def rate_limited_function(*args, **kargs):
@@ -22,56 +28,131 @@ def rate_limited(production, max_per_hour, *args):
             now = time.time()
             elapsed = now - last_called
             remaining = min_interval - elapsed
-            print("last_called", last_called)
-            print("remaining", remaining)
+            logger.debug("Rate limiter last called for {0} at {1}.".format(key, last_called))
+            logger.debug("Remaining cooldown time for {0} is {1}.".format(key, remaining))
+
             if production and remaining > 0 and last_called > 0.0:
-                print("Self-enforced rate limit hit, sleeping {0} seconds.".format(remaining))
+                logger.info(textwrap.dedent(
+                    "Self-enforced rate limit hit, sleeping {0} seconds.".format(remaining)))
                 time.sleep(remaining)
 
             ret = func(*args, **kargs)
             LAST_CALLED[key] = now
+            logger.debug("Updating rate limiter last called for {0} to {1}.".format(key, now))
             return ret
 
         return rate_limited_function
-
     return decorate
 
 
-# NOTE I don't know if it's XDG spec to dump into Library on OSX, but most applications there do
-# that, so I'm going to stick with it.
-def get_xdg_config_dir_path(*args):
-    """Return XDG Base Spec Config dir, taking into account platform. Append arguments to path."""
+def get_xdg_config_home_path():
+    """Provide path of XDG_CONFIG_HOME for platform, using current env value if present."""
     system = platform.system()
+    home = os.environ.get("HOME")
     if system == "Darwin":
-        default_config = os.path.join(os.environ.get("HOME"), "Library", "Preferences")
+        default = os.path.join(home, "Library", "Preferences")
 
     # TODO This doesn't handle Windows correctly, and may not handle *BSD correctly, if we care
     # about that.
     else:
-        default_config = os.path.join(os.environ.get("HOME"), ".config")
+        default = os.path.join(home, ".config")
 
-    return os.path.join(os.getenv("XDG_CONFIG_HOME", default_config), *args)
+    directory = os.getenv("XDG_CONFIG_HOME", default)
+    logger.debug("Providing {0} as $XDG_CONFIG_HOME value.".format(directory))
+    return get_directory_generic(directory)
+
+
+def get_xdg_config_file_path(*args):
+    """Provide full path to a file in XDG_CONFIG_HOME, joining args to XDG_CONFIG_HOME."""
+    xdg_config_home = get_xdg_config_home_path()
+    return get_file_generic(xdg_config_home, *args)
+
+
+def get_xdg_config_dir_path(*args):
+    """Provide full directory path in XDG_CONFIG_HOME, joining args to XDG_CONFIG_HOME."""
+    xdg_config_home = get_xdg_config_home_path()
+    return get_directory_generic(xdg_config_home, *args)
+
+
+def get_xdg_data_home_path():
+    """Provide path of XDG_DATA_HOME for platform, using current env value if present."""
+    system = platform.system()
+    home = os.environ.get("HOME")
+    if system == "Darwin":
+        default = os.path.join(home, "Library")
+
+    else:
+        default = os.path.join(home, ".local", "share")
+
+    directory = os.getenv("XDG_DATA_HOME", default)
+    logger.debug("Providing {0} as $XDG_DATA_HOME value.".format(directory))
+    return get_directory_generic(directory)
+
+
+def get_xdg_data_file_path(create=True, *args):
+    """Provide full path to a file in XDG_DATA_HOME, joining args to XDG_DATA_HOME."""
+    xdg_data_home = get_xdg_data_home_path()
+    return get_file_generic(xdg_data_home, *args)
 
 
 def get_xdg_data_dir_path(*args):
-    """Return XDG Base Spec Data dir, taking into account platform. Append arguments to path."""
+    """Provide full directory path in XDG_DATA_HOME, joining args to XDG_DATA_HOME."""
+    xdg_data_home = get_xdg_data_home_path()
+    return get_directory_generic(xdg_data_home, *args)
+
+
+def get_xdg_cache_home_path():
+    """Provide path of XDG_CACHE_HOME for platform, using current env value if present."""
     system = platform.system()
+    home = os.environ.get("HOME")
     if system == "Darwin":
-        default_data = os.path.join(os.environ.get("HOME"), "Library")
+        default = os.path.join(home, "Library", "Caches")
 
+    # TODO This doesn't handle Windows correctly, and may not handle *BSD correctly, if we care
+    # about that.
     else:
-        default_data = os.path.join(os.environ.get("HOME"), ".local", "share")
+        default = os.path.join(home, ".cache")
 
-    return os.path.join(os.getenv("XDG_DATA_HOME", default_data), *args)
+    directory = os.getenv("XDG_CACHE_HOME", default)
+    logger.debug("Providing {0} as $XDG_CACHE_HOME value.".format(directory))
+    return get_directory_generic(directory)
+
+
+def get_xdg_cache_file_path(*args):
+    """Provide full path to a file in XDG_CACHE_HOME, joining args to XDG_CACHE_HOME."""
+    xdg_cache_home = get_xdg_cache_home_path()
+    return get_file_generic(xdg_cache_home, *args)
 
 
 def get_xdg_cache_dir_path(*args):
-    """Return XDG Base Spec Cache dir, taking into account platform. Append arguments to path."""
-    system = platform.system()
-    if system == "Darwin":
-        default_cache = os.path.join(os.environ.get("HOME"), "Library", "Caches")
+    """Provide full directory path in XDG_CACHE_HOME, joining args to XDG_CACHE_HOME."""
+    xdg_cache_home = get_xdg_cache_home_path()
+    return get_directory_generic(xdg_cache_home, *args)
 
-    else:
-        default_cache = os.path.join(os.environ.get("HOME"), ".cache")
 
-    return os.path.join(os.getenv("XDG_CACHE_HOME", default_cache), *args)
+def get_file_generic(*args):
+    """Get full file path from args, creating intermediate directories and file if needed."""
+    full_path = os.path.join(*args)
+
+    directory, _ = os.path.split(full_path)
+
+    if not os.path.exists(directory):
+        logger.debug("Creating intermediate directories in  path {0}.".format(directory))
+        os.makedirs(directory)
+
+    if not os.path.exists(full_path):
+        logger.debug("Creating file {0}.".format(full_path))
+        open(full_path, "a").close()
+
+    return full_path
+
+
+def get_directory_generic(*args):
+    """Get full directory path from args, creating intermediate and final directories if needed."""
+    full_path = os.path.join(*args)
+
+    if not os.path.exists(full_path):
+        logger.debug("Creating intermediate and final directories in path {0}.".format(full_path))
+        os.makedirs(full_path)
+
+    return full_path
