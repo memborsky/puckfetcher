@@ -1,6 +1,3 @@
-import http.client
-
-
 # TODO inherit desc from this error in whatever the Python way is.
 class PuckError(Exception):
     """
@@ -32,9 +29,6 @@ class UnreachableFeedError(PuckError):
     def __init__(self, desc, code=None, name=None):
         self.desc = desc
         self.code = code
-        self.name = name
-        if self.name is None and self.code is not None:
-            self.name = http.client.responses[self.code]
 
 
 class MalformedFeedError(PuckError):
