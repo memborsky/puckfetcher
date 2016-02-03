@@ -3,10 +3,9 @@ import logging
 import os
 import pkg_resources
 import textwrap
-import urllib
-from urllib.request import FancyURLopener
 
 import feedparser
+import requests
 
 import puckfetcher.error as PE
 import puckfetcher.util as U
@@ -17,12 +16,6 @@ VERSION = pkg_resources.require("puckfetcher")[0].version
 USER_AGENT = __package__ + "/" + VERSION + " +https://github.com/andrewmichaud/puckfetcher"
 
 logger = logging.getLogger("root")
-
-
-class PuckURLOpener(FancyURLopener):
-    version = USER_AGENT
-
-urllib._urlopener = PuckURLOpener()
 
 
 # TODO describe field members, function parameters in docstrings.
@@ -247,16 +240,22 @@ class Subscription():
 
         for i, enclosure in enumerate(enclosures):
             logger.info("Handling enclosure {0} of {1}.".format(i+1, len(enclosures)))
+
             url = enclosure.href
             logger.info("Extracted url {0}.".format(url))
-            filename = url.split('/')[-1]
 
+            filename = url.split('/')[-1]
             file_location = os.path.join(directory, filename)
+
             # If there is a file with the name we intend to save to, assume the podcast has been
             # downloaded already.
             if not os.path.exists(file_location):
                 logger.info("Saving file for enclosure {0} to {1}.".format(i+1, file_location))
-                urllib.request.urlretrieve(url, file_location)
+                headers = {"User-Agent": USER_AGENT}
+                response = requests.get(url, headers)
+                with open(file_location, "wb") as f:
+                    f.write(response.content)
+
             else:
                 logger.info(textwrap.dedent(
                     """

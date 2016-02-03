@@ -45,9 +45,9 @@ setup(author="Andrew Michaud",
       packages=find_packages(),
 
       test_suite="nose.collector",
-      tests_require=["feedparser", "nose", "pyyaml"],
+      tests_require=["feedparser", "nose", "requests", "pyyaml"],
 
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
 
-      version="0.4.2")
+      version="0.4.3")
