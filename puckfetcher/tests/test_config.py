@@ -13,6 +13,8 @@ def test_default_empty_config_load():
 
     # Save to re-export, though I think Python can't actually affect any other processes.
     old_xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    if old_xdg_config is None:
+        old_xdg_config = ""
     os.environ["XDG_CONFIG_HOME"] = str(file_dir)
 
     C.Config()

@@ -50,4 +50,4 @@ setup(author="Andrew Michaud",
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
 
-      version="0.4.1")
+      version="0.4.2")
