@@ -12,7 +12,7 @@ def test_default_empty_config_load():
     config_file = os.path.join(config_dir, "config.yaml")
 
     # Save to re-export, though I think Python can't actually affect any other processes.
-    old_xdg_config = os.environ["XDG_CONFIG_HOME"]
+    old_xdg_config = os.environ.get("XDG_CONFIG_HOME")
     os.environ["XDG_CONFIG_HOME"] = str(file_dir)
 
     C.Config()
