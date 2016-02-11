@@ -16,6 +16,10 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
+# Retrieve version.
+with open(path.join(here, "VERSION"), encoding="utf-8") as f:
+    version = f.read()
+
 setup(author="Andrew Michaud",
       author_email="",
 
@@ -50,4 +54,4 @@ setup(author="Andrew Michaud",
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
 
-      version="0.4.4")
+      version=version)
