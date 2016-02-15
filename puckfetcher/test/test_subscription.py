@@ -18,6 +18,32 @@ http410Address = rssTestHost + "410rss.xml"
 # TODO investigate spec-style tests
 
 
+# TODO this needs reworking to split out of one class without losing the setup/teardown
+class TestSubscription:
+    @classmethod
+    def setup_class(cls):
+        cls.xdg_config_home = tempfile.mkdtemp()
+        cls.old_xdg_config_home = os.environ.get("XDG_CONFIG_HOME", "")
+        os.environ["XDG_CONFIG_HOME"] = cls.xdg_config_home
+
+        cls.xdg_cache_home = tempfile.mkdtemp()
+        cls.old_xdg_cache_home = os.environ.get("XDG_CACHE_HOME", "")
+        os.environ["XDG_CACHE_HOME"] = cls.xdg_cache_home
+
+        cls.xdg_data_home = tempfile.mkdtemp()
+        cls.old_xdg_data_home = os.environ.get("XDG_DATA_HOME", "")
+        os.environ["XDG_DATA_HOME"] = cls.xdg_data_home
+
+    @classmethod
+    def teardown_class(cls):
+        os.environ["XDG_CONFIG_HOME"] = cls.old_xdg_config_home
+        os.environ["XDG_CACHE_HOME"] = cls.old_xdg_cache_home
+        os.environ["XDG_DATA_HOME"] = cls.old_xdg_data_home
+
+        shutil.rmtree(cls.xdg_config_home)
+        shutil.rmtree(cls.xdg_cache_home)
+        shutil.rmtree(cls.xdg_data_home)
+
 def test_empty_url_construction_errors():
     """
     Constructing a subscription with a URL that is empty should throw a MalformedSubscriptionError.
