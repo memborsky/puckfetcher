@@ -18,7 +18,7 @@ class MalformedSubscriptionError(PuckError):
         desc -- short message describing error
     """
     def __init__(self, desc):
-        super().__init__(desc)
+        self.desc = desc
 
 
 class UnreachableFeedError(PuckError):
@@ -31,8 +31,9 @@ class UnreachableFeedError(PuckError):
         name -- HTTP error name, if applicable
     """
     def __init__(self, desc, code=None, name=None):
-        super().__init__(desc)
+        self.desc = desc
         self.code = code
+        self.name = name
 
 
 class MalformedFeedError(PuckError):
@@ -44,11 +45,16 @@ class MalformedFeedError(PuckError):
         bozo_msg -- bozo exception message
     """
     def __init__(self, desc, bozo_msg):
-        super().__init__(desc)
+        self.desc = desc
         self.bozo_msg = bozo_msg
 
 
 class InvalidConfigError(PuckError):
-    """Exception raised when the config file provides invalid options and we can't recover."""
+    """
+    Exception raised when the config file provides invalid options and we can't recover.
+
+    Attributes:
+        desc    -- short message describing error
+    """
     def __init__(self, desc):
-        super().__init__(desc)
+        self.desc = desc

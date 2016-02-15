@@ -397,9 +397,11 @@ def encode_subscription(obj):
 def decode_subscription(obj):
     """Decode subscription from msgpack binary object."""
     if b'_subscription_' in obj:
-        sub = Subscription.__new__(Subscription)
+        name = obj[b"name"].decode("utf-8")
+        url = obj[b"_provided_url"].decode("utf-8")
+        sub = Subscription(url=url, name=name)
+
         sub.latest_entry_number = obj[b"latest_entry_number"]
-        sub._provided_url = obj[b"_provided_url"].decode("utf-8")
         sub._current_url = obj[b"_current_url"].decode("utf-8")
         sub.name = obj[b"name"].decode("utf-8")
         sub.feed = obj[b"feed"]
