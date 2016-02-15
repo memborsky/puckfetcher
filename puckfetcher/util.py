@@ -28,8 +28,8 @@ def rate_limited(production, max_per_hour, *args):
             now = time.time()
             elapsed = now - last_called
             remaining = min_interval - elapsed
-            logger.debug("Rate limiter last called for {0} at {1}.".format(key, last_called))
-            logger.debug("Remaining cooldown time for {0} is {1}.".format(key, remaining))
+            logger.debug("Rate limiter last called for '{0}' at {1}.".format(key, last_called))
+            logger.debug("Remaining cooldown time for '{0}' is {1}.".format(key, remaining))
 
             if production and remaining > 0 and last_called > 0.0:
                 logger.info(textwrap.dedent(

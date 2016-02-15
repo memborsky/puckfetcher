@@ -30,6 +30,9 @@ setup(author="Andrew Michaud",
                    "Operating System :: MacOS :: MacOS X",
                    "Operating System :: POSIX",
                    "Programming Language :: Python",
+                   "Programming Language :: Python :: 2.7",
+                   "Programming Language :: Python :: 3.4",
+                   "Programming Language :: Python :: 3.5",
                    "Topic :: Utilities"],
 
       description="A simple command-line podcatcher.",
@@ -38,7 +41,7 @@ setup(author="Andrew Michaud",
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
       },
 
-      install_requires=["feedparser", "pyyaml"],
+      install_requires=["msgpack-python", "feedparser", "pyyaml"],
 
       license="BSD3",
 
@@ -48,8 +51,10 @@ setup(author="Andrew Michaud",
 
       packages=find_packages(),
 
-      test_suite="nose.collector",
-      tests_require=["feedparser", "nose", "requests", "pyyaml"],
+      setup_requires=["pytest-runner"],
+
+      test_suite="tests",
+      tests_require=["feedparser", "requests", "pytest", "pyyaml"],
 
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
