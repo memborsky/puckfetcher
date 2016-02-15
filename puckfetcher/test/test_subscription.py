@@ -66,9 +66,30 @@ class TestSubscription:
 
         assert(e.value.desc == "No URL provided.")
 
+    def test_empty_name_construction_errors(self):
+        """
+        Constructing a subscription with a name that is empty should throw a
+        MalformedSubscriptionError.
+        """
+        with PT.raises(PE.MalformedSubscriptionError) as e:
+            SUB.Subscription(url="foo", name="", directory=TestSubscription.d)
+
+        assert(e.value.desc == "No name provided.")
+
+    def test_none_name_construction_errors(self):
+        """
+        Constructing a subscription with a name that is None should throw a
+        MalformedSubscriptionError.
+        """
+        with PT.raises(PE.MalformedSubscriptionError) as e:
+            SUB.Subscription(url="foo", name=None, directory=TestSubscription.d)
+
+        assert(e.value.desc == "No name provided.")
+
     def test_get_feed_helper_fails_after_max(self):
         """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
-        sub = SUB.Subscription(url=http302Address, name="tooManyAttemptsTest", directory=TestSubscription.d)
+        sub = SUB.Subscription(url=http302Address, name="tooManyAttemptsTest",
+                               directory=TestSubscription.d)
         with PT.raises(PE.UnreachableFeedError) as e:
             sub._get_feed_helper(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
 
@@ -130,7 +151,8 @@ class TestSubscription:
     # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
     def test_attempt_download_backlog(self):
         """Should download full backlog by default."""
-        sub = SUB.Subscription(url=rssAddress, name="testfeed", production=False, directory=TestSubscription.d)
+        sub = SUB.Subscription(url=rssAddress, name="testfeed", production=False,
+                               directory=TestSubscription.d)
         sub.get_feed()
         sub.attempt_update()
 
@@ -143,7 +165,6 @@ class TestSubscription:
 
     def test_attempt_download_partial_backlog(self):
         """Should download partial backlog if limit is specified."""
-        directory = tempfile.mkdtemp()
         sub = SUB.Subscription(url=rssAddress, name="testfeed", backlog_limit=5, production=False,
                                directory=TestSubscription.d)
         sub.get_feed()

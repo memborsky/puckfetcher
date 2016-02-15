@@ -1,4 +1,9 @@
 language: python
+
+os:
+    - linux
+    - osx
+
 python:
     - 2.7
     - 3.4
@@ -8,6 +13,7 @@ python:
 install:
     - python setup.py install
     - pip install coveralls
+
 script:
     - coverage run --source=puckfetcher setup.py test
     - coverage report -m

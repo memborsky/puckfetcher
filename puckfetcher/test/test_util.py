@@ -26,15 +26,6 @@ class TestUtil:
         os.environ["XDG_CACHE_HOME"] = cls.old_xdg_cache_home
         os.environ["XDG_DATA_HOME"] = cls.old_xdg_data_home
 
-        if os.path.exists(cls.xdg_config_home):
-            shutil.rmtree(cls.xdg_config_home)
-
-        if os.path.exists(cls.xdg_cache_home):
-            shutil.rmtree(cls.xdg_cache_home)
-
-        if os.path.exists(cls.xdg_data_home):
-            shutil.rmtree(cls.xdg_data_home)
-
     def test_xdg_config_home_file_path_created(self):
         """Test that correct XDG_CONFIG_HOME is used and file is created."""
 

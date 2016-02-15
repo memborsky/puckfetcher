@@ -2,12 +2,8 @@
 class PuckError(Exception):
     """
     Generic Exception for errors in this project.
-
-    Attributes:
-        desc -- short message describing error
     """
-    def __init__(self, desc):
-        self.desc = desc
+    pass
 
 
 class MalformedSubscriptionError(PuckError):
