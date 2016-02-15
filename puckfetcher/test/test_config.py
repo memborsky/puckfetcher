@@ -13,15 +13,15 @@ class TestConfig:
     @classmethod
     def setup_class(cls):
         cls.xdg_config_home = tempfile.mkdtemp()
-        cls.old_xdg_config_home = os.environ.get("XDG_CONFIG_HOME", "")
+        cls.old_xdg_config_home = os.environ.get("XDG_CONFIG_HOME", None)
         os.environ["XDG_CONFIG_HOME"] = cls.xdg_config_home
 
         cls.xdg_cache_home = tempfile.mkdtemp()
-        cls.old_xdg_cache_home = os.environ.get("XDG_CACHE_HOME", "")
+        cls.old_xdg_cache_home = os.environ.get("XDG_CACHE_HOME", None)
         os.environ["XDG_CACHE_HOME"] = cls.xdg_cache_home
 
         cls.xdg_data_home = tempfile.mkdtemp()
-        cls.old_xdg_data_home = os.environ.get("XDG_DATA_HOME", "")
+        cls.old_xdg_data_home = os.environ.get("XDG_DATA_HOME", None)
         os.environ["XDG_DATA_HOME"] = cls.xdg_data_home
 
     @classmethod
