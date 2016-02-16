@@ -133,7 +133,6 @@ def get_file_generic(*args):
     get_directory_generic(directory)
 
     if not os.path.exists(full_path):
-        print("no file")
         logger.debug("Creating file {0}.".format(full_path))
         open(full_path, "a").close()
 
@@ -142,20 +141,10 @@ def get_file_generic(*args):
 
 def get_directory_generic(*args):
     """Get full directory path from args, creating intermediate and final directories if needed."""
-    for arg in args:
-        print("Arg", arg)
     full_path = os.path.join(*args)
 
     if not os.path.exists(full_path):
-        print("no dir")
         logger.debug("Creating directories in path {0}.".format(full_path))
         os.makedirs(full_path)
-
-    if os.path.exists(full_path):
-        print("????")
-
-    if os.path.isdir(full_path):
-        print("?!!!!!!!!!!!?")
-        print(full_path)
 
     return full_path

@@ -18,10 +18,10 @@ class TestConfig:
         # strange places during testing.
         cls.old_environ = dict(os.environ)
 
-        xdg_config_home = tempfile.mkdtemp()
-        os.environ["XDG_CONFIG_HOME"] = xdg_config_home
-        cls.default_config_directory = os.path.join(xdg_config_home, "puckfetcher")
-        cls.default_config_file = os.path.join(cls.default_config_directory, "config.yaml")
+        cls.xdg_config_home = tempfile.mkdtemp()
+        os.environ["XDG_CONFIG_HOME"] = cls.xdg_config_home
+        cls.default_config_dir = os.path.join(cls.xdg_config_home, "puckfetcher")
+        cls.default_config_file = os.path.join(cls.default_config_dir, "config.yaml")
 
         cls.xdg_cache_home = tempfile.mkdtemp()
         os.environ["XDG_CACHE_HOME"] = cls.xdg_cache_home
@@ -44,7 +44,7 @@ class TestConfig:
 
     def check_config_created(self):
         """Test default config is created correctly."""
-        assert(os.path.isdir(TestConfig.default_confir_directory) == True)
+        assert(os.path.isdir(TestConfig.default_config_dir) == True)
         assert(os.path.isfile(TestConfig.default_config_file) == True)
 
         with open(TestConfig.default_config_file) as f:
@@ -66,7 +66,7 @@ class TestConfig:
         should create the file.
         """
 
-        PC.Config(config_dir=TestConfig.default_config_directory)
+        PC.Config(config_dir=TestConfig.default_config_dir)
         self.check_config_created()
 
     def test_save_cache_works(self):
