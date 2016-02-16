@@ -28,7 +28,7 @@ class TestConfig:
         cls.default_cache_dir = os.path.join(cls.xdg_cache_home, "puckfetcher")
         cls.default_log_file = os.path.join(cls.default_cache_dir, "puckfetcher.log")
         logging.getLogger("root")
-        cls.default_cache_file = os.path.join(cls.deafult_cache_dir, "puckcache")
+        cls.default_cache_file = os.path.join(cls.default_cache_dir, "puckcache")
 
         cls.xdg_data_home = tempfile.mkdtemp()
         os.environ["XDG_DATA_HOME"] = cls.xdg_data_home
