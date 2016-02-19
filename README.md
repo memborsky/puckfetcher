@@ -44,5 +44,4 @@ This should be on PyPI and maybe other places soon.
 - Add MP3 tag support to clean up tags based on feed information if it's messy.
 - Attempt to support Jython/PyPy/IronPython/3.4/3.3
 - Investigate Python static typing with https://docs.python.org/dev/library/typing.html#module-typing and mypy.
-- 
 
