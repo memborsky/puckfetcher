@@ -6,6 +6,42 @@ class PuckError(Exception):
     pass
 
 
+class InvalidConfigError(PuckError):
+    """
+    Exception raised when the config file provides invalid options and we can't recover.
+
+    Attributes:
+        desc    -- short message describing error
+    """
+    def __init__(self, desc):
+        self.desc = desc
+
+
+class InvalidCacheError(PuckError):
+    """
+    Exception raised when the cache file provides invalid options and we can't recover, or if we
+    are provided an invalid cache directory.
+
+    Attributes:
+        desc    -- short message describing error
+    """
+    def __init__(self, desc):
+        self.desc = desc
+
+
+class MalformedFeedError(PuckError):
+    """
+    Exception raised for malformed feeds that trips feedparser's bozo alert.
+
+    Attributes:
+        desc    -- short message describing error
+        bozo_msg -- bozo exception message
+    """
+    def __init__(self, desc, bozo_msg):
+        self.desc = desc
+        self.bozo_msg = bozo_msg
+
+
 class MalformedSubscriptionError(PuckError):
     """
     Exception raised for badly formatted Subscription object.
@@ -30,27 +66,3 @@ class UnreachableFeedError(PuckError):
         self.desc = desc
         self.code = code
         self.name = name
-
-
-class MalformedFeedError(PuckError):
-    """
-    Exception raised for malformed feeds that trips feedparser's bozo alert.
-
-    Attributes:
-        desc    -- short message describing error
-        bozo_msg -- bozo exception message
-    """
-    def __init__(self, desc, bozo_msg):
-        self.desc = desc
-        self.bozo_msg = bozo_msg
-
-
-class InvalidConfigError(PuckError):
-    """
-    Exception raised when the config file provides invalid options and we can't recover.
-
-    Attributes:
-        desc    -- short message describing error
-    """
-    def __init__(self, desc):
-        self.desc = desc

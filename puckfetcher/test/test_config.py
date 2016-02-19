@@ -44,12 +44,15 @@ class TestConfig:
 
     def check_config_created(self):
         """Test default config is created correctly."""
-        assert(os.path.isdir(TestConfig.default_config_dir) == True)
-        assert(os.path.isfile(TestConfig.default_config_file) == True)
+        assert(os.path.isdir(TestConfig.default_config_dir) is True)
+        assert(os.path.isfile(TestConfig.default_config_file) is True)
 
         with open(TestConfig.default_config_file) as f:
-            contents = f.read()
-            assert(contents == "# Created by puckfetcher")
+            actual = f.read()
+            example_config = os.path.join(os.path.dirname(__file__), "..", "example_config.yaml")
+            with open(example_config, "r") as g:
+                expected = g.read()
+                assert(actual == expected)
 
     def test_no_directory_creates_xdg_config_file(self):
         """

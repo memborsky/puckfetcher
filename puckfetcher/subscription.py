@@ -208,7 +208,7 @@ class Subscription():
         """Download feed enclosure(s) to object directory."""
 
         directory = self.directory
-        if entry_age < 0 or entry_age > len(self.feed["entries"]):
+        if entry_age < 0 or entry_age >= len(self.feed["entries"]):
             logger.error("Given invalid entry age {0} to download for {1}.".format(entry_age,
                                                                                    self.name))
             return
@@ -250,7 +250,7 @@ class Subscription():
                     """.format(file_location)))
 
     def download_file(self, url, file_location):
-        """Download a file. Wrapper around the *actual* file to allow targeted rate limiting."""
+        """Download a file. Wrapper around the *actual* write to allow targeted rate limiting."""
         headers = {"User-Agent": USER_AGENT}
         response = requests.get(url, headers)
         with open(file_location, "wb") as f:
@@ -269,6 +269,7 @@ class Subscription():
 
         number_to_download = 0
         number_feeds = len(self.feed["entries"])
+        # TODO I've cleaned up this logic before, but it's worth trying again.
         if self.feed != self.old_feed:
             if self.latest_entry_number == 0:
                 if self.download_backlog:
@@ -330,9 +331,8 @@ class Subscription():
                     """.format(self.name, number_feeds)))
                 return
 
-        # Downloading feeds oldest first makes the most sense for RSS feeds (IMO), so we do that,
-        # even if it requires a slight amount of extra work.
-        for i in reversed(range(number_feeds - number_to_download, number_feeds)):
+        # Downloading feeds oldest first makes the most sense for RSS feeds (IMO), so we do that.
+        for i in range(number_to_download, 0, -1):
             logger.info("Downloading entry with age {0}.".format(i))
             self.download_entry_files(i)
 
@@ -341,8 +341,6 @@ class Subscription():
                 """\
                 Have downloaded {0} entries for subscription {1}.\
                 """.format(self.latest_entry_number, self.name)))
-
-        self.download_backlog = False
 
 
 def parse_from_user_yaml(sub_yaml):
@@ -405,11 +403,7 @@ def decode_subscription(obj):
         sub._current_url = obj[b"_current_url"].decode("utf-8")
         sub.name = obj[b"name"].decode("utf-8")
         sub.feed = obj[b"feed"]
-        if sub.feed is not None:
-            sub.feed = sub.feed.decode("utf-8")
         sub.old_feed = obj[b"old_feed"]
-        if sub.old_feed is not None:
-            sub.old_feed = sub.old_feed.decode("utf-8")
         sub.directory = obj[b"directory"].decode("utf-8")
         sub.download_backlog = obj[b"download_backlog"]
         sub.backlog_limit = obj[b"backlog_limit"]

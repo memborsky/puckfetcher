@@ -157,7 +157,7 @@ class TestSubscription:
         sub.attempt_update()
 
         assert(len(sub.feed["entries"]) == 10)
-        for i in range(0, 1):
+        for i in range(1, 9):
             f = os.path.join(sub.directory, "hi0{0}.txt".format(i))
             with open(f, "r") as enclosure:
                 data = enclosure.read().replace('\n', '')

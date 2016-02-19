@@ -41,7 +41,7 @@ setup(author="Andrew Michaud",
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
       },
 
-      install_requires=["msgpack-python", "feedparser", "pyyaml"],
+      install_requires=["msgpack-python", "feedparser", "pyyaml", "requests"],
 
       license="BSD3",
 
@@ -54,7 +54,7 @@ setup(author="Andrew Michaud",
       setup_requires=["pytest-runner"],
 
       test_suite="tests",
-      tests_require=["feedparser", "requests", "pytest", "pyyaml"],
+      tests_require=["coveralls", "pytest"],
 
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",
