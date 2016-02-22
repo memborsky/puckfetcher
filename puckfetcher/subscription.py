@@ -78,8 +78,8 @@ class Subscription():
         logger.debug("User agent: {0}.".format(USER_AGENT))
 
         # Provide rate limiting.
-        self.get_feed = U.rate_limited(self.production, 60, self.name)(self.get_feed)
-        self.download_file = U.rate_limited(self.production, 30, self.name)(self.download_file)
+        self.get_feed = U.rate_limited(self.production, 120, self.name)(self.get_feed)
+        self.download_file = U.rate_limited(self.production, 60, self.name)(self.download_file)
 
     def _get_feed_helper(self, attempt_count):
         """
@@ -252,7 +252,7 @@ class Subscription():
     def download_file(self, url, file_location):
         """Download a file. Wrapper around the *actual* write to allow targeted rate limiting."""
         headers = {"User-Agent": USER_AGENT}
-        response = requests.get(url, headers)
+        response = requests.get(url, headers=headers)
         with open(file_location, "wb") as f:
             f.write(response.content)
 

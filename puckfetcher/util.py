@@ -40,7 +40,7 @@ def rate_limited(production, max_per_hour, *args):
                 time.sleep(remaining)
 
             ret = func(*args, **kargs)
-            LAST_CALLED[key] = now
+            LAST_CALLED[key] = time.time()
             logger.debug("Updating rate limiter last called for {0} to {1}.".format(key, now))
             return ret
 

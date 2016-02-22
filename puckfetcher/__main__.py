@@ -1,7 +1,6 @@
 import argparse
 import logging
 from logging.handlers import RotatingFileHandler
-from logging.handlers import StreamHandler
 import os
 import pkg_resources
 import sys
@@ -79,7 +78,7 @@ def main():
     formatter = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(module)s - %(message)s")
 
     handler = RotatingFileHandler(filename=log_filename, maxBytes=1024000000, backupCount=10)
-    handler.set_formatter(formatter)
+    handler.setFormatter(formatter)
 
     if G.VERBOSITY is None:
         logger.setLevel(logging.INFO)
@@ -87,7 +86,7 @@ def main():
     else:
         logger.setLevel(logging.DEBUG)
 
-        stream_handler = StreamHandler(sys.stdout)
+        stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setFormatter(formatter)
         logger.addHandler(stream_handler)
 
@@ -101,7 +100,6 @@ def main():
         try:
             for i, sub in enumerate(config.subscriptions):
                 logger.debug("working on {0}".format(i))
-                logger.debug("sub contents {0}".format(sub))
                 sub.attempt_update()
                 config.subscriptions[i] = sub
 
