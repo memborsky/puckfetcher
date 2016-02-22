@@ -80,7 +80,7 @@ class TestConfig:
 
         sub = PS.Subscription(name="test", url="foo")
 
-        config.subscriptions = [sub]
+        config.settings["subscriptions"] = [sub]
 
         config.save_cache()
 
@@ -105,9 +105,7 @@ class TestConfig:
         config = PC.Config(config_dir=TestConfig.default_config_dir,
                            cache_dir=TestConfig.default_cache_dir)
 
-        config.load_state()
-
         sub = subs[0]
 
-        assert(config.subscriptions[0].name == sub.name)
-        assert(config.subscriptions[0]._provided_url == sub._provided_url)
+        assert(config.settings["subscriptions"][0].name == sub.name)
+        assert(config.settings["subscriptions"][0]._provided_url == sub._provided_url)

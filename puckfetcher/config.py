@@ -139,8 +139,6 @@ class Config():
 
                 # These are used to match user subs to cache subs, in case names or URLs (but not
                 # both) have changed.
-                for sub in subs:
-                    print("sub", sub)
                 self.cached_by_name = {sub.name: sub for sub in subs}
                 self.cached_by_url = {sub._provided_url for sub in subs}
 
@@ -149,14 +147,14 @@ class Config():
         self._load_user_settings()
         self._load_cache_settings()
 
+        print(self.settings)
+
         # Nothing to do.
-        if self.cached_settings is {}:
+        if self.cached_settings == {}:
             return
 
-        elif self.settings is {}:
+        elif self.settings == {}:
             self.settings = copy.deepcopy(self.cached_settings)
-            subs = self.settings["subscriptions"]
-            self.subscriptions = [S.parse_from_user_yaml(sub) for sub in subs]
             return
 
         else:
@@ -199,7 +197,7 @@ class Config():
                         else:
                             sub.directory = os.path.join(self.data_dir, directory)
 
-                self.subscriptions.append(sub)
+                self.settings["subscriptions"].append(sub)
 
     def save_cache(self):
         """Write current in-memory config to cache file."""
