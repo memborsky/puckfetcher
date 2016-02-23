@@ -403,14 +403,9 @@ def encode_subscription(obj):
 
 def decode_subscription(obj):
     """Decode subscription from msgpack binary object."""
-    sub = Subscription.__new__(Subscription)
+    sub = Subscription(url=obj["_provided_url"], name=obj["name"])
 
-    sub.name = obj["name"]
-    sub.url = obj["_provided_url"]
     sub.latest_entry_number = obj["latest_entry_number"]
-    sub._current_url = obj["_current_url"]
-    sub._provided_url = obj["_provided_url"]
-    sub.name = obj["name"]
     sub.feed = obj["feed"]
     sub.old_feed = obj["old_feed"]
     sub.directory = obj["directory"]
