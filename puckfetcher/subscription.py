@@ -83,28 +83,28 @@ class Subscription():
 
     def update_directory(self, directory, config_dir):
         """Update directory for this subscription if a new one is provided."""
-        if sub.directory != directory:
+        if self.directory != directory:
             if directory is None or directory == "":
                 raise E.InvalidConfigError(desc=textwrap.dedent(
                     """\
                     Provided invalid sub directory '{0}' for '{1}'.\
-                    """.format(directory, name)))
+                    """.format(directory, self.name)))
 
             # NOTE This may not be fully portable. Should work at least on OSX and Linux.
             # Assume a directory starting with the separator is meant to be absolute.
             # Assume no responsibility for a bad path.
             # TODO assume responsibility.
             if directory[0] == os.path.sep:
-                sub.directory = directory
+                self.directory = directory
 
             else:
-                sub.directory = os.path.join(config_dir, directory)
+                self.directory = os.path.join(config_dir, directory)
 
     def update_url(self, url):
         """Update url for this subscription if a new one is provided."""
-        if url != sub._provided_url:
-            sub._provided_url = copy.deepcopy(url)
-            sub._current_url = copy.deepcopy(url)
+        if url != self._provided_url:
+            self._provided_url = copy.deepcopy(url)
+            self._current_url = copy.deepcopy(url)
 
     def _get_feed_helper(self, attempt_count):
         """
@@ -386,21 +386,6 @@ def parse_from_user_yaml(sub_yaml):
                         backlog_limit=backlog_limit)
 
 
-def dict_to_subscription(dictionary):
-    """Parse a dictionary into a subscription."""
-    sub = Subscription.__new__(Subscription)
-    sub.latest_entry_number = dictionary["latest_entry_number"]
-    sub._provided_url = dictionary["_provided_url"]
-    sub._current_url = dictionary["_current_url"]
-    sub.name = dictionary["name"]
-    sub.feed = dictionary["feed"]
-    sub.old_feed = dictionary["old_feed"]
-    sub.directory = dictionary["directory"]
-    sub.download_backlog = dictionary["download_backlog"]
-    sub.backlog_limit = dictionary["backlog_limit"]
-    return sub
-
-
 def encode_subscription(obj):
     """Encode subscription as dictionary for msgpack."""
     if isinstance(obj, Subscription):
@@ -414,23 +399,21 @@ def encode_subscription(obj):
                 "directory": obj.directory,
                 "download_backlog": obj.download_backlog,
                 "backlog_limit": obj.backlog_limit}
-    return obj
 
 
 def decode_subscription(obj):
     """Decode subscription from msgpack binary object."""
-    if b'_subscription_' in obj:
-        name = obj[b"name"].decode("utf-8")
-        url = obj[b"_provided_url"].decode("utf-8")
-        sub = Subscription(url=url, name=name)
+    sub = Subscription.__new__(Subscription)
 
-        sub.latest_entry_number = obj[b"latest_entry_number"]
-        sub._current_url = obj[b"_current_url"].decode("utf-8")
-        sub.name = obj[b"name"].decode("utf-8")
-        sub.feed = obj[b"feed"]
-        sub.old_feed = obj[b"old_feed"]
-        sub.directory = obj[b"directory"].decode("utf-8")
-        sub.download_backlog = obj[b"download_backlog"]
-        sub.backlog_limit = obj[b"backlog_limit"]
-        return sub
-    return obj
+    sub.name = obj["name"]
+    sub.url = obj["_provided_url"]
+    sub.latest_entry_number = obj["latest_entry_number"]
+    sub._current_url = obj["_current_url"]
+    sub._provided_url = obj["_provided_url"]
+    sub.name = obj["name"]
+    sub.feed = obj["feed"]
+    sub.old_feed = obj["old_feed"]
+    sub.directory = obj["directory"]
+    sub.download_backlog = obj["download_backlog"]
+    sub.backlog_limit = obj["backlog_limit"]
+    return sub

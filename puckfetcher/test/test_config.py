@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 
-import msgpack
+import umsgpack
 
 import puckfetcher.config as PC
 import puckfetcher.subscription as PS
@@ -35,33 +35,20 @@ class TestConfig:
 
     @classmethod
     def teardown_class(cls):
-        os.environ.clear()
-        os.environ.update(cls.old_environ)
-
         shutil.rmtree(cls.xdg_config_home)
         shutil.rmtree(cls.xdg_cache_home)
         shutil.rmtree(cls.xdg_data_home)
 
     def check_config_created(self):
         """Test default config is created correctly."""
-        assert(os.path.isdir(TestConfig.default_config_dir) is True)
-        assert(os.path.isfile(TestConfig.default_config_file) is True)
 
         with open(TestConfig.default_config_file) as f:
             actual = f.read()
-            example_config = os.path.join(os.path.dirname(__file__), "..", "example_config.yaml")
-            with open(example_config, "r") as g:
-                expected = g.read()
-                assert(actual == expected)
 
-    def test_no_directory_creates_xdg_config_file(self):
-        """
-        Constructing a config with no directory provided should create a config file in the
-        XDG_CONFIG_HOME directory.
-        """
-
-        PC.Config()
-        self.check_config_created()
+        example_config = os.path.join(os.path.dirname(__file__), "..", "example_config.yaml")
+        with open(example_config, "r") as g:
+            expected = g.read()
+            assert(actual == expected)
 
     def test_creates_empty_config_file(self):
         """
@@ -80,15 +67,15 @@ class TestConfig:
 
         sub = PS.Subscription(name="test", url="foo")
 
-        config.settings["subscriptions"] = [sub]
+        config.subscriptions = [sub]
 
         config.save_cache()
 
         with open(TestConfig.default_cache_file, "rb") as f:
             bytestring = f.read()
 
-            unpacked = msgpack.unpackb(bytestring, object_hook=PS.decode_subscription)
-            unpacked_sub = unpacked[0]
+            unpacked = umsgpack.unpackb(bytestring)
+            unpacked_sub = PS.decode_subscription(unpacked[0])
 
             assert(unpacked_sub._provided_url == sub._provided_url)
             assert(unpacked_sub.name == sub.name)
@@ -96,18 +83,20 @@ class TestConfig:
     def test_load_state_works(self):
         """Subscriptions should be loaded correctly."""
 
-        subs = [PS.Subscription(name="test", url="foo")]
+        sub = PS.Subscription(name="test", url="foo")
+        subs = [PS.encode_subscription(sub)]
 
         if not os.path.isdir(TestConfig.default_cache_dir):
             os.makedirs(TestConfig.default_cache_dir)
         with open(TestConfig.default_cache_file, "ab") as f:
-            packed = msgpack.packb(subs, default=PS.encode_subscription)
+            packed = umsgpack.packb(subs)
             f.write(packed)
 
         config = PC.Config(config_dir=TestConfig.default_config_dir,
                            cache_dir=TestConfig.default_cache_dir)
 
-        sub = subs[0]
+        expected_sub = sub
+        actual_sub = config.subscriptions[0]
 
-        assert(config.settings["subscriptions"][0].name == sub.name)
-        assert(config.settings["subscriptions"][0]._provided_url == sub._provided_url)
+        assert(actual_sub.name == expected_sub.name)
+        assert(actual_sub._provided_url == expected_sub._provided_url)

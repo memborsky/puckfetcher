@@ -2,7 +2,7 @@ import copy
 import logging
 import os
 
-import msgpack
+import umsgpack
 import yaml
 
 import puckfetcher.error as E
@@ -26,6 +26,9 @@ class Config():
 
         self.data_dir = data_dir
         logger.info("Using data dir '{0}'.".format(self.data_dir))
+
+        self.cached_subscriptions = {}
+        self.subscriptions = {}
 
         self._get_config_file()
         self._get_cache_file()
@@ -63,11 +66,12 @@ class Config():
         elif not os.path.isfile(file_path):
             logger.debug("Creating empty file at '{0}' with contents {1}.".format(file_path,
                                                                                   contents))
-            with open(file_path, "a") as f:
+            open(file_path, "a").close()
+            with open(file_path, "w") as f:
                 f.write(contents)
 
     def _load_user_settings(self):
-        """Load user settings from config file to self.settings."""
+        """Load user settings from config file."""
         example_config = os.path.join(os.path.dirname(__file__), "example_config.yaml")
         with open(example_config, "r") as example:
             contents = example.read()
@@ -78,7 +82,7 @@ class Config():
             logger.info("Opening config file to retrieve settings.")
             yaml_settings = yaml.safe_load(stream)
 
-        pretty_settings = yaml.dump(self.settings, width=1, indent=4)
+        pretty_settings = yaml.dump(yaml_settings, width=1, indent=4)
         logger.debug("Settings retrieved from user config file: {0}".format(pretty_settings))
 
         if yaml_settings is not None:
@@ -86,7 +90,7 @@ class Config():
 
             if yaml_settings.get("subscriptions", None) is not None:
                 self.subscriptions = [S.parse_from_user_yaml(sub) for sub in
-                                                  yaml_settings["subscriptions"]]
+                                      yaml_settings["subscriptions"]]
 
     def _load_cache_settings(self):
         """Load settings from cache to self.cached_settings."""
@@ -99,14 +103,14 @@ class Config():
         if data is None or len(data) <= 0:
             return
 
-        self.cached_subscriptions = msgpack.unpackb(data, object_hook=S.decode_subscription)
-
-        subs = self.subscriptions
+        self.cached_subscriptions = []
+        for sub in umsgpack.unpackb(data):
+            self.cached_subscriptions.append(S.decode_subscription(sub))
 
         # These are used to match user subs to cache subs, in case names or URLs (but not
         # both) have changed.
-        self.cached_by_name = {sub.name: sub for sub in subs}
-        self.cached_by_url = {sub._provided_url for sub in subs}
+        self.cached_by_name = {sub.name: sub for sub in self.cached_subscriptions}
+        self.cached_by_url = {sub._provided_url for sub in self.cached_subscriptions}
 
     def load_state(self):
         """Load config file and subscription cache."""
@@ -117,7 +121,7 @@ class Config():
         if self.cached_subscriptions == {}:
             return
 
-        elif self.settings == {}:
+        elif self.subscriptions == {}:
             self.subscriptions = copy.deepcopy(self.cached_subscriptions)
             return
 
@@ -149,5 +153,6 @@ class Config():
         """Write current in-memory config to cache file."""
         logger.info("Writing settings to cache file '{0}'.".format(self.cache_file))
         with open(self.cache_file, "wb") as stream:
-            packed = msgpack.packb(self.subscriptions, default=S.encode_subscription)
+            dicts = [S.encode_subscription(sub) for sub in self.subscriptions]
+            packed = umsgpack.packb(dicts)
             stream.write(packed)

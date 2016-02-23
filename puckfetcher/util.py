@@ -23,6 +23,10 @@ else:
     CONFIG_DIR = os.path.join(HOME, ".config", APPNAME)
     DATA_DIR = os.path.join(HOME, ".local", "share", APPNAME)
 
+CACHE_DIR = os.environ.get("XDG_CACHE_HOME", CACHE_DIR)
+CONFIG_DIR = os.environ.get("XDG_CONFIG_HOME", CONFIG_DIR)
+DATA_DIR = os.environ.get("XDG_DATA_HOME", DATA_DIR)
+
 for d in [CACHE_DIR, CONFIG_DIR, DATA_DIR]:
     if not os.path.exists(d):
         os.makedirs(d)
