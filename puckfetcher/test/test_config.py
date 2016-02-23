@@ -98,7 +98,9 @@ class TestConfig:
 
         subs = [PS.Subscription(name="test", url="foo")]
 
-        with open(TestConfig.default_cache_file, "wb") as f:
+        if not os.path.isdir(TestConfig.default_cache_dir):
+            os.makedirs(TestConfig.default_cache_dir)
+        with open(TestConfig.default_cache_file, "ab") as f:
             packed = msgpack.packb(subs, default=PS.encode_subscription)
             f.write(packed)
 

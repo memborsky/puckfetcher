@@ -8,7 +8,7 @@ class PuckError(Exception):
 
 class InvalidConfigError(PuckError):
     """
-    Exception raised when the config file provides invalid options and we can't recover.
+    Exception when we were provided invalid user config options and can't recover.
 
     Attributes:
         desc    -- short message describing error
@@ -19,8 +19,7 @@ class InvalidConfigError(PuckError):
 
 class InvalidCacheError(PuckError):
     """
-    Exception raised when the cache file provides invalid options and we can't recover, or if we
-    are provided an invalid cache directory.
+    Exception raised when the cache file provides invalid options and we can't recover.
 
     Attributes:
         desc    -- short message describing error

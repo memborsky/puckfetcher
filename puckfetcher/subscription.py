@@ -55,7 +55,7 @@ class Subscription():
         self.old_feed = None
 
         if directory is None:
-            self.directory = U.get_xdg_data_dir_path(__package__, self.name)
+            self.directory = U.DATA_DIR
             logger.debug("No directory provided, defaulting to {0}.".format(directory))
 
         else:
@@ -80,6 +80,31 @@ class Subscription():
         # Provide rate limiting.
         self.get_feed = U.rate_limited(self.production, 120, self.name)(self.get_feed)
         self.download_file = U.rate_limited(self.production, 60, self.name)(self.download_file)
+
+    def update_directory(self, directory, config_dir):
+        """Update directory for this subscription if a new one is provided."""
+        if sub.directory != directory:
+            if directory is None or directory == "":
+                raise E.InvalidConfigError(desc=textwrap.dedent(
+                    """\
+                    Provided invalid sub directory '{0}' for '{1}'.\
+                    """.format(directory, name)))
+
+            # NOTE This may not be fully portable. Should work at least on OSX and Linux.
+            # Assume a directory starting with the separator is meant to be absolute.
+            # Assume no responsibility for a bad path.
+            # TODO assume responsibility.
+            if directory[0] == os.path.sep:
+                sub.directory = directory
+
+            else:
+                sub.directory = os.path.join(config_dir, directory)
+
+    def update_url(self, url):
+        """Update url for this subscription if a new one is provided."""
+        if url != sub._provided_url:
+            sub._provided_url = copy.deepcopy(url)
+            sub._current_url = copy.deepcopy(url)
 
     def _get_feed_helper(self, attempt_count):
         """
@@ -222,7 +247,7 @@ class Subscription():
 
         # Create directory just for enclosures for this entry if there are many.
         if len(enclosures) > 1:
-            directory = U.get_and_make_directory_generic(directory, entry.title)
+            directory = os.path.join(directory, entry.title)
             logger.debug(textwrap.dedent(
                 """\
                 More than 1 enclosure for entry {0}, creating directory {1} to store them.\
