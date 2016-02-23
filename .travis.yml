@@ -9,7 +9,6 @@ python:
     - 3.4
     - 3.5
     - nightly
-    - pypy
 
 install:
     - python setup.py install
