@@ -13,6 +13,7 @@ import puckfetcher.util as U
 MAX_RECURSIVE_ATTEMPTS = 10
 # TODO can we retrieve this only once?
 VERSION = pkg_resources.require("puckfetcher")[0].version
+# TODO pull url from setup.py or something
 USER_AGENT = "puckfetcher/" + VERSION + " +https://github.com/andrewmichaud/puckfetcher"
 
 logger = logging.getLogger("root")
@@ -51,8 +52,8 @@ class Subscription():
         # Save feed so we can retrieve multiple entries without retrieving it again.
         # Maintain old feed so we can tell if a new feed is different.
         # TODO allow multiple downloads at once.
-        self.feed = None
-        self.old_feed = None
+        self.entries = None
+        self.old_entries = None
 
         if directory is None:
             self.directory = U.DATA_DIR
@@ -72,8 +73,6 @@ class Subscription():
         self.backlog_limit = backlog_limit
         logger.debug("Backlog limit: {0}.".format(backlog_limit))
 
-        # Set a custom user agent.
-        # TODO pull url from setup.py or something
         feedparser.USER_AGENT = USER_AGENT
         logger.debug("User agent: {0}.".format(USER_AGENT))
 
@@ -130,10 +129,19 @@ class Subscription():
 
         logger.info(textwrap.dedent(
             """\
-            Attempting to get feed text (attempt {0}) for subscription {1} with URL {2}.\
+            Getting entries (attempt {0}) for subscription {1} with URL {2}.\
             """.format(attempt_count, self.name, self._current_url)))
 
         parsed = feedparser.parse(self._current_url)
+
+        # Detect bozo errors (malformed RSS/ATOM feeds).
+        if "status" not in parsed and parsed["bozo"] == 1:
+            msg = parsed['bozo_exception'].getMessage()
+            logger.error(textwrap.dedent(
+                """\
+                Received bozo exception {0}. Unable to retrieve feed with URL {1} for {2}.\
+                """.format(msg, self._current_url, self.name)))
+            return
 
         # Detect some kinds of HTTP status codes signalling failure.
         status = parsed.status
@@ -203,22 +211,14 @@ class Subscription():
                 """.format(status, self._current_url, self.name)))
             return self._get_feed_helper(attempt_count+1)
 
-        # Detect bozo errors (malformed RSS/ATOM feeds).
-        if parsed['bozo'] == 1:
-            msg = parsed['bozo_exception'].getMessage()
-            logger.error(textwrap.dedent(
-                """\
-                Received bozo exception {0}. Unable to retrieve feed with URL {1} for {2}.\
-                """.format(msg, self._current_url, self.name)))
-            raise E.MalformedFeedError("Malformed Feed", msg)
-
         # If we didn't detect any errors, we can save the feed.
         # However, only save the feed if it is different than the saved feed.
         # Return a boolean showing whether we changed the saved feed or not.
-        if self.feed is None or self.feed != parsed:
+        # TODO see if there's anything else useful in parsed to pull out and save.
+        if self.entries is None or self.entries != parsed:
             logger.info("New feed is different than current feed, saving it.")
-            self.old_feed = copy.deepcopy(self.feed)
-            self.feed = copy.deepcopy(parsed)
+            self.old_feed = copy.deepcopy(self.entries)
+            self.entries = copy.deepcopy(parsed["entries"])
             return True
 
         else:
@@ -233,14 +233,14 @@ class Subscription():
         """Download feed enclosure(s) to object directory."""
 
         directory = self.directory
-        if entry_age < 0 or entry_age >= len(self.feed["entries"]):
+        if entry_age < 0 or entry_age >= len(self.entries):
             logger.error("Given invalid entry age {0} to download for {1}.".format(entry_age,
                                                                                    self.name))
             return
 
         logger.info("Downloading entry {0} for {1}.".format(entry_age, self.name))
 
-        entry = self.feed["entries"][entry_age]
+        entry = self.entries[entry_age]
         enclosures = entry.enclosures
         logger.info("There are {0} enclosures for entry with age {1}.".format(len(enclosures),
                                                                               entry_age))
@@ -264,7 +264,7 @@ class Subscription():
 
             # If there is a file with the name we intend to save to, assume the podcast has been
             # downloaded already.
-            if not os.path.exists(file_location):
+            if not os.path.isfile(file_location):
                 logger.info("Saving file for enclosure {0} to {1}.".format(i+1, file_location))
                 self.download_file(url, file_location)
 
@@ -287,15 +287,15 @@ class Subscription():
         self.get_feed()
 
         # Check how many entries we've missed.
-        if self.feed is None:
+        if self.entries is None:
             logger.error("No feed, cannot attempt update.")
             # TODO should throw some kind of error?
             return
 
         number_to_download = 0
-        number_feeds = len(self.feed["entries"])
+        number_feeds = len(self.entries)
         # TODO I've cleaned up this logic before, but it's worth trying again.
-        if self.feed != self.old_feed:
+        if self.entries != self.old_entries:
             if self.latest_entry_number == 0:
                 if self.download_backlog:
                     if self.backlog_limit is None:
@@ -357,7 +357,7 @@ class Subscription():
                 return
 
         # Downloading feeds oldest first makes the most sense for RSS feeds (IMO), so we do that.
-        for i in range(number_to_download, 0, -1):
+        for i in range(number_to_download-1, 0, -1):
             logger.info("Downloading entry with age {0}.".format(i))
             self.download_entry_files(i)
 
@@ -378,12 +378,14 @@ def parse_from_user_yaml(sub_yaml):
     else:
         url = sub_yaml["url"]
 
+    # TODO this needs cleaning.
     download_backlog = sub_yaml.get("download_backlog", True)
     backlog_limit = sub_yaml.get("backlog_limit", None)
+    directory = sub_yaml["directory"]
 
     # TODO add ability to pretty-print subscription and print here.
     return Subscription(name=name, url=url, download_backlog=download_backlog,
-                        backlog_limit=backlog_limit)
+                        backlog_limit=backlog_limit, directory=directory)
 
 
 def encode_subscription(obj):
@@ -394,20 +396,20 @@ def encode_subscription(obj):
                 "_provided_url": obj._provided_url,
                 "_current_url": obj._current_url,
                 "name": obj.name,
-                "feed": obj.feed,
-                "old_feed": obj.old_feed,
+                "entries": obj.entries,
+                "old_entries": obj.old_entries,
                 "directory": obj.directory,
                 "download_backlog": obj.download_backlog,
                 "backlog_limit": obj.backlog_limit}
 
 
 def decode_subscription(obj):
-    """Decode subscription from msgpack binary object."""
+    """Decode subscription from dictionary."""
     sub = Subscription(url=obj["_provided_url"], name=obj["name"])
 
     sub.latest_entry_number = obj["latest_entry_number"]
-    sub.feed = obj["feed"]
-    sub.old_feed = obj["old_feed"]
+    sub.entries = obj["entries"]
+    sub.old_entries = obj.get("old_entries", "")
     sub.directory = obj["directory"]
     sub.download_backlog = obj["download_backlog"]
     sub.backlog_limit = obj["backlog_limit"]

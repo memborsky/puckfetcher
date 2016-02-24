@@ -12,16 +12,16 @@ SYSTEM = platform.system()
 APPNAME = "puckfetcher"
 
 if SYSTEM == "Darwin":
-    CACHE_DIR = os.path.join(HOME, "Library", "Caches", APPNAME)
-    CONFIG_DIR = os.path.join(HOME, "Library", "Preferences", APPNAME)
-    DATA_DIR = os.path.join(HOME, "Library", APPNAME)
+    CACHE_DIR = os.path.join(HOME, "Library", "Caches")
+    CONFIG_DIR = os.path.join(HOME, "Library", "Preferences")
+    DATA_DIR = os.path.join(HOME, "Library")
 
 # TODO This doesn't handle Windows correctly, and may not handle *BSD correctly, if we care about
 # that.
 else:
-    CACHE_DIR = os.path.join(HOME, ".cache", APPNAME)
-    CONFIG_DIR = os.path.join(HOME, ".config", APPNAME)
-    DATA_DIR = os.path.join(HOME, ".local", "share", APPNAME)
+    CACHE_DIR = os.path.join(HOME, ".cache")
+    CONFIG_DIR = os.path.join(HOME, ".config")
+    DATA_DIR = os.path.join(HOME, ".local", "share")
 
 CACHE_DIR = os.environ.get("XDG_CACHE_HOME", CACHE_DIR)
 CONFIG_DIR = os.environ.get("XDG_CONFIG_HOME", CONFIG_DIR)

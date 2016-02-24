@@ -20,11 +20,13 @@ class TestConfig:
 
         cls.xdg_config_home = tempfile.mkdtemp()
         os.environ["XDG_CONFIG_HOME"] = cls.xdg_config_home
+        cls.provided_config_dir = os.path.join(cls.xdg_config_home)
         cls.default_config_dir = os.path.join(cls.xdg_config_home, "puckfetcher")
         cls.default_config_file = os.path.join(cls.default_config_dir, "config.yaml")
 
         cls.xdg_cache_home = tempfile.mkdtemp()
         os.environ["XDG_CACHE_HOME"] = cls.xdg_cache_home
+        cls.provided_cache_dir = os.path.join(cls.xdg_cache_home)
         cls.default_cache_dir = os.path.join(cls.xdg_cache_home, "puckfetcher")
         cls.default_log_file = os.path.join(cls.default_cache_dir, "puckfetcher.log")
         logging.getLogger("root")
@@ -45,10 +47,7 @@ class TestConfig:
         with open(TestConfig.default_config_file) as f:
             actual = f.read()
 
-        example_config = os.path.join(os.path.dirname(__file__), "..", "example_config.yaml")
-        with open(example_config, "r") as g:
-            expected = g.read()
-            assert(actual == expected)
+        assert(actual == "")
 
     def test_creates_empty_config_file(self):
         """
@@ -56,14 +55,14 @@ class TestConfig:
         should create the file.
         """
 
-        PC.Config(config_dir=TestConfig.default_config_dir)
+        config = PC.Config(config_dir=TestConfig.provided_config_dir)
         self.check_config_created()
 
     def test_save_cache_works(self):
         """Subscriptions should be saved correctly."""
 
-        config = PC.Config(config_dir=TestConfig.default_config_dir,
-                           cache_dir=TestConfig.default_cache_dir)
+        config = PC.Config(config_dir=TestConfig.provided_config_dir,
+                           cache_dir=TestConfig.provided_cache_dir)
 
         sub = PS.Subscription(name="test", url="foo")
 
@@ -92,11 +91,11 @@ class TestConfig:
             packed = umsgpack.packb(subs)
             f.write(packed)
 
-        config = PC.Config(config_dir=TestConfig.default_config_dir,
-                           cache_dir=TestConfig.default_cache_dir)
+        config = PC.Config(config_dir=TestConfig.provided_config_dir,
+                           cache_dir=TestConfig.provided_cache_dir)
 
         expected_sub = sub
-        actual_sub = config.subscriptions[0]
+        actual_sub = config.cached_subscriptions[0]
 
         assert(actual_sub.name == expected_sub.name)
         assert(actual_sub._provided_url == expected_sub._provided_url)

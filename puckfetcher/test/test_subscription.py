@@ -103,7 +103,7 @@ class TestSubscription:
 
         sub = SUB.Subscription(url=http302Address, name="302Test", directory=TestSubscription.d)
         sub.get_feed()
-        assert(sub.feed["entries"][0]["link"] == rssResourceAddress)
+        assert(sub.entries[0]["link"] == rssResourceAddress)
         assert(sub._current_url == http302Address)
         assert(sub._provided_url == http302Address)
 
@@ -115,7 +115,7 @@ class TestSubscription:
 
         sub = SUB.Subscription(url=http301Address, name="301Test", directory=TestSubscription.d)
         sub.get_feed()
-        assert(sub.feed["entries"][0]["link"] == rssResourceAddress)
+        assert(sub.entries[0]["link"] == rssResourceAddress)
         assert(sub._current_url == rssAddress)
         assert(sub._provided_url == http301Address)
 
@@ -130,7 +130,7 @@ class TestSubscription:
 
         assert(e.value.desc == "Unable to retrieve feed.")
 
-        assert(sub.feed is None)
+        assert(sub.entries is None)
         assert(sub._current_url == http404Address)
         assert(sub._provided_url == http404Address)
 
@@ -144,7 +144,7 @@ class TestSubscription:
 
         assert(e.value.desc == "Unable to retrieve feed, feed is gone.")
 
-        assert(sub.feed is None)
+        assert(sub.entries is None)
         assert(sub._current_url is None)
         assert(sub._provided_url == http410Address)
 
@@ -156,7 +156,7 @@ class TestSubscription:
         sub.get_feed()
         sub.attempt_update()
 
-        assert(len(sub.feed["entries"]) == 10)
+        assert(len(sub.entries) == 10)
         for i in range(1, 9):
             f = os.path.join(sub.directory, "hi0{0}.txt".format(i))
             with open(f, "r") as enclosure:
@@ -170,7 +170,7 @@ class TestSubscription:
         sub.get_feed()
         sub.attempt_update()
 
-        assert(len(sub.feed["entries"]) == 10)
+        assert(len(sub.entries) == 10)
         for i in range(5, 9):
             f = os.path.join(sub.directory, "hi0{0}.txt".format(i))
             with open(f, "r") as enclosure:

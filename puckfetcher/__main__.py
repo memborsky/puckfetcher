@@ -12,8 +12,7 @@ import puckfetcher.globals as G
 import puckfetcher.util as U
 
 # TODO find a better way to get puckfetcher.
-G.PROGNAME = "puckfetcher"
-G.VERSION = pkg_resources.require(G.PROGNAME)[0].version
+G.VERSION = pkg_resources.require(__package__)[0].version
 
 
 def main():
@@ -25,7 +24,7 @@ def main():
                             Cache directory to use. The '{0}' directory will be created here, and
                             the 'puckcache' and 'puckfetcher.log' files will be stored there.
                             '$XDG_CACHE_HOME' will be used if nothing is provided.\
-                            """.format(G.PROGNAME)))
+                            """.format(__package__)))
 
     parser.add_argument("--config", "-c", dest="config",
                         help=textwrap.dedent(
@@ -34,7 +33,7 @@ def main():
                             your 'config.yaml' file here to configure {0}. A default file will be
                             created for you with default settings if you do not provide one.
                             '$XDG_CONFIG_HOME' will be used if nothing is provided.\
-                            """.format(G.PROGNAME)))
+                            """.format(__package__)))
 
     parser.add_argument("--data", "-d", dest="data",
                         help=textwrap.dedent(
@@ -45,7 +44,7 @@ def main():
                             The 'directory' setting in the config file will also affect the data
                             directory, but this flag takes precedent.
                             '$XDG_DATA_HOME' will be used if nothing is provided.
-                            """.format(G.PROGNAME)))
+                            """.format(__package__)))
 
     parser.add_argument("--verbose", "-v", action="count",
                         help=textwrap.dedent(
@@ -55,23 +54,19 @@ def main():
                             will happen both to the log file and to stdout. If there is more than
                             one v, more debug output will happen. Some things will never be logged
                             no matter how much you vvvvvvvvvv.
-                            """.format(G.PROGNAME)))
+                            """.format(__package__)))
 
     parser.add_argument("--version", "-V", action="version",
                         version="%(prog)s {0}".format(G.VERSION))
 
     args = parser.parse_args()
 
-    config_dir = vars(args)["config"]
-    cache_dir = vars(args)["cache"]
-    data_dir = vars(args)["data"]
+    config_dir = vars(args)["config"] if vars(args)["config"] else U.CONFIG_DIR
+    cache_dir = vars(args)["cache"] if vars(args)["cache"] else U.CACHE_DIR
+    data_dir = vars(args)["data"] if vars(args)["data"] else U.DATA_DIR
     G.VERBOSITY = vars(args)["verbose"]
 
-    if cache_dir is not None:
-        log_filename = os.path.join(cache_dir, "{0}.log".format(G.PROGNAME))
-    else:
-        log_filename = U.get_xdg_cache_file_path("{0}".format(G.PROGNAME),
-                                                 "{0}.log".format(G.PROGNAME))
+    log_filename = os.path.join(cache_dir, "{0}.log".format(__package__))
 
     logger = logging.getLogger("root")
 
@@ -92,7 +87,7 @@ def main():
 
     logger.addHandler(handler)
 
-    logger.info("{0} {1} started!".format(G.PROGNAME, G.VERSION))
+    logger.info("{0} {1} started!".format(__package__, G.VERSION))
 
     config = C.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
 

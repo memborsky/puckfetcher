@@ -16,19 +16,24 @@ class Config():
     """Class holding config options."""
 
     def __init__(self, config_dir=U.CONFIG_DIR, cache_dir=U.CACHE_DIR, data_dir=U.DATA_DIR):
-        self.config_dir = config_dir
+        self.config_dir = os.path.join(config_dir, __package__)
         logger.info("Using config dir '{0}'.".format(self.config_dir))
         self.config_file = os.path.join(self.config_dir, "config.yaml")
 
-        self.cache_dir = cache_dir
+        self.cache_dir = os.path.join(cache_dir, __package__)
         logger.info("Using cache dir '{0}'.".format(self.cache_dir))
         self.cache_file = os.path.join(self.cache_dir, "puckcache")
 
-        self.data_dir = data_dir
+        self.data_dir = os.path.join(data_dir, __package__)
         logger.info("Using data dir '{0}'.".format(self.data_dir))
 
-        self.cached_subscriptions = {}
-        self.subscriptions = {}
+        self.cached_subscriptions = []
+        self.subscriptions = []
+
+        # These are used to match user subs to cache subs, in case names or URLs (but not both)
+        # have changed.
+        self.cached_by_name = {}
+        self.cached_by_url = {}
 
         self._get_config_file()
         self._get_cache_file()
@@ -42,7 +47,7 @@ class Config():
             os.makedirs(self.config_dir)
             self.config_file = os.path.join(self.config_dir, "config.yaml")
 
-        elif os.path.exists(self.config_dir) and os.path.isfile(self.config_dir):
+        elif os.path.isfile(self.config_dir):
             msg = "Config directory '{0}' is a file!".format(self.config_dir)
             E.InvalidConfigError(msg)
 
@@ -53,30 +58,23 @@ class Config():
             os.makedirs(self.cache_dir)
             self.cache_file = os.path.join(self.cache_dir, "puckcache")
 
-        elif os.path.exists(self.cache_dir) and os.path.isfile(self.cache_dir):
+        elif os.path.isfile(self.cache_dir):
             msg = "Provided cache directory '{0}' is a file!".format(self.cache_dir)
             E.InvalidConfigError(msg)
 
-    def _ensure_file(self, file_path, contents=""):
+    def _ensure_file(self, file_path):
         """Write a file at the given location with optional contents if one does not exist."""
         if os.path.exists(file_path) and not os.path.isfile(file_path):
             logger.error("Given file exists but isn't a file!")
             return
 
         elif not os.path.isfile(file_path):
-            logger.debug("Creating empty file at '{0}' with contents {1}.".format(file_path,
-                                                                                  contents))
+            logger.debug("Creating empty file at '{0}'.".format(file_path))
             open(file_path, "a").close()
-            with open(file_path, "w") as f:
-                f.write(contents)
 
     def _load_user_settings(self):
         """Load user settings from config file."""
-        example_config = os.path.join(os.path.dirname(__file__), "example_config.yaml")
-        with open(example_config, "r") as example:
-            contents = example.read()
-
-        self._ensure_file(self.config_file, contents)
+        self._ensure_file(self.config_file)
 
         with open(self.config_file, "r") as stream:
             logger.info("Opening config file to retrieve settings.")
@@ -88,9 +86,12 @@ class Config():
         if yaml_settings is not None:
             self.directory = yaml_settings.get("directory", self.data_dir)
 
-            if yaml_settings.get("subscriptions", None) is not None:
-                self.subscriptions = [S.parse_from_user_yaml(sub) for sub in
-                                      yaml_settings["subscriptions"]]
+            for yaml_sub in yaml_settings.get("subscriptions", []):
+                directory = yaml_sub.get("directory", os.path.join(self.directory,
+                                                                   yaml_sub["name"]))
+                yaml_sub["directory"] = os.path.expanduser(directory)
+
+                self.subscriptions.append(S.parse_from_user_yaml(yaml_sub))
 
     def _load_cache_settings(self):
         """Load settings from cache to self.cached_settings."""
@@ -100,33 +101,27 @@ class Config():
             logger.info("Opening subscription cache to retrieve subscriptions.")
             data = stream.read()
 
-        if data is None or len(data) <= 0:
+        if data == b"":
             return
 
-        self.cached_subscriptions = []
-        for sub in umsgpack.unpackb(data):
-            self.cached_subscriptions.append(S.decode_subscription(sub))
+        for encoded_sub in umsgpack.unpackb(data):
+            decoded_sub = S.decode_subscription(encoded_sub)
+            self.cached_subscriptions.append(decoded_sub)
 
-        # These are used to match user subs to cache subs, in case names or URLs (but not
-        # both) have changed.
-        self.cached_by_name = {sub.name: sub for sub in self.cached_subscriptions}
-        self.cached_by_url = {sub._provided_url for sub in self.cached_subscriptions}
+            self.cached_by_name[decoded_sub.name] = decoded_sub
+            self.cached_by_url[decoded_sub._provided_url] = decoded_sub
 
     def load_state(self):
         """Load config file and subscription cache."""
         self._load_user_settings()
         self._load_cache_settings()
 
-        # Nothing to do.
-        if self.cached_subscriptions == {}:
-            return
-
-        elif self.subscriptions == {}:
+        if self.subscriptions == {}:
             self.subscriptions = copy.deepcopy(self.cached_subscriptions)
-            return
 
         else:
             # Iterate through subscriptions to merge user settings and cache.
+            subs = []
             for i, sub in enumerate(self.subscriptions):
 
                 # Pull out settings we need for merging metadata, or to preserve over the cache.
@@ -147,7 +142,9 @@ class Config():
                 sub.update_directory(directory, self.data_dir)
                 sub.update_url(url)
 
-                self.subscriptions.append(sub)
+                subs.append(sub)
+
+            self.subscriptions = subs
 
     def save_cache(self):
         """Write current in-memory config to cache file."""
