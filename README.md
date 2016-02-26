@@ -49,9 +49,10 @@ This should be on PyPI and maybe other places soon.
 - PyPI release
 
 ## Future releases
-- Add MP3 tag support to clean up tags based on feed information if it's messy.
-- Clean up at least filenames based on feed title.
 - Use etags/last-modified header to skip downloading feeds if we already have the latest feed.
+- Text-based progress for downloads/other time-consuming actions.
+- Clean up at least filenames based on feed title.
+- Add MP3 tag support to clean up tags based on feed information if it's messy.
+- ncurses support/gui of some kind
 - Attempt to support Jython/PyPy/IronPython/3.4/3.3
 - Investigate Python static typing with https://docs.python.org/dev/library/typing.html#module-typing and mypy.
-
