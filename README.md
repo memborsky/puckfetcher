@@ -15,8 +15,8 @@ can run the below commands. Should work on OSX and Linux, from the command line.
 and look at example_config.yaml to see how it should be structured.
 
 Directory for config file:
-OSX: /Users/<name>/Preferences/puckfetcher/config.yaml
-Linux: /home/<name>/.config/puckfetcher/config.yaml
+* OSX: /Users/[USERNAME]/Preferences/puckfetcher/config.yaml
+* Linux: /home/[USERNAME]/.config/puckfetcher/config.yaml
 
 Build + Install:
 ```
