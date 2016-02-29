@@ -6,9 +6,17 @@
 
 a podcatcher that will finally work (for me)
 
-hi
+Hello!
 
-You're free to download and use this now. It should support Python 2.7, 3.4, and 3.5.
+This should support Python 2.7, 3.3, 3.4, and 3.5. Feel free to report any issues here, and I'll investigate when/if I can.
+
+You'll need setuptools (https://pypi.python.org/pypi/setuptools) to run this in its current state. Go get it, clone this repo, and you
+can run the below commands. Should work on OSX and Linux, from the command line. You'll want a default config file, name it config.yaml
+and look at example_config.yaml to see how it should be structured.
+
+Directory for config file:
+* OSX: /Users/[USERNAME]/Preferences/puckfetcher/config.yaml
+* Linux: /home/[USERNAME]/.config/puckfetcher/config.yaml
 
 Build + Install:
 ```
@@ -41,7 +49,10 @@ This should be on PyPI and maybe other places soon.
 - PyPI release
 
 ## Future releases
+- Use etags/last-modified header to skip downloading feeds if we already have the latest feed.
+- Text-based progress for downloads/other time-consuming actions.
+- Clean up at least filenames based on feed title.
 - Add MP3 tag support to clean up tags based on feed information if it's messy.
+- ncurses support/gui of some kind
 - Attempt to support Jython/PyPy/IronPython/3.4/3.3
 - Investigate Python static typing with https://docs.python.org/dev/library/typing.html#module-typing and mypy.
-
