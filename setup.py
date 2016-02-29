@@ -44,7 +44,7 @@ setup(author="Andrew Michaud",
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
       },
 
-      install_requires=["feedparser", "pyyaml", "requests", "u-msgpack-python"],
+      install_requires=["clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"],
 
       license="BSD3",
 

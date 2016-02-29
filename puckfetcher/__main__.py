@@ -93,14 +93,24 @@ def main():
 
     while (True):
         try:
-            for i, sub in enumerate(config.subscriptions):
-                logger.debug("working on {0}".format(i))
-                sub.attempt_update()
-                config.subscriptions[i] = sub
+            config.load_state()
+            if len(config.subscriptions) < 0:
+                logger.error("Something awful has happened, and you have negative subscriptions")
+                time.sleep(10)
 
-                config.save_cache()
+            elif len(config.subscriptions) == 0:
+                logger.warning("You have no subscriptions, doing nothing.")
+                time.sleep(10)
 
-            time.sleep(5)
+            else:
+                for i, sub in enumerate(config.subscriptions):
+                    logger.debug("Working on sub number {0} - '{1}'".format(i, sub.name))
+                    sub.attempt_update()
+                    config.subscriptions[i] = sub
+
+                    config.save_cache()
+
+                time.sleep(5)
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python

@@ -1,6 +1,6 @@
-import copy
 import logging
 import os
+import textwrap
 
 import umsgpack
 import yaml
@@ -35,15 +35,103 @@ class Config():
         self.cached_by_name = {}
         self.cached_by_url = {}
 
-        self._get_config_file()
-        self._get_cache_file()
+        self.set_file_vars()
 
-        self.load_state()
+    # "Public" functions.
+    def load_state(self):
+        """Load config file and subscription cache."""
+        self._load_user_settings()
+        self._load_cache_settings()
 
-    def _get_config_file(self):
-        """Set self.config_file."""
+        if self.subscriptions != []:
+            # Iterate through subscriptions to merge user settings and cache.
+            subs = []
+            for i, sub in enumerate(self.subscriptions):
+
+                # Pull out settings we need for merging metadata, or to preserve over the cache.
+                name = sub.name
+                url = sub._provided_url
+                directory = sub.directory
+
+                # Match cached sub to current sub and take its settings.
+                # If the user has changed either we can still match the sub and update settings
+                # correctly.
+                # If they update neither, there's nothing we can do.
+                if name in self.cached_by_name:
+                    logger.debug("Found {0} in cached subscriptions, merging.".format(name))
+                    sub = self.cached_by_name[name]
+
+                elif url in self.cached_by_url:
+                    logger.debug(textwrap.dedent(
+                        "Found sub with url {0} in cached subscriptions, merging.".format(url)))
+                    sub = self.cached_by_url[url]
+
+                sub.update_directory(directory, self.data_dir)
+                sub.update_url(url)
+
+                subs.append(sub)
+
+            self.subscriptions = subs
+
+    def save_cache(self):
+        """Write current in-memory config to cache file."""
+        logger.info("Writing settings to cache file '{0}'.".format(self.cache_file))
+        with open(self.cache_file, "wb") as stream:
+            dicts = [S.encode_subscription(sub) for sub in self.subscriptions]
+            packed = umsgpack.packb(dicts)
+            stream.write(packed)
+
+    # "Private" functions (messy internals).
+    def _load_cache_settings(self):
+        """Load settings from cache to self.cached_settings."""
+        self._ensure_file(self.cache_file)
+        self.cached_subscriptions = []
+
+        with open(self.cache_file, "rb") as stream:
+            logger.info("Opening subscription cache to retrieve subscriptions.")
+            data = stream.read()
+
+        if data == b"":
+            return
+
+        for encoded_sub in umsgpack.unpackb(data):
+            decoded_sub = S.decode_subscription(encoded_sub)
+            self.cached_subscriptions.append(decoded_sub)
+
+            self.cached_by_name[decoded_sub.name] = decoded_sub
+            self.cached_by_url[decoded_sub._provided_url] = decoded_sub
+
+    def _load_user_settings(self):
+        """Load user settings from config file."""
+        self._ensure_file(self.config_file)
+        self.subscriptions = []
+
+        with open(self.config_file, "r") as stream:
+            logger.info("Opening config file to retrieve settings.")
+            yaml_settings = yaml.safe_load(stream)
+
+        pretty_settings = yaml.dump(yaml_settings, width=1, indent=4)
+        logger.debug("Settings retrieved from user config file: {0}".format(pretty_settings))
+
+        if yaml_settings is not None:
+            self.directory = yaml_settings.get("directory", self.data_dir)
+
+            for yaml_sub in yaml_settings.get("subscriptions", []):
+                directory = yaml_sub.get("directory", os.path.join(self.directory,
+                                                                   yaml_sub["name"]))
+
+                sub = S.parse_from_user_yaml(yaml_sub)
+
+                if sub.directory is None:
+                    sub.directory = os.path.expanduser(directory)
+
+                self.subscriptions.append(S.parse_from_user_yaml(yaml_sub))
+
+    def _set_file_vars(self):
+        """Set self.config_file and self.cache_file, and create directories if necessary."""
+        # This code is annoyingly redundant, but I can't think of a good way to fix that.
         if not os.path.exists(self.config_dir):
-            logger.debug("Config dir '{0}' does not exist, creating.".format(self.config_dir))
+            logger.debug("{0} dir '{1}' does not exist, creating.".format(self.config_dir))
             os.makedirs(self.config_dir)
             self.config_file = os.path.join(self.config_dir, "config.yaml")
 
@@ -51,8 +139,6 @@ class Config():
             msg = "Config directory '{0}' is a file!".format(self.config_dir)
             E.InvalidConfigError(msg)
 
-    def _get_cache_file(self):
-        """Set self.cache_file."""
         if not os.path.exists(self.cache_dir):
             logger.debug("Cache dir '{0}' does not exist, creating.".format(self.cache_dir))
             os.makedirs(self.cache_dir)
@@ -71,85 +157,3 @@ class Config():
         elif not os.path.isfile(file_path):
             logger.debug("Creating empty file at '{0}'.".format(file_path))
             open(file_path, "a").close()
-
-    def _load_user_settings(self):
-        """Load user settings from config file."""
-        self._ensure_file(self.config_file)
-
-        with open(self.config_file, "r") as stream:
-            logger.info("Opening config file to retrieve settings.")
-            yaml_settings = yaml.safe_load(stream)
-
-        pretty_settings = yaml.dump(yaml_settings, width=1, indent=4)
-        logger.debug("Settings retrieved from user config file: {0}".format(pretty_settings))
-
-        if yaml_settings is not None:
-            self.directory = yaml_settings.get("directory", self.data_dir)
-
-            for yaml_sub in yaml_settings.get("subscriptions", []):
-                directory = yaml_sub.get("directory", os.path.join(self.directory,
-                                                                   yaml_sub["name"]))
-                yaml_sub["directory"] = os.path.expanduser(directory)
-
-                self.subscriptions.append(S.parse_from_user_yaml(yaml_sub))
-
-    def _load_cache_settings(self):
-        """Load settings from cache to self.cached_settings."""
-        self._ensure_file(self.cache_file)
-
-        with open(self.cache_file, "rb") as stream:
-            logger.info("Opening subscription cache to retrieve subscriptions.")
-            data = stream.read()
-
-        if data == b"":
-            return
-
-        for encoded_sub in umsgpack.unpackb(data):
-            decoded_sub = S.decode_subscription(encoded_sub)
-            self.cached_subscriptions.append(decoded_sub)
-
-            self.cached_by_name[decoded_sub.name] = decoded_sub
-            self.cached_by_url[decoded_sub._provided_url] = decoded_sub
-
-    def load_state(self):
-        """Load config file and subscription cache."""
-        self._load_user_settings()
-        self._load_cache_settings()
-
-        if self.subscriptions == {}:
-            self.subscriptions = copy.deepcopy(self.cached_subscriptions)
-
-        else:
-            # Iterate through subscriptions to merge user settings and cache.
-            subs = []
-            for i, sub in enumerate(self.subscriptions):
-
-                # Pull out settings we need for merging metadata, or to preserve over the cache.
-                name = sub.name
-                url = sub._provided_url
-                directory = sub.directory
-
-                # Match cached sub to current sub and take its settings.
-                # If the user has changed either we can still match the sub and update settings
-                # correctly.
-                # If they update neither, there's nothing we can do.
-                if name in self.cached_by_name:
-                    sub = self.cached_by_name[name]
-
-                elif url in self.cached_by_url:
-                    sub = self.cached_by_url[url]
-
-                sub.update_directory(directory, self.data_dir)
-                sub.update_url(url)
-
-                subs.append(sub)
-
-            self.subscriptions = subs
-
-    def save_cache(self):
-        """Write current in-memory config to cache file."""
-        logger.info("Writing settings to cache file '{0}'.".format(self.cache_file))
-        with open(self.cache_file, "wb") as stream:
-            dicts = [S.encode_subscription(sub) for sub in self.subscriptions]
-            packed = umsgpack.packb(dicts)
-            stream.write(packed)

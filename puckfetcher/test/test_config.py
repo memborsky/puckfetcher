@@ -1,9 +1,11 @@
+import copy
 import logging
 import os
 import shutil
 import tempfile
 
 import umsgpack
+import yaml
 
 import puckfetcher.config as PC
 import puckfetcher.subscription as PS
@@ -18,84 +20,197 @@ class TestConfig:
         # strange places during testing.
         cls.old_environ = dict(os.environ)
 
-        cls.xdg_config_home = tempfile.mkdtemp()
-        os.environ["XDG_CONFIG_HOME"] = cls.xdg_config_home
-        cls.provided_config_dir = os.path.join(cls.xdg_config_home)
-        cls.default_config_dir = os.path.join(cls.xdg_config_home, "puckfetcher")
+        cls.provided_config_dir = tempfile.mkdtemp()
+        cls.default_config_dir = os.path.join(cls.provided_config_dir, "puckfetcher")
         cls.default_config_file = os.path.join(cls.default_config_dir, "config.yaml")
 
-        cls.xdg_cache_home = tempfile.mkdtemp()
-        os.environ["XDG_CACHE_HOME"] = cls.xdg_cache_home
-        cls.provided_cache_dir = os.path.join(cls.xdg_cache_home)
-        cls.default_cache_dir = os.path.join(cls.xdg_cache_home, "puckfetcher")
+        cls.provided_cache_dir = tempfile.mkdtemp()
+        cls.default_cache_dir = os.path.join(cls.provided_cache_dir, "puckfetcher")
+
         cls.default_log_file = os.path.join(cls.default_cache_dir, "puckfetcher.log")
         logging.getLogger("root")
+
         cls.default_cache_file = os.path.join(cls.default_cache_dir, "puckcache")
 
-        cls.xdg_data_home = tempfile.mkdtemp()
-        os.environ["XDG_DATA_HOME"] = cls.xdg_data_home
+        cls.provided_data_dir = tempfile.mkdtemp()
+
+        cls.files = [cls.default_config_file, cls.default_log_file, cls.default_cache_file]
+
+        cls.sub1 = PS.Subscription(name="test1", url="foo")
+        cls.sub2 = PS.Subscription(name="test2", url="bar")
+        cls.sub3 = PS.Subscription(name="test3", url="baz")
+
+        cls.subscriptions = [cls.sub1, cls.sub2, cls.sub3]
 
     @classmethod
     def teardown_class(cls):
-        shutil.rmtree(cls.xdg_config_home)
-        shutil.rmtree(cls.xdg_cache_home)
-        shutil.rmtree(cls.xdg_data_home)
+        shutil.rmtree(cls.provided_config_dir)
+        shutil.rmtree(cls.provided_cache_dir)
+        shutil.rmtree(cls.provided_data_dir)
 
-    def check_config_created(self):
-        """Test default config is created correctly."""
+    def create_test_config(self):
+        """Create test config with test dirs."""
+        for f in TestConfig.files:
+            if os.path.isfile(f):
+                os.remove(f)
 
-        with open(TestConfig.default_config_file) as f:
-            actual = f.read()
+        return PC.Config(config_dir=TestConfig.provided_config_dir,
+                         cache_dir=TestConfig.provided_cache_dir,
+                         data_dir=TestConfig.provided_data_dir)
 
-        assert(actual == "")
+    def write_msgpack_subs_to_file(self, out_file=None, subs=None):
+        """Write subs to a file through msgpack."""
 
-    def test_creates_empty_config_file(self):
-        """
-        Constructing a config with a directory provided, but with no config file existing,
-        should create the file.
-        """
+        # I don't like this, but it didn't seem like I could set keyword arguments to default to
+        # class variables.
+        if out_file is None:
+            out_file = TestConfig.default_cache_file
 
-        config = PC.Config(config_dir=TestConfig.provided_config_dir)
-        self.check_config_created()
+        if subs is not None:
+            encoded_subs = list(map(PS.encode_subscription, subs))
+        else:
+            encoded_subs = list(map(PS.encode_subscription, TestConfig.subscriptions))
 
-    def test_save_cache_works(self):
-        """Subscriptions should be saved correctly."""
+        d, _ = os.path.split(out_file)
+        if not os.path.exists(d):
+            os.makedirs(d)
 
-        config = PC.Config(config_dir=TestConfig.provided_config_dir,
-                           cache_dir=TestConfig.provided_cache_dir)
-
-        sub = PS.Subscription(name="test", url="foo")
-
-        config.subscriptions = [sub]
-
-        config.save_cache()
-
-        with open(TestConfig.default_cache_file, "rb") as f:
-            bytestring = f.read()
-
-            unpacked = umsgpack.unpackb(bytestring)
-            unpacked_sub = PS.decode_subscription(unpacked[0])
-
-            assert(unpacked_sub._provided_url == sub._provided_url)
-            assert(unpacked_sub.name == sub.name)
-
-    def test_load_state_works(self):
-        """Subscriptions should be loaded correctly."""
-
-        sub = PS.Subscription(name="test", url="foo")
-        subs = [PS.encode_subscription(sub)]
-
-        if not os.path.isdir(TestConfig.default_cache_dir):
-            os.makedirs(TestConfig.default_cache_dir)
-        with open(TestConfig.default_cache_file, "ab") as f:
-            packed = umsgpack.packb(subs)
+        with open(out_file, "wb") as f:
+            packed = umsgpack.packb(encoded_subs)
             f.write(packed)
 
-        config = PC.Config(config_dir=TestConfig.provided_config_dir,
-                           cache_dir=TestConfig.provided_cache_dir)
+    def write_yaml_subs_to_file(self, out_file=None, subs=None):
+        """Write subscriptions in YAML to the config file."""
 
-        expected_sub = sub
-        actual_sub = config.cached_subscriptions[0]
+        if out_file is None:
+            out_file = TestConfig.default_config_file
 
-        assert(actual_sub.name == expected_sub.name)
-        assert(actual_sub._provided_url == expected_sub._provided_url)
+        data = {}
+        if subs is None:
+            subs = TestConfig.subscriptions
+
+        data["subscriptions"] = []
+        for i, sub in enumerate(subs):
+            d = {}
+            d["url"] = sub._provided_url
+            d["name"] = sub.name
+            if sub.backlog_limit is not None:
+                d["backlog_limit"] = sub.backlog_limit
+            d["download_backlog"] = sub.download_backlog
+
+            data["subscriptions"].append(d)
+
+        d, _ = os.path.split(out_file)
+        if not os.path.exists(d):
+            os.makedirs(d)
+
+        with open(out_file, "w") as f:
+            yaml.dump(data, f)
+
+    def test_default_config_assigns_files(self):
+        """Test config with arguments assigns the right file vars."""
+        config = self.create_test_config()
+
+        assert(config.config_file == TestConfig.default_config_file)
+        assert(config.cache_file == TestConfig.default_cache_file)
+
+    def test_load_only_cache_works(self):
+        """Test that settings can be loaded correctly from just the cache."""
+        config = self.create_test_config()
+
+        self.write_msgpack_subs_to_file()
+
+        config.load_state()
+
+        assert(config.cached_subscriptions == TestConfig.subscriptions)
+        assert(config.subscriptions == TestConfig.subscriptions)
+
+    def test_load_only_user_settings_works(self):
+        """Test that settings can be loaded correctly from just the user settings."""
+        config = self.create_test_config()
+
+        self.write_yaml_subs_to_file()
+
+        config.load_state()
+
+        assert(config.cached_subscriptions == [])
+        assert(config.subscriptions == TestConfig.subscriptions)
+
+    def test_non_config_subs_ignore(self):
+        """Subscriptions in cache but not config shouldn't be in subscriptions list."""
+        config = self.create_test_config()
+
+        self.write_msgpack_subs_to_file()
+        self.write_yaml_subs_to_file(subs=[TestConfig.sub1])
+
+        config.load_state()
+
+        assert(config.cached_subscriptions == TestConfig.subscriptions)
+        assert(config.subscriptions == [TestConfig.sub1])
+
+    def test_subscriptions_matched_by_name(self):
+        """Subscriptions in cache should be matched to subscriptions in config by name."""
+        config = self.create_test_config()
+
+        subs = [copy.deepcopy(TestConfig.sub1),
+                copy.deepcopy(TestConfig.sub2),
+                copy.deepcopy(TestConfig.sub3)]
+
+        self.write_yaml_subs_to_file(subs=subs)
+
+        test_urls = ["bababba", "aaaaaaa", "ccccccc"]
+        test_nums = [1999, 24, 777]
+
+        # Change urls and latest entry numbers in subscriptions.
+        # The urls shouldn't make it through (the urls in user settings will be prioritized), but
+        # the latest entry numbers should make it.
+        # The settings/cache merge code should be able to match these subs even if the urls have
+        # changed, as long as the names are the same.
+        for i, sub in enumerate(subs):
+            sub._provided_url = test_urls[i]
+            sub.latest_entry_number = test_nums[i]
+            subs[i] = sub
+
+        self.write_msgpack_subs_to_file(subs=subs)
+
+        config.load_state()
+
+        for i, sub in enumerate(config.subscriptions):
+            assert(sub._provided_url != test_urls[i])
+            assert(sub._current_url != test_urls[i])
+
+            assert(sub.latest_entry_number == test_nums[i])
+
+    def test_subscriptions_matched_by_url(self):
+        """Subscriptions in cache should be matched to subscriptions in config by url."""
+        config = self.create_test_config()
+
+        subs = [copy.deepcopy(TestConfig.sub1),
+                copy.deepcopy(TestConfig.sub2),
+                copy.deepcopy(TestConfig.sub3)]
+
+        self.write_yaml_subs_to_file(subs=subs)
+
+        test_names = ["bababba", "aaaaaaa", "ccccccc"]
+        test_urls = ["bababba", "aaaaaaa", "ccccccc"]
+        test_nums = [1999, 24, 777]
+
+        # Change urls and latest entry numbers in subscriptions.
+        # The urls shouldn't make it through (the urls in user settings will be prioritized), but
+        # the latest entry numbers should make it.
+        # The settings/cache merge code should be able to match these subs even if the names have
+        # changed, as long as the urls are the same.
+        for i, sub in enumerate(subs):
+            sub.name = test_names[i]
+            sub.latest_entry_number = test_nums[i]
+            subs[i] = sub
+
+        self.write_msgpack_subs_to_file(subs=subs)
+
+        config.load_state()
+
+        for i, sub in enumerate(config.subscriptions):
+            assert(sub._provided_url != test_urls[i])
+            assert(sub._current_url != test_urls[i])
+
+            assert(sub.latest_entry_number == test_nums[i])
