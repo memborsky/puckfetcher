@@ -114,8 +114,8 @@ class TestConfig:
         assert(config.config_file == TestConfig.default_config_file)
         assert(config.cache_file == TestConfig.default_cache_file)
 
-    def test_load_only_cache_works(self):
-        """Test that settings can be loaded correctly from just the cache."""
+    def test_load_only_cache_loads_nothing(self):
+        """If there are only subs in the cache, none in settings, discard them."""
         config = self.create_test_config()
 
         self.write_msgpack_subs_to_file()
@@ -123,7 +123,7 @@ class TestConfig:
         config.load_state()
 
         assert(config.cached_subscriptions == TestConfig.subscriptions)
-        assert(config.subscriptions == TestConfig.subscriptions)
+        assert(config.subscriptions == [])
 
     def test_load_only_user_settings_works(self):
         """Test that settings can be loaded correctly from just the user settings."""

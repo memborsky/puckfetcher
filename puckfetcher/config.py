@@ -35,7 +35,7 @@ class Config():
         self.cached_by_name = {}
         self.cached_by_url = {}
 
-        self.set_file_vars()
+        self._set_file_vars()
 
     # "Public" functions.
     def load_state(self):
@@ -131,7 +131,7 @@ class Config():
         """Set self.config_file and self.cache_file, and create directories if necessary."""
         # This code is annoyingly redundant, but I can't think of a good way to fix that.
         if not os.path.exists(self.config_dir):
-            logger.debug("{0} dir '{1}' does not exist, creating.".format(self.config_dir))
+            logger.debug("Config dir '{0}' does not exist, creating.".format(self.config_dir))
             os.makedirs(self.config_dir)
             self.config_file = os.path.join(self.config_dir, "config.yaml")
 
