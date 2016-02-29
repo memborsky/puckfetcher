@@ -66,6 +66,7 @@ class Config():
                         "Found sub with url {0} in cached subscriptions, merging.".format(url)))
                     sub = self.cached_by_url[url]
 
+                sub.name = name
                 sub.update_directory(directory, self.data_dir)
                 sub.update_url(url)
 
