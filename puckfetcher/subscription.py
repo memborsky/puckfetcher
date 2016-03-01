@@ -205,7 +205,7 @@ class Subscription():
                 """.format(self.name, number_feeds)))
             return True
 
-        self.download_entry_files(number_to_download-1)
+        self.download_entry_files(oldest_entry_age=number_to_download-1)
 
         return True
 
@@ -466,7 +466,7 @@ class Subscription():
 
         else:
             logger.info("Saw status {0} - OK, all is well.")
-            return parsed
+            return True
 
     def __eq__(self, rhs):
         if isinstance(rhs, Subscription):
