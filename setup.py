@@ -23,7 +23,7 @@ with open(path.join(here, "VERSION"), encoding="utf-8") as f:
 setup(author="Andrew Michaud",
       author_email="andrewjmichaud+puckfetcher@gmail.com",
 
-      classifiers=["Development Status :: 4 - Beta"
+      classifiers=["Development Status :: 4 - Beta",
                    "Environment :: Console",
                    "Intended Audience :: End Users/Desktop",
                    "License :: OSI Approved :: BSD License",
@@ -40,7 +40,7 @@ setup(author="Andrew Michaud",
 
       description="A simple command-line podcatcher.",
 
-      download_url="https://github.com/andrewmichaud/puckfetcher/tarball/0.6.12",
+      download_url="https://github.com/andrewmichaud/puckfetcher/tarball/" + version,
 
       entry_points={
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]

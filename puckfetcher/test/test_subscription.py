@@ -90,10 +90,11 @@ class TestSubscription:
         """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
         sub = SUB.Subscription(url=http302Address, name="tooManyAttemptsTest",
                                directory=TestSubscription.d)
-        with PT.raises(PE.UnreachableFeedError) as e:
-            sub._get_feed_helper(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
 
-        assert(e.value.desc == "Too many attempts needed to reach feed.")
+        # TODO tests need to be rewritten to check log output or something.
+        result = sub._get_feed_helper(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
+
+        assert(result is False)
 
     def test_valid_temporary_redirect_succeeds(self):
         """
@@ -102,7 +103,10 @@ class TestSubscription:
         """
 
         sub = SUB.Subscription(url=http302Address, name="302Test", directory=TestSubscription.d)
-        sub.get_feed()
+        result = sub.get_feed()
+
+        assert(result is True)
+
         assert(sub.entries[0]["link"] == rssResourceAddress)
         assert(sub._current_url == http302Address)
         assert(sub._provided_url == http302Address)
@@ -114,7 +118,10 @@ class TestSubscription:
         """
 
         sub = SUB.Subscription(url=http301Address, name="301Test", directory=TestSubscription.d)
-        sub.get_feed()
+        result = sub.get_feed()
+
+        assert(result is True)
+
         assert(sub.entries[0]["link"] == rssResourceAddress)
         assert(sub._current_url == rssAddress)
         assert(sub._provided_url == http301Address)
@@ -125,10 +132,9 @@ class TestSubscription:
         """
 
         sub = SUB.Subscription(url=http404Address, name="404Test", directory=TestSubscription.d)
-        with PT.raises(PE.UnreachableFeedError) as e:
-            sub.get_feed()
+        result = sub.get_feed()
 
-        assert(e.value.desc == "Unable to retrieve feed.")
+        assert(result is False)
 
         assert(sub.entries is None)
         assert(sub._current_url == http404Address)
@@ -139,10 +145,9 @@ class TestSubscription:
 
         sub = SUB.Subscription(url=http410Address, name="410Test", production=False,
                                directory=TestSubscription.d)
-        with PT.raises(PE.UnreachableFeedError) as e:
-            sub.get_feed()
+        result = sub.get_feed()
 
-        assert(e.value.desc == "Unable to retrieve feed, feed is gone.")
+        assert(result is False)
 
         assert(sub.entries is None)
         assert(sub._current_url is None)
@@ -153,7 +158,6 @@ class TestSubscription:
         """Should download full backlog by default."""
         sub = SUB.Subscription(url=rssAddress, name="testfeed", production=False,
                                directory=TestSubscription.d)
-        sub.get_feed()
         sub.attempt_update()
 
         assert(len(sub.entries) == 10)
@@ -167,7 +171,6 @@ class TestSubscription:
         """Should download partial backlog if limit is specified."""
         sub = SUB.Subscription(url=rssAddress, name="testfeed", backlog_limit=5, production=False,
                                directory=TestSubscription.d)
-        sub.get_feed()
         sub.attempt_update()
 
         assert(len(sub.entries) == 10)

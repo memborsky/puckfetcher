@@ -29,9 +29,9 @@ def encode_subscription(obj):
             "directory": obj.directory,
             "download_backlog": obj.download_backlog,
             "entries": obj.entries,
+            "feed": obj.feed,
             "latest_entry_number": obj.latest_entry_number,
-            "name": obj.name,
-            "old_entries": obj.old_entries}
+            "name": obj.name}
 
 
 def decode_subscription(obj):
@@ -46,9 +46,9 @@ def decode_subscription(obj):
     sub.directory = obj["directory"]
     sub.download_backlog = obj["download_backlog"]
     sub.entries = obj["entries"]
+    sub.feed = obj["feed"]
     sub.latest_entry_number = obj["latest_entry_number"]
     sub.name = obj["name"]
-    sub.old_entries = obj.get("old_entries", "")
     return sub
 
 
@@ -102,23 +102,17 @@ class Subscription():
             logger.debug("Provided name {0}.".format(name))
             self.name = name
 
-        # Save feed so we can retrieve multiple entries without retrieving it again.
-        # Maintain old feed so we can tell if a new feed is different.
         # TODO allow multiple downloads at once.
+
+        # Use etag and last-modified to detect when we have the latest feed.
+        # Store latest feed (and entries separately, for convenience.
+        self.etag = None
+        self.last_modified = None
+        self.feed = None
         self.entries = None
-        self.old_entries = None
+        self.last_status = None
 
-        if directory is None:
-            self.directory = U.DATA_DIR
-            logger.debug("No directory provided, defaulting to {0}.".format(directory))
-
-        else:
-            self.directory = directory
-            logger.debug("Provided directory {0}.".format(directory))
-
-            if not os.path.isdir(self.directory):
-                logger.debug("Directory {0} does not exist, creating it.".format(directory))
-                os.makedirs(self.directory)
+        self._handle_directory(directory)
 
         self.download_backlog = download_backlog
         logger.debug("Set to download backlog: {0}.".format(download_backlog))
@@ -136,134 +130,140 @@ class Subscription():
     # "Public" functions.
     def attempt_update(self):
         """Attempt to download new entries for a subscription."""
+        feed_updated = self.get_feed()
+        if not feed_updated:
+            logger.info("Feed for {0} was not updated.".format(self.name))
+            return False
 
-        self.get_feed()
+        logger.info("Feed for {0} was updated.".format(self.name))
 
         # Check how many entries we've missed.
         if self.entries is None:
-            logger.error("No feed, cannot attempt update.")
-            # TODO should throw some kind of error?
-            return
+            logger.error("No entries for {0}, cannot attempt update.".format(self.name))
+            return False
 
         number_to_download = 0
         number_feeds = len(self.entries)
         # TODO I've cleaned up this logic before, but it's worth trying again.
-        if self.entries != self.old_entries:
-            if self.latest_entry_number == 0:
-                if self.download_backlog:
-                    if self.backlog_limit is None:
-                        number_to_download = number_feeds
-                        logger.info(textwrap.dedent(
-                            """\
-                            Backlog limit for {0} is set to None.
-                            Interpreting as "No Limit" and downloading full backlog ({1} entries).\
-                            """.format(self.name, number_to_download)))
-
-                    elif self.backlog_limit < 0:
-                        logger.error(textwrap.dedent(
-                            """\
-                            Invalid backlog limit {0}, downloading nothing.\
-                            """.format(self.backlog_limit)))
-                        return
-
-                    elif self.backlog_limit <= number_feeds:
-                        number_to_download = self.backlog_limit
-                        logger.info(textwrap.dedent(
-                            """\
-                            Backlog limit for {0} is set to {1}, less than number of feeds {2}.
-                            Downloading {1} entries.\
-                            """.format(self.name, self.backlog_limit, number_feeds,
-                                       number_to_download)))
-
-                    else:
-                        number_to_download = number_feeds
-                        logger.info(textwrap.dedent(
-                            """\
-                            Backlog limit for {0} is set to {1}, greater than number of feeds {2}.
-                            Downloading only {1} entries.\
-                            """.format(self.name, self.backlog_limit, number_feeds,
-                                       number_to_download)))
-
-                else:
-                    self.latest_entry_number = number_feeds
+        if self.latest_entry_number == 0:
+            if self.download_backlog:
+                if self.backlog_limit is None:
+                    number_to_download = number_feeds
                     logger.info(textwrap.dedent(
                         """\
-                        Download backlog for {0} is not set.
-                        Downloading nothing, but setting number downloaded to {1}.\
-                        """.format(self.name, self.latest_entry_number)))
+                        Backlog limit for {0} is set to None.
+                        Interpreting as "No Limit" and downloading full backlog ({1} entries).\
+                        """.format(self.name, number_to_download)))
 
-            elif self.latest_entry_number < number_feeds:
-                number_to_download = number_feeds - self.latest_entry_number
-                logger.info(textwrap.dedent(
-                    """\
-                    Number of downloaded feeds for {0} is {1}, {2} less than feed entry count {3}.
-                    Downloading {1} entries.\
-                    """.format(self.name, self.latest_entry_number, number_to_download,
-                               number_feeds)))
+                elif self.backlog_limit < 0:
+                    logger.error(textwrap.dedent(
+                        """\
+                        Invalid backlog limit {0}, downloading nothing.\
+                        """.format(self.backlog_limit)))
+                    return False
+
+                elif self.backlog_limit <= number_feeds:
+                    number_to_download = self.backlog_limit
+                    logger.info(textwrap.dedent(
+                        """\
+                        Backlog limit for {0} is set to {1}, less than number of feeds {2}.
+                        Downloading {1} entries.\
+                        """.format(self.name, self.backlog_limit, number_feeds,
+                                   number_to_download)))
+
+                else:
+                    number_to_download = number_feeds
+                    logger.info(textwrap.dedent(
+                        """\
+                        Backlog limit for {0} is set to {1}, greater than number of feeds {2}.
+                        Downloading only {1} entries.\
+                        """.format(self.name, self.backlog_limit, number_feeds,
+                                   number_to_download)))
 
             else:
+                self.latest_entry_number = number_feeds
                 logger.info(textwrap.dedent(
                     """\
-                    Number downloaded for {0} matches feed entry count {1}.
-                    Nothing to download.\
-                    """.format(self.name, number_feeds)))
-                return
+                    Download backlog for {0} is not set.
+                    Downloading nothing, but setting number downloaded to {1}.\
+                    """.format(self.name, self.latest_entry_number)))
+
+        elif self.latest_entry_number < number_feeds:
+            number_to_download = number_feeds - self.latest_entry_number
+            logger.info(textwrap.dedent(
+                """\
+                Number of downloaded feeds for {0} is {1}, {2} less than feed entry count {3}.
+                Downloading {1} entries.\
+                """.format(self.name, self.latest_entry_number, number_to_download,
+                           number_feeds)))
+
+        else:
+            logger.info(textwrap.dedent(
+                """\
+                Number downloaded for {0} matches feed entry count {1}.
+                Nothing to download.\
+                """.format(self.name, number_feeds)))
+            return True
+
+        self.download_entry_files(number_to_download-1)
+
+        return True
+
+    def download_entry_files(self, oldest_entry_age=-1):
+        """
+        Download feed enclosure(s) for all entries newer than the given oldest entry age to object
+        directory.
+        """
 
         # Downloading feeds oldest first makes the most sense for RSS feeds (IMO), so we do that.
-        for i in range(number_to_download-1, -1, -1):
-            logger.info("Downloading entry with age {0}.".format(i))
-            self.download_entry_files(i)
+        for entry_age in range(oldest_entry_age, -1, -1):
+            if entry_age < 0 or entry_age >= len(self.entries):
+                logger.error("Given invalid entry age {0} to for {1}.".format(entry_age,
+                                                                              self.name))
+                return
+
+            logger.info("Downloading entry {0} for {1}.".format(entry_age, self.name))
+
+            entry = self.entries[entry_age]
+            enclosures = entry.enclosures
+            logger.info("There are {0} enclosures for entry with age {1}.".format(len(enclosures),
+                                                                                  entry_age))
+
+            # Create directory just for enclosures for this entry if there are many.
+            directory = self.directory
+            if len(enclosures) > 1:
+                directory = os.path.join(directory, entry.title)
+                logger.debug(textwrap.dedent(
+                    """\
+                    More than 1 enclosure for entry {0}, creating directory {1} to store them.\
+                    """.format(entry.title, directory)))
+
+            for i, enclosure in enumerate(enclosures):
+                logger.info("Handling enclosure {0} of {1}.".format(i+1, len(enclosures)))
+
+                url = enclosure.href
+                logger.info("Extracted url {0}.".format(url))
+
+                filename = url.split('/')[-1]
+                file_location = os.path.join(directory, filename)
+
+                # If there is a file with the name we intend to save to, assume the podcast has
+                # been downloaded already.
+                if not os.path.isfile(file_location):
+                    logger.info("Saving file for enclosure {0} to {1}.".format(i+1, file_location))
+                    self.download_file(url, file_location)
+
+                else:
+                    logger.info(textwrap.dedent(
+                        """\
+                        File {0} already exists, assuming already downloaded and not overwriting.\
+                        """.format(file_location)))
 
             self.latest_entry_number += 1
             logger.info(textwrap.dedent(
                 """\
                 Have downloaded {0} entries for subscription {1}.\
                 """.format(self.latest_entry_number, self.name)))
-
-    def download_entry_files(self, entry_age=0):
-        """Download feed enclosure(s) to object directory."""
-
-        directory = self.directory
-        if entry_age < 0 or entry_age >= len(self.entries):
-            logger.error("Given invalid entry age {0} to download for {1}.".format(entry_age,
-                                                                                   self.name))
-            return
-
-        logger.info("Downloading entry {0} for {1}.".format(entry_age, self.name))
-
-        entry = self.entries[entry_age]
-        enclosures = entry.enclosures
-        logger.info("There are {0} enclosures for entry with age {1}.".format(len(enclosures),
-                                                                              entry_age))
-
-        # Create directory just for enclosures for this entry if there are many.
-        if len(enclosures) > 1:
-            directory = os.path.join(directory, entry.title)
-            logger.debug(textwrap.dedent(
-                """\
-                More than 1 enclosure for entry {0}, creating directory {1} to store them.\
-                """.format(entry.title, directory)))
-
-        for i, enclosure in enumerate(enclosures):
-            logger.info("Handling enclosure {0} of {1}.".format(i+1, len(enclosures)))
-
-            url = enclosure.href
-            logger.info("Extracted url {0}.".format(url))
-
-            filename = url.split('/')[-1]
-            file_location = os.path.join(directory, filename)
-
-            # If there is a file with the name we intend to save to, assume the podcast has been
-            # downloaded already.
-            if not os.path.isfile(file_location):
-                logger.info("Saving file for enclosure {0} to {1}.".format(i+1, file_location))
-                self.download_file(url, file_location)
-
-            else:
-                logger.info(textwrap.dedent(
-                    """\
-                    File {0} already exists, assuming already downloaded and not overwriting.\
-                    """.format(file_location)))
 
     def download_file(self, url, file_location):
         """Download a file. Wrapper around the *actual* write to allow targeted rate limiting."""
@@ -288,13 +288,13 @@ class Subscription():
 
     def update_directory(self, directory, config_dir):
         """Update directory for this subscription if a new one is provided."""
-        if self.directory != directory:
-            if directory is None or directory == "":
-                raise E.InvalidConfigError(desc=textwrap.dedent(
-                    """\
-                    Provided invalid sub directory '{0}' for '{1}'.\
-                    """.format(directory, self.name)))
+        if directory is None or directory == "":
+            raise E.InvalidConfigError(desc=textwrap.dedent(
+                """\
+                Provided invalid sub directory '{0}' for '{1}'.\
+                """.format(directory, self.name)))
 
+        if self.directory != directory:
             # NOTE This may not be fully portable. Should work at least on OSX and Linux.
             # Assume a directory starting with the separator is meant to be absolute.
             # Assume no responsibility for a bad path.
@@ -313,80 +313,122 @@ class Subscription():
         self._current_url = copy.deepcopy(url)
 
     # "Private" functions (messy internals).
+    def _handle_directory(self, directory):
+        """Assign directory if none was given, and create directory if necessary."""
+        if directory is None:
+            self.directory = U.DATA_DIR
+            logger.debug("No directory provided, defaulting to {0}.".format(self.directory))
+
+        else:
+            self.directory = directory
+            logger.debug("Provided directory {0}.".format(directory))
+
+            if not os.path.isdir(self.directory):
+                logger.debug("Directory {0} does not exist, creating it.".format(directory))
+                os.makedirs(self.directory)
+
     def _get_feed_helper(self, attempt_count):
         """
         Helper method to get feed text that can be called recursively. Limited to
         MAX_RECURSIVE_ATTEMPTS attempts.
+        Return whether we successfully got a new feed.
         """
 
-        # TODO We should return a reason/error along with None.
-        # Then testing can be stricter.
         if attempt_count > MAX_RECURSIVE_ATTEMPTS:
             logger.error(textwrap.dedent(
                 """\
                 Too many recursive attempts ({0}) to get feed for subscription {1}, cancelling.\
                 """.format(attempt_count, self.name)))
-            raise E.UnreachableFeedError(desc="Too many attempts needed to reach feed.")
+            return False
 
         if self._current_url is None or self._current_url == "":
             logger.error(textwrap.dedent(
                 """\
-                URL is empty or None, cannot get feed text for subscription {0}.\
-                """.format(self.name)))
-            raise E.MalformedSubscriptionError(desc="No URL after construction of subscription.")
+                URL is empty or None, cannot get feed text for subscription {0}.
+                Last HTTP status was {1}.\
+                """.format(self.name, self.last_status)))
+            return False
 
         logger.info(textwrap.dedent(
             """\
             Getting entries (attempt {0}) for subscription {1} with URL {2}.\
             """.format(attempt_count, self.name, self._current_url)))
 
-        parsed = feedparser.parse(self._current_url)
+        parsed = self._feedparser_parse_with_options()
+        if parsed is None:
+            logger.error("Feedparser parse failed, aborting.")
+            print("Feedparser parse failed, aborting.")
+            return False
+
+        # Detect some kinds of HTTP status codes signalling failure.
+        http_says_continue = self._handle_http_codes(attempt_count, parsed)
+        if not http_says_continue:
+            logger.error("Ran into HTTP error, aborting..")
+            print("Ran into HTTP error, aborting.")
+            return False
+
+        self.feed = parsed.get("feed", {})
+        self.entries = parsed.get("entries", [])
+
+    def _feedparser_parse_with_options(self):
+        """Perform a feedparser parse, providing arguments (like etag) we might want it to use."""
+        parsed = feedparser.parse(self._current_url, etag=self.etag, modified=self.last_modified)
+        self.etag = parsed.get("etag", None)
+        self.last_modified = parsed.get("last_modified", None)
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
-        if "status" not in parsed and parsed.bozo == 1:
-            msg = parsed.bozo_exception.getMessage()
+        if "status" not in parsed and parsed.get("bozo", None) == 1:
+            # Feedparser documentation indicates that you can always call getMessage, but it's
+            # possible for feedparser to spit out a URLError, which doesn't have getMessage.
+            # Catch this case.
+            if hasattr(parsed.bozo_exception, "getMessage()"):
+                msg = parsed.bozo_exception.getMessage()
+
+            else:
+                msg = repr(parsed.bozo_exception)
+
             logger.error(textwrap.dedent(
                 """\
                 Received bozo exception {0}. Unable to retrieve feed with URL {1} for {2}.\
                 """.format(msg, self._current_url, self.name)))
-            return
+            return None
 
-        # Detect some kinds of HTTP status codes signalling failure.
-        http_handling_result = self._handle_http_codes(attempt_count, parsed)
-        if http_handling_result is not None:
-            return http_handling_result
-
-        # If we didn't detect any errors, we can save the entries.
-        # However, only save the entries if they are different than the saved entries.
-        # Return a boolean showing whether we changed the saved entries or not.
-        # TODO see if there's anything else useful in parsed to pull out and save besides entries.
-        if self.entries is None or self.entries != parsed:
-            logger.info("New entries are different than current entries, saving them.")
-            self.old_feed = copy.deepcopy(self.entries)
-            self.entries = copy.deepcopy(parsed["entries"])
-            return True
-
-        else:
-            logger.info("New entries are identical to current entries, not saving them.")
-            return False
+        return parsed
 
     def _handle_http_codes(self, attempt_count, parsed):
-        """Handle any http codes that might result from parsing a feed url."""
-
+        """
+        Handle any http codes that might result from parsing a feed url.
+        Return True if we should continue with parsing, or False if we should not.
+        """
         status = parsed.status
+        if status == requests.codes.NOT_FOUND:
+            logger.error(textwrap.dedent(
+                """\
+                Saw status {0}, unable to retrieve feed text for {2}.
+                Current URL {1} for {2} will be preserved and checked again on next attempt.\
+                """.format(status, self._current_url, self.name)))
+            return True
 
-        # This is vaguely gross and doesn't handle the duplicates they have in requests.codes.
-        rev = {v: k for k, v in requests.codes.__dict__.items()}
-        if status == requests.codes.OK:
-            logger.info("Saw {0} - {1} status.".format(status, rev[status]))
-        else:
-            logger.warning("Saw non-200 status {0} - {1}.".format(status, rev[status]))
+        # TODO hook for dealing with password-protected feeds.
+        elif status in [requests.codes.UNAUTHORIZED, requests.codes.GONE]:
+            logger.error(textwrap.dedent(
+                """\
+                Saw status {0}, unable to retrieve feed text for {2}.
+                Clearing stored URL {0} from _current_url for {2}.
+                Originally provided URL {1} will be maintained at _provided_url, but will no longer
+                be used.
+                Please provide new URL and authorization for subscription {2}.\
+                """.format(status, self._current_url, self.name)))
 
-        if status in [requests.codes.MOVED_PERMANENTLY, requests.codes.PERMANENT_REDIRECT]:
+            self._current_url = None
+            return True
+
+        elif status in [requests.codes.MOVED_PERMANENTLY, requests.codes.PERMANENT_REDIRECT]:
             logger.warning(textwrap.dedent(
                 """\
-                Changing stored URL {0} for {1} to {2} and attempting get with new URL.\
-                """.format(self._current_url, self.name, parsed.href)))
+                Saw status {0} indicating permanent URL change.
+                Changing stored URL {1} for {2} to {3} and attempting get with new URL.\
+                """.format(status, self._current_url, self.name, parsed.href)))
 
             self._current_url = parsed.href
             return self._get_feed_helper(attempt_count+1)
@@ -396,8 +438,9 @@ class Subscription():
                         requests.codes.TEMPORARY_REDIRECT]:
             logger.warning(textwrap.dedent(
                 """\
-                Attempting with new URL {0}. Stored URL {0} for {1} will be unchanged.\
-                """.format(parsed.href, self._current_url, self.name)))
+                Saw status {0} indicating temporary URL change.
+                Attempting with new URL {1}. Stored URL {2} for {3} will be unchanged.\
+                """.format(status, parsed.href, self._current_url, self.name)))
 
             old_url = self._current_url
             self._current_url = parsed.href
@@ -406,32 +449,6 @@ class Subscription():
 
             return result
 
-        elif status == requests.codes.NOT_FOUND:
-            logger.error(textwrap.dedent(
-                """\
-                Unable to retrieve feed text for {1}.
-                Current URL {0} for {1} will be preserved and checked again on next attempt.\
-                """.format(self._current_url, self.name)))
-            raise E.UnreachableFeedError(desc="Unable to retrieve feed.", code=status)
-
-        # TODO hook for dealing with password-protected feeds.
-        elif status in [requests.codes.UNAUTHORIZED, requests.codes.GONE]:
-            logger.error(textwrap.dedent(
-                """\
-                Unable to retrieve feed text for {1}.
-                Clearing stored URL {0} from _current_url for {1}.
-                Originally provided URL {0} will be maintained at _provided_url, but will no longer
-                be used.
-                Please provide new URL and authorization for subscription {1}.\
-                """.format(self._current_url, self.name)))
-            self._current_url = None
-            if status == requests.codes.UNAUTHORIZED:
-                raise E.UnreachableFeedError(desc="Unable to retrieve feed without authorization.",
-                                             code=status)
-            else:
-                raise E.UnreachableFeedError(desc="Unable to retrieve feed, feed is gone.",
-                                             code=status)
-
         elif status != 200:
             logger.warning(textwrap.dedent(
                 """\
@@ -439,6 +456,17 @@ class Subscription():
                 anyways.\
                 """.format(status, self._current_url, self.name)))
             return self._get_feed_helper(attempt_count+1)
+
+        elif status == requests.codes.NOT_MODIFIED:
+            logger.info(textwrap.dedent(
+                """\
+                Saw status {0} - NOT MODIFIED. Have latest feed for {0}, nothing to do.
+                """.format(status, self.name)))
+            return None
+
+        else:
+            logger.info("Saw status {0} - OK, all is well.")
+            return parsed
 
     def __eq__(self, rhs):
         if isinstance(rhs, Subscription):
