@@ -463,3 +463,6 @@ class Subscription():
 
     def __ne__(self, rhs):
         return not self.__eq__(rhs)
+
+    def __repr__(self):
+        return str(encode_subscription(self))

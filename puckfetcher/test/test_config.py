@@ -35,9 +35,9 @@ class TestConfig:
 
         cls.files = [cls.default_config_file, cls.default_log_file, cls.default_cache_file]
 
-        cls.sub1 = PS.Subscription(name="test1", url="foo")
-        cls.sub2 = PS.Subscription(name="test2", url="bar")
-        cls.sub3 = PS.Subscription(name="test3", url="baz")
+        cls.sub1 = PS.Subscription(name="test1", url="foo", directory="here")
+        cls.sub2 = PS.Subscription(name="test2", url="bar", directory="there")
+        cls.sub3 = PS.Subscription(name="test3", url="baz", directory="anywhere")
 
         cls.subscriptions = [cls.sub1, cls.sub2, cls.sub3]
 
@@ -185,9 +185,9 @@ class TestConfig:
         d = {}
         d["url"] = sub._provided_url
         d["name"] = sub.name
-        if sub.backlog_limit is not None:
-            d["backlog_limit"] = sub.backlog_limit
+        d["backlog_limit"] = sub.backlog_limit
         d["download_backlog"] = sub.download_backlog
+        d["directory"] = sub.directory
 
         return d
 
