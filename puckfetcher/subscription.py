@@ -407,7 +407,7 @@ class Subscription():
                 Saw status {0}, unable to retrieve feed text for {2}.
                 Current URL {1} for {2} will be preserved and checked again on next attempt.\
                 """.format(status, self._current_url, self.name)))
-            return True
+            return False
 
         # TODO hook for dealing with password-protected feeds.
         elif status in [requests.codes.UNAUTHORIZED, requests.codes.GONE]:
@@ -421,7 +421,7 @@ class Subscription():
                 """.format(status, self._current_url, self.name)))
 
             self._current_url = None
-            return True
+            return False
 
         elif status in [requests.codes.MOVED_PERMANENTLY, requests.codes.PERMANENT_REDIRECT]:
             logger.warning(textwrap.dedent(
@@ -462,7 +462,7 @@ class Subscription():
                 """\
                 Saw status {0} - NOT MODIFIED. Have latest feed for {0}, nothing to do.
                 """.format(status, self.name)))
-            return None
+            return False
 
         else:
             logger.info("Saw status {0} - OK, all is well.")
