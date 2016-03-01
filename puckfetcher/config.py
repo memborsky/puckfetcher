@@ -67,7 +67,7 @@ class Config():
                     sub = self.cached_by_url[url]
 
                 sub.name = name
-                sub.update_directory(directory, self.data_dir)
+                sub.update_directory(directory, self.directory)
                 sub.update_url(url)
 
                 subs.append(sub)
@@ -118,15 +118,13 @@ class Config():
             self.directory = yaml_settings.get("directory", self.data_dir)
 
             for yaml_sub in yaml_settings.get("subscriptions", []):
-                directory = yaml_sub.get("directory", os.path.join(self.directory,
-                                                                   yaml_sub["name"]))
+                default_dir = os.path.expanduser(os.path.join(self.directory, yaml_sub["name"]))
+                directory = yaml_sub.get("directory", default_dir)
 
                 sub = S.parse_from_user_yaml(yaml_sub)
+                sub.directory = directory
 
-                if sub.directory is None:
-                    sub.directory = os.path.expanduser(directory)
-
-                self.subscriptions.append(S.parse_from_user_yaml(yaml_sub))
+                self.subscriptions.append(sub)
 
     def _set_file_vars(self):
         """Set self.config_file and self.cache_file, and create directories if necessary."""
