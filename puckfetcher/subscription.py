@@ -343,8 +343,8 @@ class Subscription():
         parsed = feedparser.parse(self._current_url)
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
-        if "status" not in parsed and parsed["bozo"] == 1:
-            msg = parsed['bozo_exception'].getMessage()
+        if "status" not in parsed and parsed.bozo == 1:
+            msg = parsed.bozo_exception.getMessage()
             logger.error(textwrap.dedent(
                 """\
                 Received bozo exception {0}. Unable to retrieve feed with URL {1} for {2}.\
