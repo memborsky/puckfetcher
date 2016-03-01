@@ -21,7 +21,7 @@ with open(path.join(here, "VERSION"), encoding="utf-8") as f:
     version = f.read()
 
 setup(author="Andrew Michaud",
-      author_email="",
+      author_email="andrewjmichaud+puckfetcher@gmail.com",
 
       classifiers=["Development Status :: 4 - Beta"
                    "Environment :: Console",
@@ -40,11 +40,15 @@ setup(author="Andrew Michaud",
 
       description="A simple command-line podcatcher.",
 
+      download_url="https://github.com/andrewmichaud/puckfetcher/tarball/0.6.12",
+
       entry_points={
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
       },
 
       install_requires=["clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"],
+
+      keywords=["music", "podcasts", "rss"],
 
       license="BSD3",
 
