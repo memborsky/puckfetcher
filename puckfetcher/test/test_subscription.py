@@ -92,9 +92,10 @@ class TestSubscription:
                                directory=TestSubscription.d)
 
         # TODO tests need to be rewritten to check log output or something.
-        result = sub._get_feed_helper(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
+        sub._get_feed_helper(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
 
-        assert(result is False)
+        assert(sub.feed is None)
+        assert(sub.entries is None)
 
     def test_valid_temporary_redirect_succeeds(self):
         """
@@ -103,9 +104,7 @@ class TestSubscription:
         """
 
         sub = SUB.Subscription(url=http302Address, name="302Test", directory=TestSubscription.d)
-        result = sub.get_feed()
-
-        assert(result is True)
+        sub.get_feed()
 
         assert(sub.entries[0]["link"] == rssResourceAddress)
         assert(sub._current_url == http302Address)
@@ -118,25 +117,18 @@ class TestSubscription:
         """
 
         sub = SUB.Subscription(url=http301Address, name="301Test", directory=TestSubscription.d)
-        result = sub.get_feed()
-
-        assert(result is True)
+        sub.get_feed()
 
         assert(sub.entries[0]["link"] == rssResourceAddress)
         assert(sub._current_url == rssAddress)
         assert(sub._provided_url == http301Address)
 
     def test_not_found_fails(self):
-        """
-        If the URL is Not Found, we should not change the saved URL, but we should return None.
-        """
+        """If the URL is Not Found, we should not change the saved URL."""
 
         sub = SUB.Subscription(url=http404Address, name="404Test", directory=TestSubscription.d)
-        result = sub.get_feed()
+        sub.get_feed()
 
-        assert(result is False)
-
-        assert(sub.entries is None)
         assert(sub._current_url == http404Address)
         assert(sub._provided_url == http404Address)
 
@@ -145,11 +137,8 @@ class TestSubscription:
 
         sub = SUB.Subscription(url=http410Address, name="410Test", production=False,
                                directory=TestSubscription.d)
-        result = sub.get_feed()
+        sub.get_feed()
 
-        assert(result is False)
-
-        assert(sub.entries is None)
         assert(sub._current_url is None)
         assert(sub._provided_url == http410Address)
 

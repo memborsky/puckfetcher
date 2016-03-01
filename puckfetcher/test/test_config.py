@@ -32,14 +32,16 @@ class TestConfig:
         cls.default_cache_file = os.path.join(cls.default_cache_dir, "puckcache")
 
         cls.provided_data_dir = tempfile.mkdtemp()
+        default_data_dir = os.path.join(cls.provided_data_dir, "puckfetcher")
 
         cls.files = [cls.default_config_file, cls.default_log_file, cls.default_cache_file]
 
-        cls.sub1 = PS.Subscription(name="test1", url="foo", directory="here")
-        cls.sub2 = PS.Subscription(name="test2", url="bar", directory="there")
-        cls.sub3 = PS.Subscription(name="test3", url="baz", directory="anywhere")
-
-        cls.subscriptions = [cls.sub1, cls.sub2, cls.sub3]
+        cls.subscriptions = []
+        for i in range(0, 3):
+            name = "test" + str(i)
+            url = "testurl" + str(i)
+            directory = os.path.join(default_data_dir, "dir" + str(i))
+            cls.subscriptions.append(PS.Subscription(name=name, url=url, directory=directory))
 
     @classmethod
     def teardown_class(cls):
@@ -81,12 +83,12 @@ class TestConfig:
         config = self.create_test_config()
 
         self.write_msgpack_subs_to_file()
-        self.write_yaml_subs_to_file(subs=[TestConfig.sub1])
+        self.write_yaml_subs_to_file(subs=[TestConfig.subscriptions[0]])
 
         config.load_state()
 
         assert(config.cached_subscriptions == TestConfig.subscriptions)
-        assert(config.subscriptions == [TestConfig.sub1])
+        assert(config.subscriptions == [TestConfig.subscriptions[0]])
 
     def test_subscriptions_matching_works(self):
         """Subscriptions in cache should be matched to subscriptions in config by name or url."""

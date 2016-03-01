@@ -1,4 +1,5 @@
 import copy
+from enum import Enum
 import logging
 import os
 import pkg_resources
@@ -127,12 +128,21 @@ class Subscription():
         self.get_feed = U.rate_limited(self.production, 120, self.name)(self.get_feed)
         self.download_file = U.rate_limited(self.production, 60, self.name)(self.download_file)
 
+    class UpdateResult(Enum):
+        SUCCESSFUL_UPDATE = 1
+        NO_UPDATE = 0
+        UPDATE_FAILURE = -1
+
     # "Public" functions.
     def attempt_update(self):
         """Attempt to download new entries for a subscription."""
-        feed_updated = self.get_feed()
-        if not feed_updated:
+        feed_get_result = self.get_feed()
+        if feed_get_result == self.UpdateResult.NO_UPDATE:
             logger.info("Feed for {0} was not updated.".format(self.name))
+            return False
+
+        elif feed_get_result == self.UpdateResult.UPDATE_FAILURE:
+            logger.error("Feed for {0} encountered errors while updating.".format(self.name))
             return False
 
         logger.info("Feed for {0} was updated.".format(self.name))
@@ -339,7 +349,7 @@ class Subscription():
                 """\
                 Too many recursive attempts ({0}) to get feed for subscription {1}, cancelling.\
                 """.format(attempt_count, self.name)))
-            return False
+            return self.UpdateResult.UPDATE_FAILURE
 
         if self._current_url is None or self._current_url == "":
             logger.error(textwrap.dedent(
@@ -347,7 +357,7 @@ class Subscription():
                 URL is empty or None, cannot get feed text for subscription {0}.
                 Last HTTP status was {1}.\
                 """.format(self.name, self.last_status)))
-            return False
+            return self.UpdateResult.UPDATE_FAILURE
 
         logger.info(textwrap.dedent(
             """\
@@ -357,14 +367,12 @@ class Subscription():
         parsed = self._feedparser_parse_with_options()
         if parsed is None:
             logger.error("Feedparser parse failed, aborting.")
-            print("Feedparser parse failed, aborting.")
             return False
 
         # Detect some kinds of HTTP status codes signalling failure.
         http_says_continue = self._handle_http_codes(attempt_count, parsed)
         if not http_says_continue:
             logger.error("Ran into HTTP error, aborting..")
-            print("Ran into HTTP error, aborting.")
             return False
 
         self.feed = parsed.get("feed", {})
@@ -407,7 +415,7 @@ class Subscription():
                 Saw status {0}, unable to retrieve feed text for {2}.
                 Current URL {1} for {2} will be preserved and checked again on next attempt.\
                 """.format(status, self._current_url, self.name)))
-            return False
+            return self.UpdateResult.UPDATE_FAILURE
 
         # TODO hook for dealing with password-protected feeds.
         elif status in [requests.codes.UNAUTHORIZED, requests.codes.GONE]:
@@ -421,9 +429,10 @@ class Subscription():
                 """.format(status, self._current_url, self.name)))
 
             self._current_url = None
-            return False
+            return self.UpdateResult.UPDATE_FAILURE
 
-        elif status in [requests.codes.MOVED_PERMANENTLY, requests.codes.PERMANENT_REDIRECT]:
+        # Handle redirecting errors
+        if status in [requests.codes.MOVED_PERMANENTLY, requests.codes.PERMANENT_REDIRECT]:
             logger.warning(textwrap.dedent(
                 """\
                 Saw status {0} indicating permanent URL change.
@@ -449,6 +458,13 @@ class Subscription():
 
             return result
 
+        if status == requests.codes.NOT_MODIFIED:
+            logger.error(textwrap.dedent(
+                """\
+                Saw status {0} - NOT MODIFIED. Have latest feed for {0}, nothing to do.
+                """.format(status, self.name)))
+            return self.UpdateResult.NO_UPDATE
+
         elif status != 200:
             logger.warning(textwrap.dedent(
                 """\
@@ -457,16 +473,42 @@ class Subscription():
                 """.format(status, self._current_url, self.name)))
             return self._get_feed_helper(attempt_count+1)
 
-        elif status == requests.codes.NOT_MODIFIED:
-            logger.info(textwrap.dedent(
-                """\
-                Saw status {0} - NOT MODIFIED. Have latest feed for {0}, nothing to do.
-                """.format(status, self.name)))
-            return False
+        logger.info("Saw status {0} - OK, all is well.")
+        self.feed = parsed.get("feed", {})
+        self.entries = parsed.get("entries", [])
+        return self.UpdateResult.SUCCESSFUL_UPDATE
 
+    def _feedparser_parse_with_options(self):
+        """
+        Perform a feedparser parse, providing arguments (like etag) we might want it to use.
+        Don't provide etag/last_modified if the last get was unsuccessful.
+        """
+        if self.feed is None:
+            parsed = feedparser.parse(self._current_url)
         else:
-            logger.info("Saw status {0} - OK, all is well.")
-            return True
+            parsed = feedparser.parse(self._current_url, etag=self.etag,
+                                      modified=self.last_modified)
+            self.etag = parsed.get("etag", None)
+            self.last_modified = parsed.get("last_modified", None)
+
+        # Detect bozo errors (malformed RSS/ATOM feeds).
+        if "status" not in parsed and parsed.get("bozo", None) == 1:
+            # Feedparser documentation indicates that you can always call getMessage, but it's
+            # possible for feedparser to spit out a URLError, which doesn't have getMessage.
+            # Catch this case.
+            if hasattr(parsed.bozo_exception, "getMessage()"):
+                msg = parsed.bozo_exception.getMessage()
+
+            else:
+                msg = repr(parsed.bozo_exception)
+
+            logger.error(textwrap.dedent(
+                """\
+                Received bozo exception {0}. Unable to retrieve feed with URL {1} for {2}.\
+                """.format(msg, self._current_url, self.name)))
+            return None
+
+        return parsed
 
     def __eq__(self, rhs):
         if isinstance(rhs, Subscription):
