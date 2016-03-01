@@ -2,12 +2,13 @@
 
 # Modeled on Python sample project setup.py -
 # https://github.com/pypa/sampleproject
+from os import path
 # Prefer setuptools over distutils.
 from setuptools import setup, find_packages
+import sys
 
 # Use a consistent encoding.
 from codecs import open
-from os import path
 
 here = path.abspath(path.dirname(__file__))
 
@@ -19,6 +20,13 @@ with open(path.join(here, "README.rst"), encoding="utf-8") as f:
 # Retrieve version.
 with open(path.join(here, "VERSION"), encoding="utf-8") as f:
     version = f.read()
+
+# Use enum34 to allow enums in Python 3.3 and 2.7.
+if sys.version_info >= (3.4):
+    install_requires = ["clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
+else:
+    install_requires = ["clint", "enum34", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
+
 
 setup(author="Andrew Michaud",
       author_email="andrewjmichaud+puckfetcher@gmail.com",
@@ -46,7 +54,7 @@ setup(author="Andrew Michaud",
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
       },
 
-      install_requires=["clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"],
+      install_requires=install_requires,
 
       keywords=["music", "podcasts", "rss"],
 
