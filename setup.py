@@ -22,7 +22,7 @@ with open(path.join(here, "VERSION"), encoding="utf-8") as f:
     version = f.read()
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
-if sys.version_info >= (3.4):
+if sys.version_info >= (3, 4):
     install_requires = ["clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
 else:
     install_requires = ["clint", "enum34", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
