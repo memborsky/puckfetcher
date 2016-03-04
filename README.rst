@@ -45,34 +45,34 @@ Complete
 -  Get podcast file URL from feed.
 -  Download podcast file.
 -  Download a set number of podcasts from a feed’s backlog.
--  Detect number of feeds a podcast is behind based on last downloaded.
 -  Load settings from a file to determine which podcasts to download.
 -  Save settings to a cache to restore on application load.
 -  Intelligently merge user settings and application cache.
 -  Add script entry point to repeatedly update subscriptions.
+-  Use etags/last-modified header to skip downloading feeds if we
+   already have the latest feed, to not waste bandwidth.
+-  PyPI release!
+-  Text-based progress for podcast downloads (via Clint).
 
-Before release
---------------
-
--  ~100% test coverage
+Current Tasks
+-------------
+-  Clean up subscriptions code and get Pylint to like it.
 -  lower code climate issues
--  Git signing?
--  PyPI release
 
 Future releases
 ---------------
 
--  Use etags/last-modified header to skip downloading feeds if we
-   already have the latest feed.
--  Text-based progress for downloads/other time-consuming actions.
+-  Text-based progress for other time-consuming actions.
 -  Clean up at least filenames based on feed title.
 -  Add MP3 tag support to clean up tags based on feed information if
    it’s messy.
+-  Cut out more errors in favor of verbose logging, unless we absolutely can't keep running.
 -  ncurses support/gui of some kind
 -  Attempt to support Jython/PyPy/IronPython/3.4/3.3
 -  Investigate Python static typing with
    https://docs.python.org/dev/library/typing.html#module-typing and
    mypy.
+-  Allow parallel downloading.
 
 .. |BSD3 License| image:: http://img.shields.io/badge/license-BSD3-brightgreen.svg
    :target: https://tldrlegal.com/license/bsd-3-clause-license-%28revised%29
