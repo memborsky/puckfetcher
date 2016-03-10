@@ -9,7 +9,7 @@ import puckfetcher.error as PE
 
 rssTestHost = "https://www.andrewmichaud.com/"
 rssAddress = rssTestHost + "rss.xml"
-rssResourceAddress = rssTestHost + "hi.txt"
+rssResourceAddress = rssTestHost + "txt/hi.txt"
 http302Address = rssTestHost + "302rss.xml"
 http301Address = rssTestHost + "301rss.xml"
 http404Address = rssTestHost + "404rss.xml"
