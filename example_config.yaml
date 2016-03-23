@@ -1,23 +1,22 @@
-## Example configuration for {0}.
-## Commented lines indicate default settings - uncommenting will have no effect.
-## Double-commented lines indicate actual comments and examples you shouldn't actually use.
-###########################################################################################
+################################################################################################################
+## Example configuration for puckfetcher.                                                                     ##
+## Commented lines indicate default settings - uncommenting will have no effect.                              ##
+## Double-commented lines indicate actual comments and examples you shouldn't actually use without modifying. ##
+################################################################################################################
 
-## Example global settings.
+## Global settings (usable).
 #directory: "$XDG_DATA_HOME" # Should be an absolute path.
 
-## Example subscription list.
+## Example subscription list (don't use without modifying).
 ## subscriptions:
 ##     - name: "Example Podcast"
 ##       url: "https://www.example.com/rss.xml"
 ##       download_backlog: False
 ##       # Default directory is name appended to global dir.
-##
 ##     - name: "Example Podcast 23"
 ##       url: "https://www.example.com/rss.xml"
 ##       download_backlog: True
 ##       directory: "foo/bar/baz" # Not absolute, appended to global dir.
-##
 ##     - name: "fish"
 ##       url: "http://www.example.com/rss.xml"
 ##       download_backlog: True

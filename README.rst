@@ -62,6 +62,7 @@ Current Tasks
 Future releases
 ---------------
 
+-  Local file support for rss feeds.
 -  Text-based progress for other time-consuming actions.
 -  Clean up at least filenames based on feed title.
 -  Add MP3 tag support to clean up tags based on feed information if
