@@ -1,28 +1,88 @@
+"""Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
+
 import argparse
 import logging
 from logging.handlers import RotatingFileHandler
 import os
-import pkg_resources
 import sys
 import textwrap
 import time
 
+import puckfetcher.constants as CONSTANTS
 import puckfetcher.config as C
-import puckfetcher.globals as G
-import puckfetcher.util as U
-
-# TODO find a better way to get puckfetcher.
-G.VERSION = pkg_resources.require(__package__)[0].version
 
 
 def main():
+    """Run puckfetcher on the command line."""
+
+    parser = _setup_program_arguments()
+    args = parser.parse_args()
+
+    (cache_dir, config_dir, data_dir, log_dir) = _setup_directories(args)
+
+    logger = _setup_logging(log_dir)
+
+    logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
+
+    config = C.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
+
+    while True:
+        try:
+            config.load_state()
+            if len(config.subscriptions) < 0:
+                logger.error("Something awful has happened, and you have negative subscriptions")
+                time.sleep(10)
+
+            elif len(config.subscriptions) == 0:
+                logger.warning("You have no subscriptions, doing nothing.")
+                time.sleep(10)
+
+            else:
+                for i, sub in enumerate(config.subscriptions):
+                    logger.debug("Working on sub number %s - '%s'", i, sub.name)
+                    sub.attempt_update()
+                    config.subscriptions[i] = sub
+
+                    config.save_cache()
+
+                time.sleep(5)
+
+        # TODO look into replacing with
+        # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
+        except KeyboardInterrupt:
+            logger.critical("Received KeyboardInterrupt, exiting.")
+            break
+
+    parser.exit()
+
+
+def _setup_directories(args):
+    config_dir = vars(args)["config"]
+    if not config_dir:
+        config_dir = CONSTANTS.APPDIRS.user_config_dir
+
+    cache_dir = vars(args)["cache"]
+    if not cache_dir:
+        cache_dir = CONSTANTS.APPDIRS.user_cache_dir
+        log_dir = CONSTANTS.APPDIRS.user_log_dir
+    else:
+        log_dir = os.path.join(cache_dir, "log")
+
+    data_dir = vars(args)["data"]
+    if not data_dir:
+        data_dir = CONSTANTS.APPDIRS.user_data_dir
+
+    return (cache_dir, config_dir, data_dir, log_dir)
+
+
+def _setup_program_arguments():
     parser = argparse.ArgumentParser(description="Download RSS feeds based on a config.")
 
     parser.add_argument("--cache", "-a", dest="cache",
                         help=textwrap.dedent(
                             """\
                             Cache directory to use. The '{0}' directory will be created here, and
-                            the 'puckcache' and 'puckfetcher.log' files will be stored there.
+                            the 'puckcache' and '{0}.log' files will be stored there.
                             '$XDG_CACHE_HOME' will be used if nothing is provided.\
                             """.format(__package__)))
 
@@ -57,16 +117,19 @@ def main():
                             """.format(__package__)))
 
     parser.add_argument("--version", "-V", action="version",
-                        version="%(prog)s {0}".format(G.VERSION))
+                        version="%(prog)s {0}".format(CONSTANTS.VERSION))
 
-    args = parser.parse_args()
+    return parser
 
-    config_dir = vars(args)["config"] if vars(args)["config"] else U.CONFIG_DIR
-    cache_dir = vars(args)["cache"] if vars(args)["cache"] else U.CACHE_DIR
-    data_dir = vars(args)["data"] if vars(args)["data"] else U.DATA_DIR
-    G.VERBOSITY = vars(args)["verbose"]
 
-    log_filename = os.path.join(cache_dir, "{0}.log".format(__package__))
+def _setup_logging(log_dir):
+    log_filename = os.path.join(log_dir, "{0}.log".format(__package__))
+
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+
+    if not os.path.isfile(log_filename):
+        open(log_filename, 'a').close()
 
     logger = logging.getLogger("root")
 
@@ -75,7 +138,7 @@ def main():
     handler = RotatingFileHandler(filename=log_filename, maxBytes=1024000000, backupCount=10)
     handler.setFormatter(formatter)
 
-    if G.VERBOSITY is None:
+    if CONSTANTS.VERBOSITY is None:
         logger.setLevel(logging.INFO)
 
     else:
@@ -87,38 +150,7 @@ def main():
 
     logger.addHandler(handler)
 
-    logger.info("{0} {1} started!".format(__package__, G.VERSION))
-
-    config = C.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
-
-    while (True):
-        try:
-            config.load_state()
-            if len(config.subscriptions) < 0:
-                logger.error("Something awful has happened, and you have negative subscriptions")
-                time.sleep(10)
-
-            elif len(config.subscriptions) == 0:
-                logger.warning("You have no subscriptions, doing nothing.")
-                time.sleep(10)
-
-            else:
-                for i, sub in enumerate(config.subscriptions):
-                    logger.debug("Working on sub number {0} - '{1}'".format(i, sub.name))
-                    sub.attempt_update()
-                    config.subscriptions[i] = sub
-
-                    config.save_cache()
-
-                time.sleep(5)
-
-        # TODO look into replacing with
-        # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
-        except KeyboardInterrupt:
-            logger.critical("Received KeyboardInterrupt, exiting.")
-            break
-
-    parser.exit()
+    return logger
 
 if __name__ == "__main__":
     main()

@@ -2,31 +2,28 @@
 
 # Modeled on Python sample project setup.py -
 # https://github.com/pypa/sampleproject
+# Use a consistent encoding.
+import codecs
 from os import path
 # Prefer setuptools over distutils.
 from setuptools import setup, find_packages
 import sys
 
-# Use a consistent encoding.
-from codecs import open
-
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file.
 # Python standard seems to be .rst, but I prefer Markdown.
-with open(path.join(here, "README.rst"), encoding="utf-8") as f:
+with codecs.open(path.join(here, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 # Retrieve version.
-with open(path.join(here, "VERSION"), encoding="utf-8") as f:
+with codecs.open(path.join(here, "VERSION"), encoding="utf-8") as f:
     version = f.read()
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
-if sys.version_info >= (3, 4):
-    install_requires = ["clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
-else:
-    install_requires = ["clint", "enum34", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
-
+install_requires = ["appdirs", "clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
+if sys.version_info < (3, 4):
+    install_requires += ["enum34"]
 
 setup(author="Andrew Michaud",
       author_email="andrewjmichaud+puckfetcher@gmail.com",

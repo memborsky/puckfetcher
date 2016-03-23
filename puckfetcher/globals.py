@@ -1,2 +1,0 @@
-global VERSION
-global VERBOSITY
