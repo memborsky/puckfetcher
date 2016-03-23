@@ -1,3 +1,6 @@
+0.7.5 (2016-03-22):
+    None, reupload because build seemed broken.
+
 0.7.4 (2016-03-22):
     * Make absolute path detection OS-independent
     * Use user's backlog_limit instead of ignoring it, fix logic around that.
