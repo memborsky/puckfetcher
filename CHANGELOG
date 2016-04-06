@@ -1,3 +1,13 @@
+0.7.5 (2016-04-06):
+    * Provide a better command line interface.
+        - This allows passing commands (load, list, etc.) to the program.
+        - You can also run 'puckfetcher prompt' to get a prompt to enter commands into.
+        - Use 'puckfetcher --help' to see the possible commands.
+    * BREAKING CHANGE - Running 'puckfetcher' with no arguments will no longer work - you must
+      provide a command.
+    * Puckfetcher is quieter on the command line by default (still logs everything it's doing).
+    * Fix some bugs in documentation.
+
 0.7.4 (2016-03-22):
     * Make absolute path detection OS-independent
     * Use user's backlog_limit instead of ignoring it, fix logic around that.

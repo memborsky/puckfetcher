@@ -6,7 +6,10 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 import textwrap
-import time
+from argparse import RawTextHelpFormatter
+from enum import Enum
+
+from clint.textui import prompt
 
 import puckfetcher.constants as CONSTANTS
 import puckfetcher.config as C
@@ -22,30 +25,56 @@ def main():
 
     logger = _setup_logging(log_dir)
 
-    logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
-
     config = C.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
 
+    # See if we got a command-line command.
+    config_dir = vars(args)["config"]
+    command = vars(args)["command"]
+    if command:
+        print(command)
+        if command == _Command.exit.name:
+            _handle_requested_exit(parser, logger)
+
+        elif command == _Command.prompt.name:
+            pass
+
+        else:
+            # TODO do something cleaner than passing all this to handle_command.
+            _handle_command(command, config)
+            _handle_elective_exit(parser)
+
+
+    logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
+
+    # TODO push the command implementations into Config. Eventually make that an API.
+    # TODO CLI should probably print and not log.
     while True:
         try:
-            config.load_state()
-            if len(config.subscriptions) < 0:
-                logger.error("Something awful has happened, and you have negative subscriptions")
-                time.sleep(10)
+            command_options = [{"selector": "1",
+                                "prompt": "Exit.",
+                                "return": _Command.exit.name},
+                               {"selector": "2",
+                                "prompt": "Update subscriptions once.",
+                                "return": _Command.update_once.name},
+                               {"selector": "3",
+                                "prompt": "Update subscriptions continuously.",
+                                "return": _Command.update_forever.name},
+                               {"selector": "4",
+                                "prompt": "Load/reload subscriptions configuration.",
+                                "return": _Command.load.name},
+                               {"selector": "5",
+                                "prompt": "List current subscriptions.",
+                                "return": _Command.list.name}]
 
-            elif len(config.subscriptions) == 0:
-                logger.warning("You have no subscriptions, doing nothing.")
-                time.sleep(10)
+            command = prompt.options("Choose a command", command_options)
+            # TODO wrap in something nicer, we don't want to show _Command.EXIT.
+            logger.info("Chose: %s", command)
 
-            else:
-                for i, sub in enumerate(config.subscriptions):
-                    logger.debug("Working on sub number %s - '%s'", i, sub.name)
-                    sub.attempt_update()
-                    config.subscriptions[i] = sub
+            if command == _Command.exit.name:
+                _handle_requested_exit(parser)
 
-                    config.save_cache()
+            _handle_command(command, config)
 
-                time.sleep(5)
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
@@ -53,7 +82,47 @@ def main():
             logger.critical("Received KeyboardInterrupt, exiting.")
             break
 
+        except EOFError:
+            logger.critical("Received EOFError, exiting.")
+            break
+
     parser.exit()
+
+
+# TODO maybe reorganize helper functions?? Not sure what to do, but this looks messy.
+# Theoretically this would do cleanup if we needed to do any.
+def _handle_requested_exit(parser):
+    print("Told to exit, exiting.")
+    parser.exit()
+
+def _handle_elective_exit(parser):
+    print("Exiting.")
+    parser.exit()
+
+
+def _handle_command(command, config):
+    # TODO use config exit status to return exit codes.
+    if command == _Command.update_once.name:
+        config.update_once()
+
+
+    elif command == _Command.update_forever.name:
+        config.update_forever()
+
+    elif command == _Command.load.name:
+        load_successful = config.load_state()
+        if load_successful:
+            print("Reloaded config successfully!")
+
+        else:
+            print("Did not reload config successfully!")
+
+    # TODO provide more information, possibly hidden behind more command line operations.
+    elif command == _Command.list.name:
+        config.list()
+
+    else:
+        print("Unknown command!")
 
 
 def _setup_directories(args):
@@ -76,7 +145,19 @@ def _setup_directories(args):
 
 
 def _setup_program_arguments():
-    parser = argparse.ArgumentParser(description="Download RSS feeds based on a config.")
+    parser = argparse.ArgumentParser(description="Download RSS feeds based on a config.",
+                                     formatter_class=RawTextHelpFormatter)
+
+    parser.add_argument("command", metavar="command", type=str,
+                        help=textwrap.dedent(
+                            """\
+                            Command to run, one of:
+                            update_once - update all subscriptions once
+                            update_forever - update all subscriptions in a loop until terminated
+                            load - (re)load configuration (currently useless from shell...)
+                            list - list current subscriptions, after reloading config
+                            prompt - go to a prompt to choose option\
+                            """))
 
     parser.add_argument("--cache", "-a", dest="cache",
                         help=textwrap.dedent(
@@ -138,7 +219,7 @@ def _setup_logging(log_dir):
     handler = RotatingFileHandler(filename=log_filename, maxBytes=1024000000, backupCount=10)
     handler.setFormatter(formatter)
 
-    if CONSTANTS.VERBOSITY is None:
+    if CONSTANTS.VERBOSITY == 0:
         logger.setLevel(logging.INFO)
 
     else:
@@ -151,6 +232,16 @@ def _setup_logging(log_dir):
     logger.addHandler(handler)
 
     return logger
+
+
+class _Command(Enum):
+    exit = 0
+    prompt = 1
+    update_once = 2
+    update_forever = 3
+    load = 4
+    list = 5
+
 
 if __name__ == "__main__":
     main()

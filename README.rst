@@ -21,7 +21,7 @@ any issues here, and I’ll investigate when/if I can.
 
 Directory for config file:
 
--  OSX: /Users/[USERNAME]/Preferences/puckfetcher/config.yaml
+-  OSX: /Users/[USERNAME]/Application Support/puckfetcher/config.yaml
 -  Linux: /home/[USERNAME]/.config/puckfetcher/config.yaml
 
 Build + Install:
@@ -36,11 +36,8 @@ Test:
 
     python setup.py test
 
-This should be on PyPI and maybe other places soon.
-
 Complete
 --------
-
 -  Retrieve podcast feed.
 -  Get podcast file URL from feed.
 -  Download podcast file.
@@ -53,16 +50,15 @@ Complete
    already have the latest feed, to not waste bandwidth.
 -  PyPI release!
 -  Text-based progress for podcast downloads (via Clint).
+-  Clean up subscriptions code and get Pylint to like it.
 
 Current Tasks
 -------------
--  Clean up subscriptions code and get Pylint to like it.
+-  Local file support for rss feeds.
 -  lower code climate issues
 
 Future releases
 ---------------
-
--  Local file support for rss feeds.
 -  Text-based progress for other time-consuming actions.
 -  Clean up at least filenames based on feed title.
 -  Add MP3 tag support to clean up tags based on feed information if
@@ -71,8 +67,7 @@ Future releases
 -  ncurses support/gui of some kind
 -  Attempt to support Jython/PyPy/IronPython/3.4/3.3
 -  Investigate Python static typing with
-   https://docs.python.org/dev/library/typing.html#module-typing and
-   mypy.
+   https://docs.python.org/dev/library/typing.html#module-typing and mypy.
 -  Allow parallel downloading.
 
 .. |BSD3 License| image:: http://img.shields.io/badge/license-BSD3-brightgreen.svg

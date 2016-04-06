@@ -70,6 +70,62 @@ class Config(object):
 
             self.subscriptions = subs
 
+        # Validate state after load (sanity checks, basically).
+        if len(self.subscriptions) < 0:
+            logger.error("Something awful has happened, we have negative subscriptions")
+            return False
+
+        else:
+            return True
+
+    def update_once(self):
+        """Update all subscriptions once. Return True if we successfully updated."""
+        load_successful = self.load_state()
+        if load_successful:
+            num_subs = len(self.subscriptions)
+            for i, sub in enumerate(self.subscriptions):
+                print("Working on sub number {}/{} - '{}'".format(i+1, num_subs, sub.name))
+                update_successful = sub.attempt_update()
+                if update_successful:
+                    print("Successful update.")
+                else:
+                    print("Unsuccessful update!")
+                    continue
+
+                self.subscriptions[i] = sub
+                self.save_cache()
+
+            return True
+
+        else:
+            logger.debug("Load unsuccessful, cannot update.")
+            return False
+
+    def update_forever(self):
+        """Update all subscriptions continuously until terminated."""
+        while True:
+            try:
+                self.update_once()
+
+            except KeyboardInterrupt:
+                logger.info("Stopping looping forever.")
+                break
+
+    def list(self):
+        """Load state and list subscriptions. Return if loading succeeded."""
+        load_successful = self.load_state()
+        if load_successful:
+            num_subs = len(self.subscriptions)
+            print("{} subscriptions loaded.".format(num_subs))
+            for i, sub in enumerate(self.subscriptions):
+                print("Sub number {}/{} - '{}'".format(i+1, num_subs, sub.name))
+
+            return True
+
+        else:
+            logger.debug("Load unsuccessful, cannot update.")
+            return False
+
     def save_cache(self):
         """Write current in-memory config to cache file."""
         logger.info("Writing settings to cache file '%s'.", self.cache_file)
@@ -137,7 +193,7 @@ def _ensure_file(file_path):
 def _validate_dirs(config_dir, cache_dir, data_dir):
     for directory in [config_dir, cache_dir, data_dir]:
         if os.path.isfile(directory):
-            msg = "Provided directory '{0}' is a file!".format(directory)
+            msg = "Provided directory '{}' is a file!".format(directory)
             logger.error(msg)
             raise E.InvalidConfigError(msg)
 
