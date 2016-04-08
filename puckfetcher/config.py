@@ -24,8 +24,12 @@ class Config(object):
         self.cache_file = os.path.join(cache_dir, "puckcache")
         logger.info("Using cache dir '%s'.", self.cache_file)
 
-        self.data_dir = data_dir
-        self.directory = None
+        self.settings = {
+            "directory": data_dir,
+            "download_backlog": True,
+            "backlog_limit": 1,
+            "use_title_as_filename": False
+        }
 
         self.cached_subscriptions = []
         self.subscriptions = []
@@ -43,11 +47,12 @@ class Config(object):
         if self.subscriptions != []:
             # Iterate through subscriptions to merge user settings and cache.
             subs = []
+            # TODO this merging should probably be Subscription's responsibility.
             for sub in self.subscriptions:
 
                 # Pull out settings we need for merging metadata, or to preserve over the cache.
                 name = sub.name
-                url = sub._provided_url
+                url = sub.url
                 directory = sub.directory
 
                 # Match cached sub to current sub and take its settings.
@@ -55,7 +60,7 @@ class Config(object):
                 # correctly.
                 # If they update neither, there's nothing we can do.
                 if name in self.cache_map["by_name"].keys():
-                    logger.debug("Found sum with name %s in cached subscriptions, merging.", name)
+                    logger.debug("Found sub with name %s in cached subscriptions, merging.", name)
                     sub = self.cache_map["by_name"][name]
 
                 elif url in self.cache_map["by_url"]:
@@ -63,8 +68,10 @@ class Config(object):
                     sub = self.cache_map["by_url"][url]
 
                 sub.name = name
-                sub.update_directory(directory, self.directory)
+                sub.update_directory(directory, self.settings["directory"])
                 sub.update_url(url)
+
+                sub.default_missing_fields(self.settings)
 
                 subs.append(sub)
 
@@ -167,15 +174,18 @@ class Config(object):
         logger.debug("Settings retrieved from user config file: %s", pretty_settings)
 
         if yaml_settings is not None:
-            self.directory = yaml_settings.get("directory", self.data_dir)
+
+            # Update self.settings, but only currently valid settings.
+            for k, v in yaml_settings.items():
+                if k == "subscriptions":
+                    pass
+                elif k not in self.settings:
+                    logger.warn("Setting %s is not a valid setting, ignoring.", k)
+                else:
+                    self.settings[k] = v
 
             for yaml_sub in yaml_settings.get("subscriptions", []):
-                default_dir = os.path.expanduser(os.path.join(self.directory, yaml_sub["name"]))
-                directory = yaml_sub.get("directory", default_dir)
-
-                sub = S.Subscription.parse_from_user_yaml(yaml_sub)
-                sub.directory = directory
-
+                sub = S.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
                 self.subscriptions.append(sub)
 
 

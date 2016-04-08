@@ -40,6 +40,7 @@ def generate_downloader(headers, args):
         def _rate_limited_download():
             response = requests.get(url, headers=headers, stream=True)
             logger.info("Actually downloading from %s", url)
+            logger.info("Trying to save to %s", dest)
 
             total_length = int(response.headers.get("content-length"))
             expected_size = (total_length / 1024) + 1
@@ -62,6 +63,21 @@ def generate_downloader(headers, args):
 def max_clamp(val, m):
     """Clamp int to maximum."""
     return min(val, m)
+
+
+def expand(directory):
+    """Apply expanduser and expandvars to directory to expand '~' and env vars."""
+    temp1 = os.path.expanduser(directory)
+    return os.path.expandvars(temp1)
+
+
+# TODO support the pile of flaming garbage that is Windows filename restrictions.
+def sanitize(filename):
+    """
+    Remove disallowed characters from potential filename. Currently only guaranteed on Linux and
+    OS X.
+    """
+    return filename.replace("/", "-")
 
 
 # Modified from https://stackoverflow.com/a/667706

@@ -15,6 +15,10 @@ import puckfetcher.constants as CONSTANTS
 import puckfetcher.config as C
 
 
+
+# TODO consolidate printing and logging into one log handler.
+# 'logs' to stdout shouldn't hove date/time stuff and should only be info level or above, unless
+# the user told us to be verbose.
 def main():
     """Run puckfetcher on the command line."""
 

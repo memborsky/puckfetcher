@@ -11,3 +11,8 @@ puckfetcher/lib
 puckfetcher/bin
 puckfetcher/include
 puckfetcher.egg-info
+bin
+include
+lib
+local
+share

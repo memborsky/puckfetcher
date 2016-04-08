@@ -158,6 +158,11 @@ class TestSubscription(object):
         """If the URL is Gone, the current url should be set to None, and we should return None."""
 
         sub = SUB.Subscription(url=HTTP_410_ADDRESS, name="410Test", directory=TestSubscription.d)
+
+        sub.use_backlog = True
+        sub.backlog_limit = 1
+        sub.use_title_as_filename = False
+
         sub.get_feed()
 
         # pylint: disable=protected-access
@@ -168,6 +173,11 @@ class TestSubscription(object):
     def test_attempt_download_backlog(self):
         """Should download full backlog by default."""
         sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=TestSubscription.d)
+
+        sub.use_backlog = True
+        sub.backlog_limit = 0
+        sub.use_title_as_filename = False
+
         sub.attempt_update()
 
         assert len(sub.feed_state.entries) == 10
@@ -179,6 +189,12 @@ class TestSubscription(object):
         """Should download partial backlog if limit is specified."""
         sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5,
                                directory=TestSubscription.d)
+
+        # TODO find a cleaner way to set these.
+        # Maybe Subscription should handle these attributes missing better?
+        # Maybe have a cleaner way to hack them in in tests?
+        sub.use_backlog = True
+        sub.use_title_as_filename = False
         sub.attempt_update()
 
         assert len(sub.feed_state.entries) == 10

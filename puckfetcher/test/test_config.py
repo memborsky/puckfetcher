@@ -38,7 +38,14 @@ class TestConfig:
             name = "test" + str(i)
             url = "testurl" + str(i)
             directory = os.path.join(cls.default_data_dir, "dir" + str(i))
-            cls.subscriptions.append(PS.Subscription(name=name, url=url, directory=directory))
+
+            sub = PS.Subscription(name=name, url=url, directory=directory)
+
+            sub.download_backlog = True
+            sub.backlog_limit = 1
+            sub.use_title_as_filename = False
+
+            cls.subscriptions.append(sub)
 
     @classmethod
     def teardown_class(cls):

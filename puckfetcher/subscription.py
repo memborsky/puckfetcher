@@ -5,6 +5,7 @@ many episodes of the podcast we have.
 import copy
 import logging
 import os
+import platform
 import textwrap
 from enum import Enum
 
@@ -66,19 +67,36 @@ class Subscription(object):
 
         feedparser.USER_AGENT = CONSTANTS.USER_AGENT
 
+    # TODO find out what passing None to msgpack will do, and if that's reasonable.
     @classmethod
     def decode_subscription(cls, sub_dictionary):
         """Decode subscription from dictionary."""
         sub = Subscription.__new__(Subscription)
 
         # pylint: disable=protected-access
-        sub._current_url = sub_dictionary["_current_url"]
-        sub._provided_url = sub_dictionary["_provided_url"]
-        sub.backlog_limit = sub_dictionary["backlog_limit"]
-        sub.directory = sub_dictionary["directory"]
-        sub.download_backlog = sub_dictionary["download_backlog"]
-        sub.feed_state = _FeedState(feedparser_dict=sub_dictionary["feed_state"])
-        sub.name = sub_dictionary["name"]
+        if "name" not in sub_dictionary.keys():
+            logger.error("Sub to decode is missing name, can't continue.")
+            return None
+        else:
+            sub.name = sub_dictionary["name"]
+
+        if "_current_url" not in sub_dictionary.keys():
+            logger.error("Sub to decode is missing _current_url, can't continue.")
+            return None
+        else:
+            sub._current_url = sub_dictionary["_current_url"]
+
+        if "_provided_url" not in sub_dictionary.keys():
+            logger.error("Sub to decode is missing _provided_url, can't continue.")
+            return None
+        else:
+            sub._provided_url = sub_dictionary["_provided_url"]
+
+        sub.directory = sub_dictionary.get("directory", None)
+        sub.download_backlog = sub_dictionary.get("download_backlog", None)
+        sub.backlog_limit = sub_dictionary.get("backlog_limit", None)
+        sub.use_title_as_filename = sub_dictionary.get("use_title_as_filename", None)
+        sub.feed_state = _FeedState(feedparser_dict=sub_dictionary.get("feed_state", None))
 
         # Generate data members that shouldn't/won't be cached.
         sub.downloader = Util.generate_downloader(HEADERS, sub.name)
@@ -94,9 +112,10 @@ class Subscription(object):
                 "__version__": CONSTANTS.VERSION,
                 "_current_url": sub._current_url,
                 "_provided_url": sub._provided_url,
-                "backlog_limit": sub.backlog_limit,
                 "directory": sub.directory,
                 "download_backlog": sub.download_backlog,
+                "backlog_limit": sub.backlog_limit,
+                "use_title_as_filename": sub.use_title_as_filename,
                 "feed_state": {"entries": sub.feed_state.entries,
                                "feed": sub.feed_state.feed,
                                "latest_entry_number": sub.feed_state.latest_entry_number,
@@ -105,22 +124,34 @@ class Subscription(object):
                 "name": sub.name}
 
     @staticmethod
-    def parse_from_user_yaml(sub_yaml):
-        """Parse YAML user-provided subscription into a subscription object."""
+    def parse_from_user_yaml(sub_yaml, defaults):
+        """
+        Parse YAML user-provided subscription into a subscription object, using config-provided
+        options as defaults.
+        Return None instead of a subscription if we were not able to parse something.
+        """
 
-        name = sub_yaml.get("name", "Generic Podcast")
+        sub = Subscription.__new__(Subscription)
 
-        if sub_yaml.get("url", None) is None:
-            raise E.InvalidConfigError("No URL provided, URL is mandatory!")
+        if "name" not in sub_yaml.keys():
+            logger.error("No name provided, name is mandatory!")
+            return None
         else:
-            url = sub_yaml["url"]
+            sub.name = sub_yaml["name"]
 
-        download_backlog = sub_yaml.get("download_backlog", False)
-        backlog_limit = sub_yaml.get("backlog_limit", None)
-        directory = sub_yaml.get("directory", None)
+        if "url" not in sub_yaml.keys():
+            logger.error("No URL provided, URL is mandatory!")
+            return None
+        else:
+            sub.url = sub_yaml["url"]
 
-        return Subscription(name=name, url=url, download_backlog=download_backlog,
-                            backlog_limit=backlog_limit, directory=directory)
+        sub.directory = sub_yaml.get("directory", os.path.join(defaults["directory"], sub.name))
+        sub.download_backlog = sub_yaml.get("download_backlog", defaults["download_backlog"])
+        sub.backlog_limit = sub_yaml.get("backlog_limit", defaults["backlog_limit"])
+        sub.use_title_as_filename = sub_yaml.get("use_title_as_filename",
+                                                 defaults["use_title_as_filename"])
+
+        return sub
 
     # "Public" functions.
     def attempt_update(self):
@@ -208,8 +239,32 @@ class Subscription(object):
                 url = enclosure.href
                 LOGGER.info("Extracted url %s.", url)
 
-                filename = url.split('/')[-1]
+                # Update filename if we're supposed to.
+                url_filename = url.split("/")[-1]
+                # TODO remove this hack.
+                if platform.system() == 'Windows':
+                    logger.error(textwrap.dedent(
+                        """\
+                        Sorry, we can't guarantee valid filenames on Windows if we use RSS
+                        subscription titles.
+                        We'll support it eventually!
+                        Using URL filename for now.\
+                        """))
+                    filename = url_filename
+
+                elif self.use_title_as_filename:
+                    ext = os.path.splitext(url_filename)[1]
+                    filename = "{}{}".format(entry.title, ext) # It's an owl!
+
+                else:
+                    filename = url_filename
+
+                # Remove characters we can't allow in filenames.
+                filename = Util.sanitize(filename)
+
                 dest = os.path.join(directory, filename)
+
+                # TODO catch errors? What if we try to save to a nonsense file?
                 self.downloader(url=url, dest=dest, overwrite=False)
 
             self.feed_state.latest_entry_number += 1
@@ -224,6 +279,8 @@ class Subscription(object):
                 Provided invalid sub directory '{0}' for '{1}'.\
                 """.format(directory, self.name)))
 
+        directory = Util.expand(directory)
+
         if self.directory != directory:
             if os.path.isabs(directory):
                 self.directory = directory
@@ -237,16 +294,42 @@ class Subscription(object):
 
     def update_url(self, url):
         """Update url for this subscription if a new one is provided."""
-        if url != self._provided_url:
+        if hasattr(self, "_provided_url"):
+            if url != self._provided_url:
+                self._provided_url = copy.deepcopy(url)
+
+        else:
             self._provided_url = copy.deepcopy(url)
 
         self._current_url = copy.deepcopy(url)
 
+    # TODO clean this up - reflection, or whatever Python has for that?
+    def default_missing_fields(self, settings):
+        """Set default values for any fields that are None (ones that were never set."""
+
+        # NOTE - directory is set separately, because we'll want to create it.
+        # These are just plain options.
+
+        if self.download_backlog is None:
+            self.download_backlog = settings["download_backlog"]
+
+        if self.backlog_limit is None:
+            self.backlog_limit = settings["backlog_limit"]
+
+        if self.use_title_as_filename is None:
+            self.use_title_as_filename = settings["use_title_as_filename"]
+
+        if not hasattr(self, "feed_state") or self.feed_state is None:
+            self.feed_state = _FeedState()
+
+        self.downloader = Util.generate_downloader(HEADERS, self.name)
+
     # "Private" functions (messy internals).
     def _handle_directory(self, directory):
         """Assign directory if none was given, and create directory if necessary."""
+        directory = Util.expand(directory)
         if directory is None:
-            self.directory = CONSTANTS.APPDIRS.user_data_dir
+            self.directory = Util.expand(CONSTANTS.APPDIRS.user_data_dir)
             LOGGER.debug("No directory provided, defaulting to %s.", self.directory)
             return
 
@@ -309,7 +392,7 @@ class Subscription(object):
         Perform a feedparser parse, providing arguments (like etag) we might want it to use.
         Don't provide etag/last_modified if the last get was unsuccessful.
         """
-        if self.feed_state.entries == [] or\
+        if not hasattr(self, "feed_state") or self.feed_state.entries == [] or\
            (self.feed_state.etag is None and self.feed_state.last_modified is None):
             parsed = feedparser.parse(self._current_url)
 
