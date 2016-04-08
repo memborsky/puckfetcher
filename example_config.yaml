@@ -1,13 +1,17 @@
-################################################################################################################
-## Example configuration for puckfetcher.                                                                     ##
-## Commented lines indicate default settings - uncommenting will have no effect.                              ##
-## Double-commented lines indicate actual comments and examples you shouldn't actually use without modifying. ##
-################################################################################################################
+###################################################################################################
+## Example configuration for puckfetcher.                                                        ##
+## Single-commented lines are default settings.                                                  ##
+## Double-commented lines are actual comments, or examples.                                      ##
+###################################################################################################
 
 ## Global settings (usable).
 #directory: "$XDG_DATA_HOME" # Should be an absolute path.
+#download_backlog: true
+#backlog_limit: 1
+#use_title_as_filename: false
 
 ## Example subscription list (don't use without modifying).
+## These are OS X/Linux directory examples, also - Windows would be different.
 ## subscriptions:
 ##     - name: "Example Podcast"
 ##       url: "https://www.example.com/rss.xml"
@@ -16,9 +20,13 @@
 ##     - name: "Example Podcast 23"
 ##       url: "https://www.example.com/rss.xml"
 ##       download_backlog: True
+##       backlog_limit: 3
 ##       directory: "foo/bar/baz" # Not absolute, appended to global dir.
 ##     - name: "fish"
 ##       url: "http://www.example.com/rss.xml"
-##       download_backlog: True
 ##       backlog_limit: 4
 ##       directory: "/foo/bar/baz" # An absolute path, overrides global dir.
+##     - name: "foo"
+##       url: "http://www.example.com/rss.xml"
+##       use_title_as_filename: true
+##       directory: "/foo/foo/foo/foo" # An absolute path, overrides global dir.
