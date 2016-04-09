@@ -44,7 +44,8 @@ setup(author="Andrew Michaud",
 
       description="A simple command-line podcatcher.",
 
-      download_url="https://github.com/andrewmichaud/puckfetcher/tarball/" + VERSION,
+      download_url="https://github.com/andrewmichaud/puckfetcher/archive/" +
+                   "v{}.tar.gz".format(VERSION),
 
       entry_points={
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]
