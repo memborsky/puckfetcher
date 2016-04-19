@@ -1,3 +1,5 @@
+"""Errors for puckfetcher."""
+
 # TODO inherit desc from this error in whatever the Python way is.
 class PuckError(Exception):
     """
