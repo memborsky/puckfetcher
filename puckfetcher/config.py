@@ -1,4 +1,5 @@
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
+
 import logging
 import os
 
@@ -22,7 +23,7 @@ class Config(object):
         logger.info("Using config file '%s'.", self.config_file)
 
         self.cache_file = os.path.join(cache_dir, "puckcache")
-        logger.info("Using cache dir '%s'.", self.cache_file)
+        logger.info("Using cache file '%s'.", self.cache_file)
 
         self.settings = {
             "directory": data_dir,
@@ -31,6 +32,7 @@ class Config(object):
             "use_title_as_filename": False
         }
 
+        self.cache_loaded = False
         self.cached_subscriptions = []
         self.subscriptions = []
 
@@ -40,7 +42,7 @@ class Config(object):
 
     # "Public" functions.
     def load_state(self):
-        """Load config file and subscription cache."""
+        """Load config file, and load subscription cache if we haven't yet."""
         self._load_user_settings()
         self._load_cache_settings()
 
@@ -144,6 +146,9 @@ class Config(object):
     # "Private" functions (messy internals).
     def _load_cache_settings(self):
         """Load settings from cache to self.cached_settings."""
+        if self.cache_loaded:
+            return
+
         _ensure_file(self.cache_file)
         self.cached_subscriptions = []
 
