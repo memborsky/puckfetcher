@@ -127,7 +127,7 @@ class Config(object):
             num_subs = len(self.subscriptions)
             print("{} subscriptions loaded.".format(num_subs))
             for i, sub in enumerate(self.subscriptions):
-                print("Sub number {}/{} - '{}'".format(i+1, num_subs, sub.name))
+                print(sub.get_status(i+1, num_subs))
 
             return True
 

@@ -35,9 +35,8 @@ def main():
     config_dir = vars(args)["config"]
     command = vars(args)["command"]
     if command:
-        print(command)
         if command == _Command.exit.name:
-            _handle_requested_exit(parser, logger)
+            _handle_exit(parser)
 
         elif command == _Command.prompt.name:
             pass
@@ -45,7 +44,7 @@ def main():
         else:
             # TODO do something cleaner than passing all this to handle_command.
             _handle_command(command, config)
-            _handle_elective_exit(parser)
+            _handle_exit(parser)
 
 
     logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
@@ -72,7 +71,6 @@ def main():
 
             command = prompt.options("Choose a command", command_options)
             # TODO wrap in something nicer, we don't want to show _Command.EXIT.
-            logger.info("Chose: %s", command)
 
             if command == _Command.exit.name:
                 _handle_requested_exit(parser)
@@ -95,14 +93,8 @@ def main():
 
 # TODO maybe reorganize helper functions?? Not sure what to do, but this looks messy.
 # Theoretically this would do cleanup if we needed to do any.
-def _handle_requested_exit(parser):
-    print("Told to exit, exiting.")
+def _handle_exit(parser):
     parser.exit()
-
-def _handle_elective_exit(parser):
-    print("Exiting.")
-    parser.exit()
-
 
 def _handle_command(command, config):
     # TODO use config exit status to return exit codes.

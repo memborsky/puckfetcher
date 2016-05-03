@@ -311,6 +311,17 @@ class Subscription(object):
 
         self.downloader = Util.generate_downloader(HEADERS, self.name)
 
+    def get_status(self, index, total_subs):
+        """Provide status of subscription, as a multiline string"""
+        lines = []
+
+        pad_num = len(str(total_subs))
+        padded_cur_num = str(index).zfill(pad_num)
+        header = "Sub number {}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
+                                                         self.feed_state.latest_entry_number)
+        lines.append(header)
+        return "".join(lines)
+
     # "Private" functions (messy internals).
     def _handle_directory(self, directory):
         """Assign directory if none was given, and create directory if necessary."""
