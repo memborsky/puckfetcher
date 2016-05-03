@@ -182,8 +182,7 @@ class TestSubscription(object):
 
         assert len(sub.feed_state.entries) == 10
         for i in range(1, 9):
-            file_path = os.path.join(sub.directory, "hi0{0}.txt".format(i))
-            _check_file_contents(file_path, "hi")
+            _check_hi_contents(file_path, "hi")
 
     def test_attempt_download_partial_backlog(self):
         """Should download partial backlog if limit is specified."""
@@ -199,11 +198,11 @@ class TestSubscription(object):
 
         assert len(sub.feed_state.entries) == 10
         for i in range(0, 4):
-            file_path = os.path.join(sub.directory, "hi0{0}.txt".format(i))
-            _check_file_contents(file_path, "hi")
+            _check_hi_contents(file_path, "hi")
 
 
-def _check_file_contents(file_path, val):
+def _check_hi_contents(n):
+    file_path = os.path.join(sub.directory, "hi0{}.txt".format(n))
     with open(file_path, "r") as enclosure:
         data = enclosure.read().replace('\n', '')
-        assert data == val
+        assert data == "hi"
