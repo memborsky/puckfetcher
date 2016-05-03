@@ -66,7 +66,7 @@ def main():
                                 "prompt": "Load/reload subscriptions configuration.",
                                 "return": _Command.load.name},
                                {"selector": "5",
-                                "prompt": "List current subscriptions.",
+                                "prompt": "List current subscriptions and their status.",
                                 "return": _Command.list.name}]
 
             command = prompt.options("Choose a command", command_options)
