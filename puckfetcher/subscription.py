@@ -149,7 +149,7 @@ class Subscription(object):
         if feed_get_result != UpdateResult.SUCCESS:
             return feed_get_result
 
-        LOG.info("Subscription %s got updated feed.", self.name)
+        LOG.info("Subscription {0} got updated feed.", self.name)
 
         # Only consider backlog if we don't have a latest entry number already.
         number_feeds = len(self.feed_state.entries)
@@ -160,12 +160,11 @@ class Subscription(object):
                     LOG.info(textwrap.dedent(
                         """\
                         Interpreting 'None' backlog limit as "No Limit" and downloading full
-                        backlog ({1} entries).\
-                        """.format(self.name, number_feeds)))
+                        backlog ({0} entries).\
+                        """.format(number_feeds)))
 
                 elif self.backlog_limit < 0:
-                    LOG.error("Invalid backlog limit %s, downloading nothing.",
-                                 self.backlog_limit)
+                    LOG.error("Invalid backlog limit %s, downloading nothing.", self.backlog_limit)
                     return False
 
                 else:
@@ -358,7 +357,7 @@ class Subscription(object):
                         attempt_count, self.name, self._current_url)
 
             (parsed, code) = self._feedparser_parse_with_options()
-            if code != UpdateResult.UNNEEDED:
+            if code == UpdateResult.UNNEEDED:
                 LOG.info("We have the latest feed, nothing to do.")
                 return code
 
