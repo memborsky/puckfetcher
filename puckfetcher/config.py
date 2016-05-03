@@ -9,7 +9,7 @@ import yaml
 import puckfetcher.error as E
 import puckfetcher.subscription as S
 
-logger = logging.getLogger("root")
+LOG = logging.getLogger("root")
 
 
 class Config(object):
@@ -20,10 +20,10 @@ class Config(object):
         _validate_dirs(config_dir, cache_dir, data_dir)
 
         self.config_file = os.path.join(config_dir, "config.yaml")
-        logger.info("Using config file '%s'.", self.config_file)
+        LOG.info("Using config file '%s'.", self.config_file)
 
         self.cache_file = os.path.join(cache_dir, "puckcache")
-        logger.info("Using cache file '%s'.", self.cache_file)
+        LOG.info("Using cache file '%s'.", self.cache_file)
 
         self.settings = {
             "directory": data_dir,
@@ -62,11 +62,11 @@ class Config(object):
                 # correctly.
                 # If they update neither, there's nothing we can do.
                 if name in self.cache_map["by_name"].keys():
-                    logger.debug("Found sub with name %s in cached subscriptions, merging.", name)
+                    LOG.debug("Found sub with name %s in cached subscriptions, merging.", name)
                     sub = self.cache_map["by_name"][name]
 
                 elif url in self.cache_map["by_url"]:
-                    logger.debug("Found sub with url %s in cached subscriptions, merging.", url)
+                    LOG.debug("Found sub with url %s in cached subscriptions, merging.", url)
                     sub = self.cache_map["by_url"][url]
 
                 sub.name = name
@@ -81,7 +81,7 @@ class Config(object):
 
         # Validate state after load (sanity checks, basically).
         if len(self.subscriptions) < 0:
-            logger.error("Something awful has happened, we have negative subscriptions")
+            LOG.error("Something awful has happened, we have negative subscriptions")
             return False
 
         else:
@@ -107,7 +107,7 @@ class Config(object):
             return True
 
         else:
-            logger.debug("Load unsuccessful, cannot update.")
+            LOG.debug("Load unsuccessful, cannot update.")
             return False
 
     def update_forever(self):
@@ -117,7 +117,7 @@ class Config(object):
                 self.update_once()
 
             except KeyboardInterrupt:
-                logger.info("Stopping looping forever.")
+                LOG.info("Stopping looping forever.")
                 break
 
     def list(self):
@@ -132,12 +132,12 @@ class Config(object):
             return True
 
         else:
-            logger.debug("Load unsuccessful, cannot update.")
+            LOG.debug("Load unsuccessful, cannot update.")
             return False
 
     def save_cache(self):
         """Write current in-memory config to cache file."""
-        logger.info("Writing settings to cache file '%s'.", self.cache_file)
+        LOG.info("Writing settings to cache file '%s'.", self.cache_file)
         with open(self.cache_file, "wb") as stream:
             dicts = [S.Subscription.encode_subscription(sub) for sub in self.subscriptions]
             packed = umsgpack.packb(dicts)
@@ -153,7 +153,7 @@ class Config(object):
         self.cached_subscriptions = []
 
         with open(self.cache_file, "rb") as stream:
-            logger.info("Opening subscription cache to retrieve subscriptions.")
+            LOG.info("Opening subscription cache to retrieve subscriptions.")
             data = stream.read()
 
         if data == b"":
@@ -172,11 +172,11 @@ class Config(object):
         self.subscriptions = []
 
         with open(self.config_file, "r") as stream:
-            logger.info("Opening config file to retrieve settings.")
+            LOG.info("Opening config file to retrieve settings.")
             yaml_settings = yaml.safe_load(stream)
 
         pretty_settings = yaml.dump(yaml_settings, width=1, indent=4)
-        logger.debug("Settings retrieved from user config file: %s", pretty_settings)
+        LOG.debug("Settings retrieved from user config file: %s", pretty_settings)
 
         if yaml_settings is not None:
 
@@ -185,7 +185,7 @@ class Config(object):
                 if k == "subscriptions":
                     pass
                 elif k not in self.settings:
-                    logger.warn("Setting %s is not a valid setting, ignoring.", k)
+                    LOG.warn("Setting %s is not a valid setting, ignoring.", k)
                 else:
                     self.settings[k] = v
 
@@ -197,11 +197,11 @@ class Config(object):
 def _ensure_file(file_path):
     if os.path.exists(file_path) and not os.path.isfile(file_path):
         msg = "Given file exists but isn't a file!"
-        logger.error(msg)
+        LOG.error(msg)
         raise E.InvalidConfigError(msg)
 
     elif not os.path.isfile(file_path):
-        logger.debug("Creating empty file at '%s'.", file_path)
+        LOG.debug("Creating empty file at '%s'.", file_path)
         open(file_path, "a").close()
 
 
@@ -209,9 +209,9 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
     for directory in [config_dir, cache_dir, data_dir]:
         if os.path.isfile(directory):
             msg = "Provided directory '{}' is a file!".format(directory)
-            logger.error(msg)
+            LOG.error(msg)
             raise E.InvalidConfigError(msg)
 
         if not os.path.isdir(directory):
-            logger.info("Creating nonexistent '%s'.", directory)
+            LOG.info("Creating nonexistent '%s'.", directory)
             os.makedirs(directory)
