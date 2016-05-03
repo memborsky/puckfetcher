@@ -1,3 +1,6 @@
+0.8.2 (2016-04-08):
+    * Fix download URL in setup.py.
+
 0.8.1 (2016-04-08):
     * Support download_backlog and backlog_limit as global defaults for all subscriptions.
         - 'download_backlog' defaults to 'true', 'backlog_limit' defaults to 1.
