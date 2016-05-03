@@ -7,7 +7,10 @@ import logging
 import os
 import platform
 import textwrap
+import time
+from datetime import datetime
 from enum import Enum
+from time import mktime
 
 import feedparser
 import requests
@@ -52,9 +55,7 @@ class Subscription(object):
         # Our file downloader.
         self.downloader = Util.generate_downloader(HEADERS, self.name)
 
-        # Use etag and last-modified to detect when we have the latest feed.
-        self.etag = None
-        self.last_modified = None
+        # Store feed state, including etag/last_modified.
         self.feed_state = _FeedState()
 
         self.directory = None
@@ -73,24 +74,14 @@ class Subscription(object):
         """Decode subscription from dictionary."""
         sub = Subscription.__new__(Subscription)
 
-        # pylint: disable=protected-access
-        if "name" not in sub_dictionary.keys():
-            logger.error("Sub to decode is missing name, can't continue.")
-            return None
-        else:
-            sub.name = sub_dictionary["name"]
+        attrs = ["name", "_current_url", "_provided_url"]
 
-        if "_current_url" not in sub_dictionary.keys():
-            logger.error("Sub to decode is missing _current_url, can't continue.")
-            return None
-        else:
-            sub._current_url = sub_dictionary["_current_url"]
-
-        if "_provided_url" not in sub_dictionary.keys():
-            logger.error("Sub to decode is missing _provided_url, can't continue.")
-            return None
-        else:
-            sub._provided_url = sub_dictionary["_provided_url"]
+        for attr in attrs:
+            if attr not in sub_dictionary.keys():
+                logger.error("Sub to decode is missing {}, can't continue.", attr)
+                return None
+            else:
+                setattr(sub, attr, sub_dictionary[attr])
 
         sub.directory = sub_dictionary.get("directory", None)
         sub.download_backlog = sub_dictionary.get("download_backlog", None)
@@ -116,11 +107,7 @@ class Subscription(object):
                 "download_backlog": sub.download_backlog,
                 "backlog_limit": sub.backlog_limit,
                 "use_title_as_filename": sub.use_title_as_filename,
-                "feed_state": {"entries": sub.feed_state.entries,
-                               "feed": sub.feed_state.feed,
-                               "latest_entry_number": sub.feed_state.latest_entry_number,
-                               "last_modified": sub.feed_state.last_modified,
-                               "etag": sub.feed_state.etag},
+                "feed_state": sub.feed_state.as_dict(),
                 "name": sub.name}
 
     @staticmethod
@@ -288,9 +275,9 @@ class Subscription(object):
             else:
                 self.directory = os.path.join(config_dir, directory)
 
-        if not os.path.isdir(self.directory):
-            LOGGER.debug("Directory %s does not exist, creating it.", directory)
-            os.makedirs(self.directory)
+            if not os.path.isdir(self.directory):
+                LOGGER.debug("Directory %s does not exist, creating it.", directory)
+                os.makedirs(self.directory)
 
     def update_url(self, url):
         """Update url for this subscription if a new one is provided."""
@@ -392,19 +379,16 @@ class Subscription(object):
         Perform a feedparser parse, providing arguments (like etag) we might want it to use.
         Don't provide etag/last_modified if the last get was unsuccessful.
         """
-        if not hasattr(self, "feed_state") or self.feed_state.entries == [] or\
-           (self.feed_state.etag is None and self.feed_state.last_modified is None):
+        if not self.feed_state.has_state:
             parsed = feedparser.parse(self._current_url)
 
         else:
+            time_struct = self.feed_state.last_modified.timetuple()
             parsed = feedparser.parse(self._current_url, etag=self.feed_state.etag,
-                                      modified=self.feed_state.last_modified)
+                                      modified=time_struct)
 
-        if "etag" in parsed:
-            self.feed_state.etag = parsed["etag"]
-
-        if "modified" in parsed:
-            self.feed_state.last_modified = parsed["modified"]
+        self.feed_state.etag = parsed.get("etag", self.feed_state.etag)
+        self.feed_state.store_last_modified(parsed.get("modified", self.feed_state.last_modified))
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
         if "status" not in parsed and parsed.get("bozo", None) == 1:
@@ -419,16 +403,14 @@ class Subscription(object):
 
             LOGGER.error("Received bozo exception %s. Unable to retrieve feed with URL %s for %s.",
                          msg, self._current_url, self.name)
-            result = (None, UpdateResult.FAILURE)
+            return (None, UpdateResult.FAILURE)
 
         elif parsed.get("status") == requests.codes["NOT_MODIFIED"]:
             LOGGER.debug("No update to feed, nothing to do.")
-            result = (None, UpdateResult.UNNEEDED)
+            return (None, UpdateResult.UNNEEDED)
 
         else:
-            result = (parsed, UpdateResult.SUCCESS)
-
-        return result
+            return (parsed, UpdateResult.SUCCESS)
 
     def _handle_http_codes(self, parsed):
         """
@@ -509,15 +491,41 @@ class _FeedState(object):
         if feedparser_dict is not None:
             self.feed = feedparser_dict.get("feed", {})
             self.entries = feedparser_dict.get("entries", [])
-            self.last_modified = feedparser_dict.get("last_modified", None)
+
+            # NOTE: This should be deprecated eventually.
+            temp_date = feedparser_dict.get("last_modified", None)
+            if type(temp_date) is time.struct_time:
+                temp_date = datetime.fromtimestamp(mktime(struct))
+            self.last_modified = temp_date
+
             self.etag = feedparser_dict.get("etag", None)
             self.latest_entry_number = feedparser_dict.get("latest_entry_number", None)
+            self.has_state = True
+
         else:
             self.feed = {}
             self.entries = []
             self.last_modified = None
             self.etag = None
             self.latest_entry_number = None
+            self.has_state = False
+
+    def as_dict(self):
+        """Return dictionary of this feed state object."""
+        return {"entries": self.entries,
+                "feed": self.feed,
+                "latest_entry_number": self.latest_entry_number,
+                "last_modified": self.last_modified,
+                "etag": self.etag}
+
+    def store_last_modified(self, last_modified):
+        """Store last_modified as a datetime, regardless of form it's provided in."""
+        if type(last_modified) is time.struct_time:
+            self.last_modified = datetime.fromtimestamp(mktime(last_modified))
+        elif type(last_modified) is datetime:
+            self.last_modified = last_modified
+        else:
+            LOGGER.error("Not currently handling this, does this happen?")
 
 
 # pylint: disable=too-few-public-methods
