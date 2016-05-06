@@ -149,7 +149,7 @@ class Subscription(object):
         if feed_get_result != UpdateResult.SUCCESS:
             return feed_get_result
 
-        LOG.info("Subscription {0} got updated feed.", self.name)
+        LOG.info("Subscription %s got updated feed.", self.name)
 
         # Only consider backlog if we don't have a latest entry number already.
         number_feeds = len(self.feed_state.entries)
@@ -160,8 +160,8 @@ class Subscription(object):
                     LOG.info(textwrap.dedent(
                         """\
                         Interpreting 'None' backlog limit as "No Limit" and downloading full
-                        backlog ({0} entries).\
-                        """.format(number_feeds)))
+                        backlog (%s entries).\
+                        """), number_feeds)
 
                 elif self.backlog_limit < 0:
                     LOG.error("Invalid backlog limit %s, downloading nothing.", self.backlog_limit)
@@ -177,22 +177,23 @@ class Subscription(object):
                 self.feed_state.latest_entry_number = number_feeds
                 LOG.info(textwrap.dedent(
                     """\
-                    Download backlog for {0} is not set.
-                    Downloading nothing, but setting number downloaded to {1}.\
-                    """.format(self.name, self.feed_state.latest_entry_number)))
+                    Download backlog for %s is not set.
+                    Downloading nothing, but setting number downloaded to %s.\
+                    """), self.name, self.feed_state.latest_entry_number)
 
         if self.feed_state.latest_entry_number >= number_feeds:
             LOG.info("Number downloaded for %s matches feed entry count %s. Nothing to do.",
-                        self.name, number_feeds)
+                     self.name, number_feeds)
             return True
 
         number_to_download = number_feeds - self.feed_state.latest_entry_number
         LOG.info(textwrap.dedent(
             """\
-            Number of downloaded feeds for {0} is {1}, {2} less than feed entry count {3}.
-            Downloading {2} entries.\
-            """.format(self.name, self.feed_state.latest_entry_number, number_to_download,
-                       number_feeds)))
+            Number of downloaded feeds for %s is %s, %s less than feed entry count %s.
+            Downloading %s entries.\
+            """),
+            self.name, self.feed_state.latest_entry_number, number_to_download, number_feeds,
+            number_to_download)
 
         self.download_entry_files(oldest_entry_age=number_to_download-1)
 
@@ -255,8 +256,8 @@ class Subscription(object):
                 self.downloader(url=url, dest=dest, overwrite=False)
 
             self.feed_state.latest_entry_number += 1
-            LOG.info("Have downloaded %s entries for sub %s.",
-                     self.feed_state.latest_entry_number, self.name)
+            LOG.info("Have downloaded %s entries for sub %s.", self.feed_state.latest_entry_number,
+                     self.name)
 
     def update_directory(self, directory, config_dir):
         """Update directory for this subscription if a new one is provided."""
@@ -317,8 +318,8 @@ class Subscription(object):
 
         pad_num = len(str(total_subs))
         padded_cur_num = str(index).zfill(pad_num)
-        header = "Sub number %s/%s - '%s' |%s|".format(padded_cur_num, total_subs, self.name,
-                                                         self.feed_state.latest_entry_number)
+        header = "Sub number {}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
+                                                       self.feed_state.latest_entry_number)
         lines.append(header)
         return "".join(lines)
 
@@ -346,7 +347,7 @@ class Subscription(object):
         def _helper():
             if attempt_count > MAX_RECURSIVE_ATTEMPTS:
                 LOG.error("Too many recursive attempts (%s) to get feed for sub %s, canceling.",
-                             attempt_count, self.name)
+                          attempt_count, self.name)
                 return UpdateResult.FAILURE
 
             if self._current_url is None or self._current_url == "":
@@ -354,7 +355,7 @@ class Subscription(object):
                 return UpdateResult.FAILURE
 
             LOG.info("Getting entries (attempt %s) for subscription %s with URL %s.",
-                        attempt_count, self.name, self._current_url)
+                     attempt_count, self.name, self._current_url)
 
             (parsed, code) = self._feedparser_parse_with_options()
             if code == UpdateResult.UNNEEDED:
@@ -426,7 +427,7 @@ class Subscription(object):
                 msg = repr(parsed.bozo_exception)
 
             LOG.error("Received bozo exception %s. Unable to retrieve feed with URL %s for %s.",
-                         msg, self._current_url, self.name)
+                      msg, self._current_url, self.name)
             return (None, UpdateResult.FAILURE)
 
         elif parsed.get("status") == requests.codes["NOT_MODIFIED"]:
@@ -449,20 +450,21 @@ class Subscription(object):
         if status == requests.codes["NOT_FOUND"]:
             LOG.error(textwrap.dedent(
                 """\
-                Saw status {0}, unable to retrieve feed text for {2}.
-                Current URL {1} for {2} will be preserved and checked again on next attempt.\
-                """.format(status, self._current_url, self.name)))
+                Saw status %s, unable to retrieve feed text for %s.
+                Current URL %s for %s will be preserved and checked again on next attempt.\
+                """), status, self.name, self._current_url, self.name)
             return UpdateResult.FAILURE
 
         elif status in [requests.codes["UNAUTHORIZED"], requests.codes["GONE"]]:
             LOG.error(textwrap.dedent(
                 """\
-                Saw status {0}, unable to retrieve feed text for {2}.
-                Clearing stored URL {0} from _current_url for {2}.
-                Originally provided URL {1} will be maintained at _provided_url, but will no longer
+                Saw status %s, unable to retrieve feed text for %s.
+                Clearing stored URL %s from _current_url for %s.
+                Originally provided URL %s will be maintained at _provided_url, but will no longer
                 be used.
-                Please provide new URL and authorization for subscription {2}.\
-                """.format(status, self._current_url, self.name)))
+                Please provide new URL and authorization for subscription %s.\
+                """),
+                status, self.name, self._current_url, self.name, self._provided_url, self.name)
 
             self._current_url = None
             return UpdateResult.FAILURE
@@ -471,9 +473,9 @@ class Subscription(object):
         elif status in [requests.codes["MOVED_PERMANENTLY"], requests.codes["PERMANENT_REDIRECT"]]:
             LOG.warning(textwrap.dedent(
                 """\
-                Saw status {} indicating permanent URL change.
-                Changing stored URL {} for {} to {} and attempting get with new URL.\
-                """.format(status, self._current_url, self.name, parsed.href)))
+                Saw status %s indicating permanent URL change.
+                Changing stored URL %s for %s to %s and attempting get with new URL.\
+                """), status, self._current_url, self.name, parsed.href)
 
             self._current_url = parsed.href
             return UpdateResult.ATTEMPT_AGAIN
@@ -484,7 +486,7 @@ class Subscription(object):
                 """\
                 Saw status %s indicating temporary URL change.
                 Attempting with new URL %s. Stored URL %s for %s will be unchanged.\
-                """.format(status, parsed.href, self._current_url, self.name)))
+                """), status, parsed.href, self._current_url, self.name)
 
             self._temp_url = self._current_url
             self._current_url = parsed.href
@@ -492,7 +494,7 @@ class Subscription(object):
 
         elif status != 200:
             LOG.warning("Saw status %s. Attempting retrieve with URL %s for %s again.",
-                           status, self._current_url, self.name)
+                        status, self._current_url, self.name)
             return UpdateResult.ATTEMPT_AGAIN
 
         else:
