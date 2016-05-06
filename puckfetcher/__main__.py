@@ -191,16 +191,16 @@ def _setup_program_arguments():
                             will happen both to the log file and to stdout. If there is more than
                             one v, more debug output will happen. Some things will never be logged
                             no matter how much you vvvvvvvvvv.
-                            """.format(__package__)))
+                            """))
 
     parser.add_argument("--version", "-V", action="version",
-                        version="%(prog)s {0}".format(CONSTANTS.VERSION))
+                        version="%(prog)s {}".format(CONSTANTS.VERSION))
 
     return parser
 
 
 def _setup_logging(log_dir):
-    log_filename = os.path.join(log_dir, "{0}.log".format(__package__))
+    log_filename = os.path.join(log_dir, "{}.log".format(__package__))
 
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
