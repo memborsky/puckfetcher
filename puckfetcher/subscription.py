@@ -8,6 +8,7 @@ import os
 import platform
 import textwrap
 import time
+from collections import deque
 from datetime import datetime
 from enum import Enum
 from time import mktime
@@ -18,6 +19,11 @@ import requests
 import puckfetcher.constants as CONSTANTS
 import puckfetcher.error as E
 import puckfetcher.util as Util
+
+try:
+    xrange
+except NameError:
+    xrange = range
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
 HEADERS = {"User-Agent": CONSTANTS.USER_AGENT}
@@ -78,7 +84,7 @@ class Subscription(object):
 
         for attr in attrs:
             if attr not in sub_dictionary.keys():
-                logger.error("Sub to decode is missing %s, can't continue.", attr)
+                LOG.error("Sub to decode is missing %s, can't continue.", attr)
                 return None
             else:
                 setattr(sub, attr, sub_dictionary[attr])
@@ -121,13 +127,13 @@ class Subscription(object):
         sub = Subscription.__new__(Subscription)
 
         if "name" not in sub_yaml.keys():
-            logger.error("No name provided, name is mandatory!")
+            LOG.error("No name provided, name is mandatory!")
             return None
         else:
             sub.name = sub_yaml["name"]
 
         if "url" not in sub_yaml.keys():
-            logger.error("No URL provided, URL is mandatory!")
+            LOG.error("No URL provided, URL is mandatory!")
             return None
         else:
             sub.url = sub_yaml["url"]
@@ -178,8 +184,9 @@ class Subscription(object):
                 LOG.info(textwrap.dedent(
                     """\
                     Download backlog for %s is not set.
-                    Downloading nothing, but setting number downloaded to %s.\
+                    Not downloading backlog but setting number downloaded to %s.\
                     """), self.name, self.feed_state.latest_entry_number)
+                return True
 
         if self.feed_state.latest_entry_number >= number_feeds:
             LOG.info("Number downloaded for %s matches feed entry count %s. Nothing to do.",
@@ -195,69 +202,80 @@ class Subscription(object):
             self.name, self.feed_state.latest_entry_number, number_to_download, number_feeds,
             number_to_download)
 
-        self.download_entry_files(oldest_entry_age=number_to_download-1)
+        # Queuing feeds in order of age makes the most sense for RSS feeds (IMO), so we do that.
+        # TODO consider wrapping queue more.
+        r = xrange(self.feed_state.latest_entry_number, number_feeds+1)
+        for i in r:
+            self.feed_state.queue.append((i, False))
+        self.download_queue()
 
         return True
 
-    def download_entry_files(self, oldest_entry_age=-1):
+    def download_queue(self):
         """
-        Download feed enclosure(s) for all entries newer than the given oldest entry age to object
-        directory.
+        Download feed enclosure(s) for all entries in the queue.
+        Map from positive indexing we use in the queue to negative feed age indexing used in feed.
         """
 
-        # Downloading feeds oldest first makes the most sense for RSS feeds (IMO), so we do that.
-        for entry_age in range(oldest_entry_age, -1, -1):
-            LOG.info("Downloading entry %s for '%s'.", entry_age, self.name)
+        msg = "Queue for sub {} has {} entries.".format(self.name, len(self.feed_state.queue))
+        LOG.info(msg)
+        print(msg)
 
-            entry = self.feed_state.entries[entry_age]
-            enclosures = entry.enclosures
-            num_entry_files = len(enclosures)
-            LOG.info("There are %s files for entry with age %s.", num_entry_files, entry_age)
+        try:
+            while self.feed_state.queue:
+                num_entries = len(self.feed_state.entries)
 
-            # Create directory just for enclosures for this entry if there are many.
-            directory = self.directory
-            if num_entry_files > 1:
-                directory = os.path.join(directory, entry.title)
-                LOG.debug("Creating directory to store %s enclosures.", num_entry_files)
+                (entry_num, overwrite) = self.feed_state.queue.popleft()
+                entry_age = num_entries - entry_num
 
-            for i, enclosure in enumerate(enclosures):
-                LOG.info("Handling enclosure %s of %s.", i+1, num_entry_files)
+                entry = self.feed_state.entries[entry_age-1]
 
-                url = enclosure.href
-                LOG.info("Extracted url %s.", url)
+                enclosures = entry.enclosures
+                num_entry_files = len(enclosures)
 
-                # Update filename if we're supposed to.
-                url_filename = url.split("/")[-1]
+                msg = "Trying to download entry number {} (age {}) for '{}'.".format(entry_num,
+                                                                                     entry_age,
+                                                                                     self.name)
+                LOG.info(msg)
+                print(msg)
 
-                # TODO do some bullshit to make this a windows-safe filename.
-                if platform.system() == 'Windows':
-                    logger.error(textwrap.dedent(
-                        """\
-                        Sorry, we can't guarantee valid filenames on Windows if we use RSS
-                        subscription titles.
-                        We'll support it eventually!
-                        Using URL filename for now.\
-                        """))
-                    filename = url_filename
+                # Create directory just for enclosures for this entry if there are many.
+                directory = self.directory
+                if num_entry_files > 1:
+                    directory = os.path.join(directory, entry.title)
+                    LOG.info("Creating directory to store %s enclosures.", num_entry_files)
+                    print("{} enclosures for this feed entry.".format(num_entry_files))
 
-                elif self.use_title_as_filename:
-                    ext = os.path.splitext(url_filename)[1]
-                    filename = "{}{}".format(entry.title, ext) # It's an owl!
+                for i, enclosure in enumerate(enclosures):
+                    LOG.info("Handling enclosure %s of %s.", i+1, num_entry_files)
+                    if num_entry_files > 1:
+                        print("Downloading enclosure {} of {}".format(i+1, num_entry_files))
 
-                else:
-                    filename = url_filename
+                    url = enclosure.href
+                    LOG.info("Extracted url %s.", url)
 
-                # Remove characters we can't allow in filenames.
-                filename = Util.sanitize(filename)
+                    # TODO catch errors? What if we try to save to a nonsense file?
+                    dest = self._get_dest(url, entry.title, directory)
+                    self.downloader(url=url, dest=dest, overwrite=overwrite)
 
-                dest = os.path.join(directory, filename)
+                self.feed_state.latest_entry_number += 1
+                self.feed_state.entries_state_dict[entry_num] = True
+                LOG.info("Have downloaded %s entries for sub %s.",
+                         self.feed_state.latest_entry_number, self.name)
 
-                # TODO catch errors? What if we try to save to a nonsense file?
-                self.downloader(url=url, dest=dest, overwrite=False)
+        except KeyboardInterrupt:
+            self.feed_state.queue.appendleft((entry_num, True))
 
-            self.feed_state.latest_entry_number += 1
-            LOG.info("Have downloaded %s entries for sub %s.", self.feed_state.latest_entry_number,
-                     self.name)
+    def enqueue(self, nums):
+        """Add entries to this subscription's download queue."""
+        actual_nums = []
+        for num in nums:
+            if num > 0 and num <= len(sub.feed_state.entries):
+                actual_nums.append(num)
+
+        self.feed_state.queue.extend(actual_nums)
+
+        return actual_nums
 
     def update_directory(self, directory, config_dir):
         """Update directory for this subscription if a new one is provided."""
@@ -293,7 +311,7 @@ class Subscription(object):
 
     # TODO clean this up - reflection, or whatever Python has for that?
     def default_missing_fields(self, settings):
-        """Set default values for any fields that are None (ones that were never set."""
+        """Set default values for any fields that are None (ones that were never set)."""
 
         # NOTE - directory is set separately, because we'll want to create it.
         # These are just plain options.
@@ -313,14 +331,38 @@ class Subscription(object):
         self.downloader = Util.generate_downloader(HEADERS, self.name)
 
     def get_status(self, index, total_subs):
-        """Provide status of subscription, as a multiline string"""
+        """Provide status of subscription."""
+        pad_num = len(str(total_subs))
+        padded_cur_num = str(index+1).zfill(pad_num)
+        return "{}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
+                                          self.feed_state.latest_entry_number)
+
+    def get_details(self, index, total_subs):
+        """Provide multiline summary of subscription state."""
         lines = []
 
-        pad_num = len(str(total_subs))
-        padded_cur_num = str(index).zfill(pad_num)
-        header = "Sub number {}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
-                                                       self.feed_state.latest_entry_number)
-        lines.append(header)
+        lines.append(self.get_status(index, total_subs))
+        lines.append("\n")
+
+        num_entries = len(self.feed_state.entries)
+        pad_num = len(str(num_entries))
+        status_list = []
+        status_list.append("Status of podcast queue:")
+        status_list.append("{}".format(list(self.feed_state.queue)))
+        status_list.append("")
+        status_list.append("Status of podcast entries:")
+
+        entries = []
+        for i in xrange(num_entries+1):
+            if i in self.feed_state.entries_state_dict.keys():
+                entries.append("{}+".format(i))
+            else:
+                entries.append("{}-".format(i))
+
+        status_list.append(" ".join(entries))
+
+        lines.append("\n".join(status_list))
+
         return "".join(lines)
 
     # "Private" functions (messy internals).
@@ -342,7 +384,6 @@ class Subscription(object):
     def get_feed(self, attempt_count=0):
         """Get RSS structure for this subscription. Return status code indicating result."""
 
-        # Provide rate limiting.
         @Util.rate_limited(self._current_url, 120, self.name)
         def _helper():
             if attempt_count > MAX_RECURSIVE_ATTEMPTS:
@@ -386,9 +427,7 @@ class Subscription(object):
             self.feed_state = _FeedState(feedparser_dict=parsed)
             return UpdateResult.SUCCESS
 
-        result = _helper()
-
-        return result
+        return _helper()
 
     def _feedparser_parse_with_options(self):
         """
@@ -501,6 +540,32 @@ class Subscription(object):
             LOG.info("Saw status 200. Sucess!")
             return UpdateResult.SUCCESS
 
+    def _get_dest(self, url, title, directory):
+        url_filename = url.split("/")[-1]
+
+        # TODO do some bullshit to make this a windows-safe filename.
+        if platform.system() == 'Windows':
+            LOG.error(textwrap.dedent(
+                """\
+                Sorry, we can't guarantee valid filenames on Windows if we use RSS
+                subscription titles.
+                We'll support it eventually!
+                Using URL filename.\
+                """))
+            filename = url_filename
+
+        elif self.use_title_as_filename:
+            ext = os.path.splitext(url_filename)[1][1:]
+            filename = "{}.{}".format(title, ext) # It's an owl!
+
+        else:
+            filename = url_filename
+
+        # Remove characters we can't allow in filenames.
+        filename = Util.sanitize(filename)
+
+        return os.path.join(directory, filename)
+
     def __eq__(self, rhs):
         return isinstance(rhs, Subscription) and repr(self) == repr(rhs)
 
@@ -517,6 +582,8 @@ class _FeedState(object):
         if feedparser_dict is not None:
             self.feed = feedparser_dict.get("feed", {})
             self.entries = feedparser_dict.get("entries", [])
+            self.entries_state_dict = feedparser_dict.get("entries_state_dict", {})
+            self.queue = deque(feedparser_dict.get("queue", []))
 
             # NOTE: This should be deprecated eventually.
             temp_date = feedparser_dict.get("last_modified", None)
@@ -533,6 +600,8 @@ class _FeedState(object):
         else:
             self.feed = {}
             self.entries = []
+            self.entries_state_dict = {}
+            self.queue = deque([])
             self.last_modified = None
             self.etag = None
             self.latest_entry_number = None
@@ -545,7 +614,10 @@ class _FeedState(object):
             store_date = self.last_modified.strftime(DATE_FORMAT_STRING)
         else:
             store_date = None
+
         return {"entries": self.entries,
+                "entries_state_dict": self.entries_state_dict,
+                "queue": list(self.queue),
                 "feed": self.feed,
                 "latest_entry_number": self.latest_entry_number,
                 "last_modified": store_date,

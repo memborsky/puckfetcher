@@ -81,59 +81,146 @@ class Config(object):
 
         # Validate state after load (sanity checks, basically).
         if len(self.subscriptions) < 0:
-            LOG.error("Something awful has happened, we have negative subscriptions")
-            return False
+            msg = "Something awful has happened, we have negative subscriptions"
+            LOG.error(msg)
+            return (False, msg)
 
         else:
-            return True
+            msg = "Successful load."
+            LOG.info(msg)
+            self.cache_loaded = True
+            return (True, msg)
+
+    def get_subs(self):
+        """Provie list of subscription names. Load state if we haven't."""
+        if ~self.cache_loaded:
+            load_successful = self.load_state()
+
+        if self.cache_loaded or load_successful:
+            subs = []
+            for sub in self.subscriptions:
+                subs.append(sub.name)
+
+            return subs
 
     def update_once(self):
         """Update all subscriptions once. Return True if we successfully updated."""
-        load_successful = self.load_state()
-        if load_successful:
+        if not self.cache_loaded:
+            load_successful = self.load_state()
+
+        if self.cache_loaded or load_successful:
+
             num_subs = len(self.subscriptions)
             for i, sub in enumerate(self.subscriptions):
-                print("Working on sub number {}/{} - '{}'".format(i+1, num_subs, sub.name))
+                msg = "Working on sub number {}/{} - '{}'".format(i+1, num_subs, sub.name)
+                LOG.info(msg)
+                print(msg)
                 update_successful = sub.attempt_update()
-                if update_successful:
-                    print("Successful update.")
-                else:
-                    print("Unsuccessful update!")
-                    continue
+
+                if not update_successful:
+                    msg = "Unsuccessful update for {}!".format(sub.name)
+                    LOG.info(msg)
+                    print(msg)
 
                 self.subscriptions[i] = sub
                 self.save_cache()
 
-            return True
+            return (True, "Update completed.")
 
         else:
-            LOG.debug("Load unsuccessful, cannot update.")
-            return False
+            return (False, "Load unsuccessful, cannot update!")
 
     def update_forever(self):
         """Update all subscriptions continuously until terminated."""
         while True:
             try:
-                self.update_once()
+                (res, msg) = self.update_once()
+                if not res:
+                    return (res, msg)
 
             except KeyboardInterrupt:
                 LOG.info("Stopping looping forever.")
                 break
 
+        msg = "Continuous update stopped, no issues."
+        LOG.info(msg)
+        return (True, msg)
+
     def list(self):
         """Load state and list subscriptions. Return if loading succeeded."""
-        load_successful = self.load_state()
-        if load_successful:
+        if not self.cache_loaded:
+            load_successful = self.load_state()
+
+        if self.cache_loaded or load_successful:
             num_subs = len(self.subscriptions)
             print("{} subscriptions loaded.".format(num_subs))
             for i, sub in enumerate(self.subscriptions):
                 print(sub.get_status(i+1, num_subs))
 
-            return True
+            msg = "Load + list completed, no issues."
+            LOG.info(msg)
+            return (True, msg)
 
         else:
-            LOG.debug("Load unsuccessful, cannot update.")
-            return False
+            msg = "Load unsuccessful, cannot list subs."
+            LOG.debug(msg)
+            return (False, msg)
+
+    def details(self, sub_index):
+        """Get details on one sub, including last update date and what entries we have."""
+        if not self.cache_loaded:
+            load_successful = self.load_state()
+
+        if self.cache_loaded or load_successful:
+            num_subs = len(self.subscriptions)
+            sub = self.subscriptions[sub_index]
+            print(sub.get_details(sub_index, num_subs))
+
+            msg = "Load + detail completed, no issues."
+            LOG.info(msg)
+            return (True, msg)
+
+        else:
+            msg = "Load unsuccessful, cannot provide details."
+            LOG.debug(msg)
+            return (False, msg)
+
+    def enqueue(self, sub_index, nums):
+        """Add item(s) to a sub's download queue."""
+        if not self.cache_loaded:
+            load_successful = self.load_state()
+
+        if self.cache_loaded or load_successful:
+            sub = self.subscriptions[sub_index]
+            actual_nums = sub.enqueue(nums)
+
+            msg = "Added items {} to queue successfully.".format(actual_nums)
+            LOG.info(msg)
+            return (True, msg)
+
+        else:
+            msg = "Load unsuccessful, cannot enqueue items."
+            LOG.debug(msg)
+            return (False, msg)
+
+    def download_queue(self, sub_index):
+        """Download one sub's download queue."""
+        if not self.cache_loaded:
+            load_successful = self.load_state()
+
+        if self.cache_loaded or load_successful:
+            num_subs = len(self.subscriptions)
+            sub = self.subscriptions[sub_index]
+            sub.download_queue()
+
+            msg = "Queue downloading complete, no issues."
+            LOG.info(msg)
+            return (True, msg)
+
+        else:
+            msg = "Load unsuccessful, cannot download queue."
+            LOG.debug(msg)
+            return (False, msg)
 
     def save_cache(self):
         """Write current in-memory config to cache file."""
@@ -146,8 +233,6 @@ class Config(object):
     # "Private" functions (messy internals).
     def _load_cache_settings(self):
         """Load settings from cache to self.cached_settings."""
-        if self.cache_loaded:
-            return
 
         _ensure_file(self.cache_file)
         self.cached_subscriptions = []

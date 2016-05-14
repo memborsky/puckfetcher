@@ -13,7 +13,12 @@ from clint.textui import prompt
 
 import puckfetcher.constants as CONSTANTS
 import puckfetcher.config as C
+import puckfetcher.util as Util
 
+try:
+    rawest_input = raw_input
+except NameError:
+    rawest_input = input
 
 
 # TODO consolidate printing and logging into one log handler.
@@ -46,7 +51,6 @@ def main():
             _handle_command(command, config)
             _handle_exit(parser)
 
-
     logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
 
     # TODO push the command implementations into Config. Eventually make that an API.
@@ -57,17 +61,31 @@ def main():
                                 "prompt": "Exit.",
                                 "return": _Command.exit.name},
                                {"selector": "2",
-                                "prompt": "Update subscriptions once.",
+                                "prompt": "Update subscriptions once. Will also download sub " +
+                                          "queues.",
                                 "return": _Command.update_once.name},
                                {"selector": "3",
-                                "prompt": "Update subscriptions continuously.",
+                                "prompt": "Update subscriptions continuously. Also downloads " +
+                                          "queues.",
                                 "return": _Command.update_forever.name},
                                {"selector": "4",
                                 "prompt": "Load/reload subscriptions configuration.",
                                 "return": _Command.load.name},
                                {"selector": "5",
                                 "prompt": "List current subscriptions and their status.",
-                                "return": _Command.list.name}]
+                                "return": _Command.list.name},
+                               {"selector": "6",
+                                "prompt": "Provide details on one subscription's entries and " +
+                                          "queue status.",
+                                "return": _Command.details.name},
+                               {"selector": "7",
+                                "prompt": "Add to a sub's download queue. Items in queue will " +
+                                          "overwrite existing files with same name when " +
+                                          "downloaded.",
+                                "return": _Command.enqueue.name},
+                               {"selector": "8",
+                                "prompt": "Download a subscription's full queue.",
+                                "return": _Command.download_queue.name}]
 
             command = prompt.options("Choose a command", command_options)
             # TODO wrap in something nicer, we don't want to show _Command.EXIT.
@@ -99,28 +117,80 @@ def _handle_exit(parser):
 def _handle_command(command, config):
     # TODO use config exit status to return exit codes.
     if command == _Command.update_once.name:
-        config.update_once()
-
+        (res, msg) = config.update_once()
 
     elif command == _Command.update_forever.name:
-        config.update_forever()
+        (res, msg) = config.update_forever()
 
     elif command == _Command.load.name:
-        load_successful = config.load_state()
-        if load_successful:
-            print("Reloaded config successfully!")
+        (res, msg) = config.load_state()
 
-        else:
-            print("Did not reload config successfully!")
-
-    # TODO provide more information, possibly hidden behind more command line operations.
     elif command == _Command.list.name:
-        config.list()
+        (res, msg) = config.list()
+
+    elif command == _Command.details.name:
+        sub_index = _choose_sub(config)
+        (res, msg) = config.details(sub_index)
+        input("Press enter when done.")
+
+    elif command == _Command.enqueue.name:
+        sub_index = _choose_sub(config)
+
+        cancelled = False
+        while not cancelled:
+            num_string = rawest_input(textwrap.dedent(
+                """
+                Provide numbers of entries to put in download queue.
+                Invalid numbers will be ignored.
+                Press enter with an empty line to go back to command menu.
+                """))
+
+            if len(num_string) == 0:
+                cancelled = True
+                (res, msg) = (False, "Cancelled enqueuing")
+                break
+
+            num_list = Util.parse_int_string(num_string)
+
+            while True:
+                Answer = rawest_input(textwrap.dedent(
+                    """\
+                    Happy with {}?
+                    (If indices are too big/small, they'll be pulled out later.)
+                    (No will let you try again)[Yn]\
+                    """.format(num_list)))
+
+                if len(Answer) < 1:
+                    continue
+
+                a = Answer.lower()[0]
+
+                if a == "y":
+                    (res, msg) = config.enqueue(indices)
+                elif a == "n":
+                    break
+
+    elif command == _Command.download_queue.name:
+        sub_index = _choose_sub(config)
+        (res, msg) = config.download_queue(sub_index)
 
     else:
         print("Unknown command!")
+        return
+
+    if not res:
+        print(msg)
+
+def _choose_sub(config):
+    sub_names = config.get_subs()
+    subscription_options = []
+    for i, sub_name in enumerate(sub_names):
+        subscription_options.append({"selector": str(i+1), "prompt": sub_name, "return": i})
+
+    return prompt.options("Choose a subscription:", subscription_options)
 
 
+# Helpers.
 def _setup_directories(args):
     config_dir = vars(args)["config"]
     if not config_dir:
@@ -237,6 +307,9 @@ class _Command(Enum):
     update_forever = 3
     load = 4
     list = 5
+    details = 6
+    enqueue = 7
+    download_queue = 8
 
 
 if __name__ == "__main__":
