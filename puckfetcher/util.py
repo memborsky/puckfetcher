@@ -12,8 +12,7 @@ except ImportError:
 import requests
 from clint.textui import progress
 
-# pylint: disable=invalid-name
-logger = logging.getLogger("root")
+LOG = logging.getLogger("root")
 
 LAST_CALLED = {}
 
@@ -30,7 +29,8 @@ def generate_downloader(headers, args):
         # If there is a file with the name we intend to save to, assume the podcast has
         # been downloaded already.
         if os.path.isfile(dest) and not overwrite:
-            logger.info("File %s exists, not overwriting, assuming downloaded.", dest)
+            LOG.info("File %s exists, not overwriting, assuming downloaded.", dest)
+            print("File exists. Assuming already downloaded and skipping.")
             return
 
         domain = urlparse(url).netloc
@@ -40,8 +40,8 @@ def generate_downloader(headers, args):
         @rate_limited(domain, 30, args)
         def _rate_limited_download():
             response = requests.get(url, headers=headers, stream=True)
-            logger.info("Actually downloading from %s", url)
-            logger.info("Trying to save to %s", dest)
+            LOG.info("Actually downloading from %s", url)
+            LOG.info("Trying to save to %s", dest)
 
             total_length = int(response.headers.get("content-length"))
             expected_size = (total_length / 1024) + 1
@@ -81,6 +81,34 @@ def sanitize(filename):
     return filename.replace("/", "-")
 
 
+def parse_int_string(int_string):
+    """
+    Given a string like "1 23 4-8 32 1", return a unique list of those integers in the string and
+    the integers in the ranges in the string.
+    Non-numbers ignored.
+    """
+    cleaned_spaces = " ".join(int_string.strip().split())
+    cleaned_dashes = cleaned_spaces.replace(" - ", "-")
+
+    tokens = cleaned_dashes.split(" ")
+    indices = set()
+    for token in tokens:
+        if "-" in token:
+            endpoints = token.split("-")
+            if len(endpoints) != 2:
+                LOG.info("Dropping token %s as invalid - weird range.", token)
+            else:
+                indices = indices.union(indices, set(range(endpoint[0], endpoint[1]+1)))
+
+        else:
+            try:
+                indices.add(int(token))
+            except ValueError:
+                LOG.info("Dropping token %s as invalid - not an int.", token)
+
+    return list(indices)
+
+
 # Modified from https://stackoverflow.com/a/667706
 def rate_limited(domain, max_per_hour, *args):
     """Decorator to limit function to N calls/hour."""
@@ -90,9 +118,9 @@ def rate_limited(domain, max_per_hour, *args):
         things = [func.__name__]
         things.extend(args)
         key = "".join(things)
-        logger.debug("Rate limiter called for %s.", key)
+        LOG.debug("Rate limiter called for %s.", key)
         if key not in LAST_CALLED:
-            logger.debug("Initializing entry for %s.", key)
+            LOG.debug("Initializing entry for %s.", key)
             LAST_CALLED[key] = 0.0
 
         def _rate_limited_function(*args, **kargs):
@@ -100,16 +128,16 @@ def rate_limited(domain, max_per_hour, *args):
             now = time.time()
             elapsed = now - last_called
             remaining = min_interval - elapsed
-            logger.debug("Rate limiter last called for '%s' at %s.", key, last_called)
-            logger.debug("Remaining cooldown time for '%s' is %s.", key, remaining)
+            LOG.debug("Rate limiter last called for '%s' at %s.", key, last_called)
+            LOG.debug("Remaining cooldown time for '%s' is %s.", key, remaining)
 
             if domain not in RATELIMIT_DOMAIN_WHITELIST and remaining > 0 and last_called > 0.0:
-                logger.info("Self-enforced rate limit hit, sleeping %s seconds.", remaining)
+                LOG.info("Self-enforced rate limit hit, sleeping %s seconds.", remaining)
                 time.sleep(remaining)
 
             LAST_CALLED[key] = time.time()
             ret = func(*args, **kargs)
-            logger.debug("Updating rate limiter last called for %s to %s.", key, now)
+            LOG.debug("Updating rate limiter last called for %s to %s.", key, now)
             return ret
 
         return _rate_limited_function
