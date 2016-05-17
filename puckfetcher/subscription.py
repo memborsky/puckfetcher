@@ -18,6 +18,7 @@ import feedparser
 import requests
 
 import puckfetcher.constants as CONSTANTS
+import puckfetcher.error as ERROR
 import puckfetcher.util as Util
 
 try:
@@ -44,7 +45,7 @@ class Subscription(object):
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
         if url is None or url == "":
-            raise E.MalformedSubscriptionError("No URL provided.")
+            raise ERROR.MalformedSubscriptionError("No URL provided.")
         else:
             LOG.debug("Storing provided url '%s'.", url)
             self._provided_url = copy.deepcopy(url)
@@ -53,7 +54,7 @@ class Subscription(object):
 
         # Maintain name of podcast.
         if name is None or name == "":
-            raise E.MalformedSubscriptionError("No name provided.")
+            raise ERROR.MalformedSubscriptionError("No name provided.")
         else:
             LOG.debug("Provided name '%s'.", name)
             self.name = name
@@ -282,7 +283,7 @@ class Subscription(object):
     def update_directory(self, directory, config_dir):
         """Update directory for this subscription if a new one is provided."""
         if directory is None or directory == "":
-            raise E.InvalidConfigError(desc=textwrap.dedent(
+            raise ERROR.InvalidConfigError(desc=textwrap.dedent(
                 """\
                 Provided invalid sub directory '{}' for '{}'.\
                 """.format(directory, self.name)))
