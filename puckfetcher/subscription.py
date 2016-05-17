@@ -2,6 +2,7 @@
 Module for a subscription object, which manages a podcast URL, name, and information about how
 many episodes of the podcast we have.
 """
+
 import copy
 import logging
 import os
@@ -17,7 +18,6 @@ import feedparser
 import requests
 
 import puckfetcher.constants as CONSTANTS
-import puckfetcher.error as E
 import puckfetcher.util as Util
 
 try:
@@ -93,7 +93,7 @@ class Subscription(object):
         sub.download_backlog = sub_dictionary.get("download_backlog", None)
         sub.backlog_limit = sub_dictionary.get("backlog_limit", None)
         sub.use_title_as_filename = sub_dictionary.get("use_title_as_filename", None)
-        sub.feed_state = _FeedState(feedparser_dict=sub_dictionary.get("feed_state", None))
+        sub.feed_state = _FeedState(dict=sub_dictionary.get("feed_state", None))
 
         # Generate data members that shouldn't/won't be cached.
         sub.downloader = Util.generate_downloader(HEADERS, sub.name)
@@ -223,9 +223,8 @@ class Subscription(object):
 
         try:
             while self.feed_state.queue:
-                num_entries = len(self.feed_state.entries)
-
                 (entry_num, overwrite) = self.feed_state.queue.popleft()
+                num_entries = len(self.feed_state.entries)
                 entry_age = num_entries - entry_num
 
                 entry = self.feed_state.entries[entry_age-1]
@@ -258,7 +257,9 @@ class Subscription(object):
                     dest = self._get_dest(url, entry.title, directory)
                     self.downloader(url=url, dest=dest, overwrite=overwrite)
 
-                self.feed_state.latest_entry_number += 1
+                if entry_num > self.feed_state.latest_entry_number:
+                    self.feed_state.latest_entry_number = entry_num
+
                 self.feed_state.entries_state_dict[entry_num] = True
                 LOG.info("Have downloaded %s entries for sub %s.",
                          self.feed_state.latest_entry_number, self.name)
@@ -270,10 +271,11 @@ class Subscription(object):
         """Add entries to this subscription's download queue."""
         actual_nums = []
         for num in nums:
-            if num > 0 and num <= len(sub.feed_state.entries):
-                actual_nums.append(num)
+            if num > 0 and num <= len(self.feed_state.entries):
+                actual_nums.append((num, True))
 
         self.feed_state.queue.extend(actual_nums)
+        LOG.info("New queue for %s: %s", self.name, list(self.feed_state.queue))
 
         return actual_nums
 
@@ -307,7 +309,7 @@ class Subscription(object):
         else:
             self._provided_url = copy.deepcopy(url)
 
-        self._current_url = copy.deepcopy(url)
+        self._current_url = copy.deepcopy(self._provided_url)
 
     # TODO clean this up - reflection, or whatever Python has for that?
     def default_missing_fields(self, settings):
@@ -335,35 +337,31 @@ class Subscription(object):
         pad_num = len(str(total_subs))
         padded_cur_num = str(index+1).zfill(pad_num)
         return "{}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
-                                          self.feed_state.latest_entry_number)
+                                          self.feed_state.latest_entry_number-1)
 
     def get_details(self, index, total_subs):
         """Provide multiline summary of subscription state."""
-        lines = []
+        detail_lines = []
 
-        lines.append(self.get_status(index, total_subs))
-        lines.append("\n")
+        detail_lines.append(self.get_status(index, total_subs))
 
         num_entries = len(self.feed_state.entries)
         pad_num = len(str(num_entries))
-        status_list = []
-        status_list.append("Status of podcast queue:")
-        status_list.append("{}".format(list(self.feed_state.queue)))
-        status_list.append("")
-        status_list.append("Status of podcast entries:")
+        detail_lines.append("Status of podcast queue:")
+        detail_lines.append("{}".format(list(self.feed_state.queue)))
+        detail_lines.append("")
+        detail_lines.append("Status of podcast entries:")
 
-        entries = []
+        entry_indicators = []
         for i in xrange(num_entries+1):
             if i in self.feed_state.entries_state_dict.keys():
-                entries.append("{}+".format(i))
+                entry_indicators.append("{}+".format(str(i+1).zfill(pad_num)))
             else:
-                entries.append("{}-".format(i))
+                entry_indicators.append("{}-".format(str(i+1).zfill(pad_num)))
 
-        status_list.append(" ".join(entries))
+        detail_lines.append(" ".join(entry_indicators))
 
-        lines.append("\n".join(status_list))
-
-        return "".join(lines)
+        return "\n".join(detail_lines)
 
     # "Private" functions (messy internals).
     def _handle_directory(self, directory):
@@ -424,7 +422,7 @@ class Subscription(object):
                 LOG.error("Ran into HTTP error (%s), aborting.", code)
                 return code
 
-            self.feed_state = _FeedState(feedparser_dict=parsed)
+            self.feed_state.load_rss_info(parsed)
             return UpdateResult.SUCCESS
 
         return _helper()
@@ -576,28 +574,37 @@ class Subscription(object):
         return str(Subscription.encode_subscription(self))
 
 
-# pylint: disable=too-few-public-methods
 class _FeedState(object):
-    def __init__(self, feedparser_dict=None):
-        if feedparser_dict is not None:
-            self.feed = feedparser_dict.get("feed", {})
-            self.entries = feedparser_dict.get("entries", [])
-            self.entries_state_dict = feedparser_dict.get("entries_state_dict", {})
-            self.queue = deque(feedparser_dict.get("queue", []))
+    def __init__(self, dict=None):
+        if dict is not None:
+            LOG.info("Successfully loaded feed state dict.")
+
+            self.feed = dict.get("feed", {})
+            self.entries = dict.get("entries", [])
+            self.entries_state_dict = dict.get("entries_state_dict", {})
+            self.queue = deque(dict.get("queue", []))
 
             # NOTE: This should be deprecated eventually.
-            temp_date = feedparser_dict.get("last_modified", None)
+            temp_date = dict.get("last_modified", None)
             if type(temp_date) is time.struct_time:
-                temp_date = datetime.fromtimestamp(mktime(struct))
-            elif type(temp_date) is datetime:
-                temp_date = datetime.strptime(obj["as_str"], DATE_FORMAT_STRING)
-            self.last_modified = temp_date
+                LOG.debug("Loading type time.struct_time last_modified.")
+                self.last_modified = datetime.fromtimestamp(mktime(temp_date))
 
-            self.etag = feedparser_dict.get("etag", None)
-            self.latest_entry_number = feedparser_dict.get("latest_entry_number", None)
+            elif type(temp_date) is datetime:
+                LOG.debug("Loading type datetime last_modified.")
+                self.last_modified = datetime.strptime(obj["as_str"], DATE_FORMAT_STRING)
+
+            else:
+                LOG.debug("Refusing to load unsupported type.")
+                self.last_modified = None
+
+            self.etag = dict.get("etag", None)
+            self.latest_entry_number = dict.get("latest_entry_number", None)
             self.has_state = True
 
         else:
+            LOG.info("Did not successfully load feed state dict.")
+
             self.feed = {}
             self.entries = []
             self.entries_state_dict = {}
@@ -606,6 +613,11 @@ class _FeedState(object):
             self.etag = None
             self.latest_entry_number = None
             self.has_state = False
+
+    def load_rss_info(self, parsed):
+        """Load some RSS subscription elements into this feed state."""
+        self.feed = parsed["feed"]
+        self.entries = parsed["entries"]
 
     def as_dict(self):
         """Return dictionary of this feed state object."""
