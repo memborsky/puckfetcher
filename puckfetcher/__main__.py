@@ -12,7 +12,7 @@ from enum import Enum
 from clint.textui import prompt
 
 import puckfetcher.constants as CONSTANTS
-import puckfetcher.config as C
+import puckfetcher.config as Config
 import puckfetcher.util as Util
 
 try:
@@ -34,7 +34,7 @@ def main():
 
     logger = _setup_logging(log_dir)
 
-    config = C.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
+    config = Config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
 
     # See if we got a command-line command.
     config_dir = vars(args)["config"]
@@ -91,10 +91,9 @@ def main():
             # TODO wrap in something nicer, we don't want to show _Command.EXIT.
 
             if command == _Command.exit.name:
-                _handle_requested_exit(parser)
+                _handle_exit(parser)
 
             _handle_command(command, config)
-
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
@@ -136,8 +135,8 @@ def _handle_command(command, config):
     elif command == _Command.enqueue.name:
         sub_index = _choose_sub(config)
 
-        cancelled = False
-        while not cancelled:
+        done = False
+        while not done:
             num_string = rawest_input(textwrap.dedent(
                 """
                 Provide numbers of entries to put in download queue.
@@ -146,8 +145,8 @@ def _handle_command(command, config):
                 """))
 
             if len(num_string) == 0:
-                cancelled = True
-                (res, msg) = (False, "Cancelled enqueuing")
+                done = True
+                (res, msg) = (False, "Canceled enqueuing")
                 break
 
             num_list = Util.parse_int_string(num_string)
@@ -157,16 +156,19 @@ def _handle_command(command, config):
                     """\
                     Happy with {}?
                     (If indices are too big/small, they'll be pulled out later.)
-                    (No will let you try again)[Yn]\
+                    (No will let you try again)
+                    [Yes/yes/y or No/no/n]
                     """.format(num_list)))
 
                 if len(Answer) < 1:
                     continue
 
                 a = Answer.lower()[0]
-
                 if a == "y":
-                    (res, msg) = config.enqueue(indices)
+                    (res, msg) = config.enqueue(sub_index, num_list)
+                    done = True
+                    break
+
                 elif a == "n":
                     break
 

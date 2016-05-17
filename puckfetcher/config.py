@@ -32,7 +32,7 @@ class Config(object):
             "use_title_as_filename": False
         }
 
-        self.cache_loaded = False
+        self.state_loaded = False
         self.cached_subscriptions = []
         self.subscriptions = []
 
@@ -88,28 +88,26 @@ class Config(object):
         else:
             msg = "Successful load."
             LOG.info(msg)
-            self.cache_loaded = True
+            self.state_loaded = True
             return (True, msg)
 
     def get_subs(self):
         """Provie list of subscription names. Load state if we haven't."""
-        if ~self.cache_loaded:
-            load_successful = self.load_state()
-
-        if self.cache_loaded or load_successful:
+        if _ensure_loaded(self):
             subs = []
             for sub in self.subscriptions:
                 subs.append(sub.name)
 
             return subs
 
+        else:
+            msg = "Could not load, can't provide subs."
+            LOG.error(msg)
+            return (False, msg)
+
     def update_once(self):
         """Update all subscriptions once. Return True if we successfully updated."""
-        if not self.cache_loaded:
-            load_successful = self.load_state()
-
-        if self.cache_loaded or load_successful:
-
+        if _ensure_loaded(self):
             num_subs = len(self.subscriptions)
             for i, sub in enumerate(self.subscriptions):
                 msg = "Working on sub number {}/{} - '{}'".format(i+1, num_subs, sub.name)
@@ -148,10 +146,7 @@ class Config(object):
 
     def list(self):
         """Load state and list subscriptions. Return if loading succeeded."""
-        if not self.cache_loaded:
-            load_successful = self.load_state()
-
-        if self.cache_loaded or load_successful:
+        if _ensure_loaded(self):
             num_subs = len(self.subscriptions)
             print("{} subscriptions loaded.".format(num_subs))
             for i, sub in enumerate(self.subscriptions):
@@ -168,10 +163,7 @@ class Config(object):
 
     def details(self, sub_index):
         """Get details on one sub, including last update date and what entries we have."""
-        if not self.cache_loaded:
-            load_successful = self.load_state()
-
-        if self.cache_loaded or load_successful:
+        if _ensure_loaded(self):
             num_subs = len(self.subscriptions)
             sub = self.subscriptions[sub_index]
             print(sub.get_details(sub_index, num_subs))
@@ -187,15 +179,13 @@ class Config(object):
 
     def enqueue(self, sub_index, nums):
         """Add item(s) to a sub's download queue."""
-        if not self.cache_loaded:
-            load_successful = self.load_state()
-
-        if self.cache_loaded or load_successful:
+        if _ensure_loaded(self):
             sub = self.subscriptions[sub_index]
             actual_nums = sub.enqueue(nums)
 
             msg = "Added items {} to queue successfully.".format(actual_nums)
             LOG.info(msg)
+            self.save_cache()
             return (True, msg)
 
         else:
@@ -205,16 +195,14 @@ class Config(object):
 
     def download_queue(self, sub_index):
         """Download one sub's download queue."""
-        if not self.cache_loaded:
-            load_successful = self.load_state()
-
-        if self.cache_loaded or load_successful:
+        if _ensure_loaded(self):
             num_subs = len(self.subscriptions)
             sub = self.subscriptions[sub_index]
             sub.download_queue()
 
             msg = "Queue downloading complete, no issues."
             LOG.info(msg)
+            self.save_cache()
             return (True, msg)
 
         else:
@@ -277,6 +265,14 @@ class Config(object):
             for yaml_sub in yaml_settings.get("subscriptions", []):
                 sub = S.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
                 self.subscriptions.append(sub)
+
+def _ensure_loaded(self):
+        if not self.state_loaded:
+            (res, _) = self.load_state()
+            return res
+
+        else:
+            return True
 
 
 def _ensure_file(file_path):
