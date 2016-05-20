@@ -226,7 +226,7 @@ class Subscription(object):
             while self.feed_state.queue:
                 (entry_num, overwrite) = self.feed_state.queue.popleft()
                 num_entries = len(self.feed_state.entries)
-                entry_age = num_entries - entry_num
+                entry_age = num_entries - entry_num + 1
 
                 entry = self.feed_state.entries[entry_age]
 
