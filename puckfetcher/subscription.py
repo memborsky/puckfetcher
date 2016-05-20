@@ -228,7 +228,7 @@ class Subscription(object):
                 num_entries = len(self.feed_state.entries)
                 entry_age = num_entries - entry_num
 
-                entry = self.feed_state.entries[entry_age-1]
+                entry = self.feed_state.entries[entry_age]
 
                 enclosures = entry.enclosures
                 num_entry_files = len(enclosures)
