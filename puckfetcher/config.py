@@ -268,6 +268,9 @@ class Config(object):
 
 def _ensure_loaded(self):
         if not self.state_loaded:
+            msg = "Subscription state not loaded from cache - loading!"
+            print(msg)
+            LOG.info(msg)
             (res, _) = self.load_state()
             return res
 

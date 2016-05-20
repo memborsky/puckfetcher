@@ -230,8 +230,8 @@ class Subscription(object):
 
                 entry = self.feed_state.entries[entry_age]
 
-                enclosures = entry.enclosures
-                num_entry_files = len(enclosures)
+                urls = entry["urls"]
+                num_entry_files = len(urls)
 
                 msg = "Trying to download entry number {} (age {}) for '{}'.".format(entry_num,
                                                                                      entry_age,
@@ -242,20 +242,19 @@ class Subscription(object):
                 # Create directory just for enclosures for this entry if there are many.
                 directory = self.directory
                 if num_entry_files > 1:
-                    directory = os.path.join(directory, entry.title)
+                    directory = os.path.join(directory, entry["title"])
                     LOG.info("Creating directory to store %s enclosures.", num_entry_files)
                     print("{} enclosures for this feed entry.".format(num_entry_files))
 
-                for i, enclosure in enumerate(enclosures):
-                    LOG.info("Handling enclosure %s of %s.", i+1, num_entry_files)
+                for i, url in enumerate(urls):
                     if num_entry_files > 1:
+                        LOG.info("Handling enclosure %s of %s.", i+1, num_entry_files)
                         print("Downloading enclosure {} of {}".format(i+1, num_entry_files))
 
-                    url = enclosure.href
                     LOG.info("Extracted url %s.", url)
 
                     # TODO catch errors? What if we try to save to a nonsense file?
-                    dest = self._get_dest(url, entry.title, directory)
+                    dest = self._get_dest(url, entry["title"], directory)
                     self.downloader(url=url, dest=dest, overwrite=overwrite)
 
                 if entry_num > self.feed_state.latest_entry_number:
@@ -272,7 +271,8 @@ class Subscription(object):
         """Add entries to this subscription's download queue."""
         actual_nums = []
         for num in nums:
-            if num > 0 and num <= len(self.feed_state.entries):
+            if num > 0 and num <= len(self.feed_state.entries) \
+               and num not in self.feed_state.queue:
                 actual_nums.append((num, True))
 
         self.feed_state.queue.extend(actual_nums)
@@ -618,7 +618,16 @@ class _FeedState(object):
     def load_rss_info(self, parsed):
         """Load some RSS subscription elements into this feed state."""
         self.feed = parsed["feed"]
-        self.entries = parsed["entries"]
+        self.entries = []
+        for entry in parsed["entries"]:
+            new_entry = {}
+            new_entry["title"] = entry["title"]
+
+            new_entry["urls"] = []
+            for enclosure in entry["enclosures"]:
+                new_entry["urls"].append(enclosure["href"])
+
+            self.entries.append(new_entry)
 
     def as_dict(self):
         """Return dictionary of this feed state object."""
