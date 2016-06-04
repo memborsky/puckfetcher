@@ -137,7 +137,6 @@ class TestConfig:
             else:
                 assert sub.name != test_names[i]
 
-            print(repr(sub.feed_state))
             assert sub.feed_state.latest_entry_number == test_nums[i]
 
     # pylint: disable=no-self-use
