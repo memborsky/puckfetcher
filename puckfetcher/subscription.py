@@ -225,8 +225,12 @@ class Subscription(object):
         try:
             while self.feed_state.queue:
                 (entry_num, overwrite) = self.feed_state.queue.popleft()
+                entry_num = entry_num - 1
                 num_entries = len(self.feed_state.entries)
-                entry_age = num_entries - entry_num + 1
+                entry_age = num_entries - (entry_num + 1)
+                print("num_entries: " + str(num_entries))
+                print("entry_num :" + str(entry_num))
+                print("entry_age :" + str(entry_age))
 
                 entry = self.feed_state.entries[entry_age]
 

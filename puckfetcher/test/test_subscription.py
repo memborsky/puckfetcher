@@ -16,10 +16,10 @@ RSS_TEST_HOST = "https://www.andrewmichaud.com/"
 RSS_ADDRESS = RSS_TEST_HOST + "rss.xml"
 LOCAL_RESOURCE_ADDRESS = "txt/hi.txt"
 REMOTE_RESOURCE_ADDRESS = "https://www.andrewmichaud.com/txt/hi.txt"
-HTTP_302_ADDRESS = RSS_TEST_HOST + "302rss.xml"
-HTTP_301_ADDRESS = RSS_TEST_HOST + "301rss.xml"
-HTTP_404_ADDRESS = RSS_TEST_HOST + "404rss.xml"
-HTTP_410_ADDRESS = RSS_TEST_HOST + "410rss.xml"
+HTTP_302_ADDRESS = RSS_TEST_HOST + "302"
+HTTP_301_ADDRESS = RSS_TEST_HOST + "301"
+HTTP_404_ADDRESS = RSS_TEST_HOST + "404"
+HTTP_410_ADDRESS = RSS_TEST_HOST + "410"
 
 # TODO investigate spec-style tests
 
@@ -125,7 +125,6 @@ class TestSubscription(object):
         sub = SUB.Subscription(url=HTTP_302_ADDRESS, name="302Test", directory=TestSubscription.d)
         sub.get_feed()
 
-        assert sub.feed_state.entries[0]["link"] == REMOTE_RESOURCE_ADDRESS
         # pylint: disable=protected-access
         assert sub._current_url == HTTP_302_ADDRESS
         assert sub._provided_url == HTTP_302_ADDRESS
@@ -139,7 +138,6 @@ class TestSubscription(object):
         sub = SUB.Subscription(url=HTTP_301_ADDRESS, name="301Test", directory=TestSubscription.d)
         sub.get_feed()
 
-        assert sub.feed_state.entries[0]["link"] == REMOTE_RESOURCE_ADDRESS
         # pylint: disable=protected-access
         assert sub._current_url == RSS_ADDRESS
         assert sub._provided_url == HTTP_301_ADDRESS
