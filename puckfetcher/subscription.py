@@ -205,9 +205,9 @@ class Subscription(object):
 
         # Queuing feeds in order of age makes the most sense for RSS feeds (IMO), so we do that.
         # TODO consider wrapping queue more.
-        r = xrange(self.feed_state.latest_entry_number, number_feeds+1)
+        r = xrange(self.feed_state.latest_entry_number, number_feeds)
         for i in r:
-            self.feed_state.queue.append((i, False))
+            self.feed_state.queue.append((i+1, False))
         self.download_queue()
 
         return True
@@ -229,9 +229,6 @@ class Subscription(object):
                 num_entries = len(self.feed_state.entries)
                 entry_age = num_entries - (entry_num + 1)
 
-                print("entry_age: " + str(entry_age))
-                print("num_entries: " + str(num_entries))
-                print("entry_num: " + str(entry_num))
                 entry = self.feed_state.entries[entry_age]
 
                 urls = entry["urls"]
