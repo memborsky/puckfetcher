@@ -178,7 +178,7 @@ class TestSubscription(object):
         for i in range(0, 4):
             _check_hi_contents(i, sub.directory)
 
-def _test_urls_helper(self, given, name, expected_current, expected_provided):
+def _test_url_helper(self, given, name, expected_current, expected_provided):
     sub = SUB.Subscription(url=given, name=name, directory=TestSubscription.d)
     sub.get_feed()
 
