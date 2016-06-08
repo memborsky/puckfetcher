@@ -228,9 +228,6 @@ class Subscription(object):
                 entry_num = entry_num - 1
                 num_entries = len(self.feed_state.entries)
                 entry_age = num_entries - (entry_num + 1)
-                print("num_entries: " + str(num_entries))
-                print("entry_num :" + str(entry_num))
-                print("entry_age :" + str(entry_age))
 
                 entry = self.feed_state.entries[entry_age]
 
@@ -621,7 +618,6 @@ class _FeedState(object):
 
     def load_rss_info(self, parsed):
         """Load some RSS subscription elements into this feed state."""
-        self.feed = parsed["feed"]
         self.entries = []
         for entry in parsed["entries"]:
             new_entry = {}
@@ -644,9 +640,8 @@ class _FeedState(object):
         return {"entries": self.entries,
                 "entries_state_dict": self.entries_state_dict,
                 "queue": list(self.queue),
-                "feed": self.feed,
                 "latest_entry_number": self.latest_entry_number,
-                "last_modified": store_date,
+                "last_modified": None,
                 "etag": self.etag}
 
     def store_last_modified(self, last_modified):
