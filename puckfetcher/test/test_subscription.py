@@ -21,8 +21,6 @@ HTTP_301_ADDRESS = RSS_TEST_HOST + "301"
 HTTP_404_ADDRESS = RSS_TEST_HOST + "404"
 HTTP_410_ADDRESS = RSS_TEST_HOST + "410"
 
-# TODO investigate spec-style tests
-
 
 # TODO this needs reworking to split out of one class without losing the setup/teardown
 class TestSubscription(object):
@@ -121,36 +119,18 @@ class TestSubscription(object):
         If we are redirected temporarily to a valid RSS feed, we should successfully parse that
         feed and not change our url. The originally provided URL should be unchanged.
         """
-
-        sub = SUB.Subscription(url=HTTP_302_ADDRESS, name="302Test", directory=TestSubscription.d)
-        sub.get_feed()
-
-        # pylint: disable=protected-access
-        assert sub._current_url == HTTP_302_ADDRESS
-        assert sub._provided_url == HTTP_302_ADDRESS
+        _test_url_helper(HTTP_302_ADDRESS, "302Test", HTTP_302_ADDRESS, HTTP_302_ADDRESS)
 
     def test_valid_permanent_redirect_succeeds(self):
         """
         If we are redirected permanently to a valid RSS feed, we should successfully parse that
         feed and change our url.  The originally provided URL should be unchanged
         """
-
-        sub = SUB.Subscription(url=HTTP_301_ADDRESS, name="301Test", directory=TestSubscription.d)
-        sub.get_feed()
-
-        # pylint: disable=protected-access
-        assert sub._current_url == RSS_ADDRESS
-        assert sub._provided_url == HTTP_301_ADDRESS
+        _test_url_helper(HTTP_301_ADDRESS, "301Test", RSS_ADDRESS, HTTP_301_ADDRESS)
 
     def test_not_found_fails(self):
         """If the URL is Not Found, we should not change the saved URL."""
-
-        sub = SUB.Subscription(url=HTTP_404_ADDRESS, name="404Test", directory=TestSubscription.d)
-        sub.get_feed()
-
-        # pylint: disable=protected-access
-        assert sub._current_url == HTTP_404_ADDRESS
-        assert sub._provided_url == HTTP_404_ADDRESS
+        _test_url_helper(HTTP_404_ADDRESS, "404Test", HTTP_404_ADDRESS, HTTP_404_ADDRESS)
 
     def test_gone_fails(self):
         """If the URL is Gone, the current url should be set to None, and we should return None."""
@@ -197,6 +177,14 @@ class TestSubscription(object):
         assert len(sub.feed_state.entries) == 10
         for i in range(0, 4):
             _check_hi_contents(i, sub.directory)
+
+def _test_urls_helper(self, given, name, expected_current, expected_provided):
+    sub = SUB.Subscription(url=given, name=name, directory=TestSubscription.d)
+    sub.get_feed()
+
+    # pylint: disable=protected-access
+    assert sub._current_url == expected_current
+    assert sub._provided_url == expected_provided
 
 
 def _check_hi_contents(n, directory):

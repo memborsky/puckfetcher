@@ -130,15 +130,13 @@ class Subscription(object):
         if "name" not in sub_yaml.keys():
             LOG.error("No name provided, name is mandatory!")
             return None
-        else:
-            sub.name = sub_yaml["name"]
 
         if "url" not in sub_yaml.keys():
             LOG.error("No URL provided, URL is mandatory!")
             return None
-        else:
-            sub.url = sub_yaml["url"]
 
+        sub.name = sub_yaml["name"]
+        sub.url = sub_yaml["url"]
         sub.directory = sub_yaml.get("directory", os.path.join(defaults["directory"], sub.name))
         sub.download_backlog = sub_yaml.get("download_backlog", defaults["download_backlog"])
         sub.backlog_limit = sub_yaml.get("backlog_limit", defaults["backlog_limit"])
