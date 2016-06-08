@@ -150,7 +150,7 @@ class Config(object):
             num_subs = len(self.subscriptions)
             print("{} subscriptions loaded.".format(num_subs))
             for i, sub in enumerate(self.subscriptions):
-                print(sub.get_status(i+1, num_subs))
+                print(sub.get_status(i, num_subs))
 
             msg = "Load + list completed, no issues."
             LOG.info(msg)

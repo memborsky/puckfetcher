@@ -229,6 +229,9 @@ class Subscription(object):
                 num_entries = len(self.feed_state.entries)
                 entry_age = num_entries - (entry_num + 1)
 
+                print("entry_age: " + entry_age)
+                print("num_entries: " + num_entries)
+                print("entry_num: " + entry_num)
                 entry = self.feed_state.entries[entry_age]
 
                 urls = entry["urls"]
