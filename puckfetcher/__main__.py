@@ -1,12 +1,12 @@
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
 
 import argparse
+from argparse import RawTextHelpFormatter
 import logging
 from logging.handlers import RotatingFileHandler
 import os
 import sys
 import textwrap
-from argparse import RawTextHelpFormatter
 from enum import Enum
 
 from clint.textui import prompt
@@ -36,6 +36,15 @@ def main():
 
     config = Config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
 
+    command_options = [{"selector": "1", "prompt": "Exit.", "return": _Command.exit.name}]
+
+    i = 2
+    config_commands = config.get_commands()
+    for key in config_commands.keys():
+        value = config.commands[key]
+        command_options.append({"selector": str(i), "prompt": value, "return": key.name})
+        i += 1
+
     # See if we got a command-line command.
     config_dir = vars(args)["config"]
     command = vars(args)["command"]
@@ -48,52 +57,20 @@ def main():
 
         else:
             # TODO do something cleaner than passing all this to handle_command.
-            _handle_command(command, config)
+            _handle_command(command, config, command_options)
             _handle_exit(parser)
 
     logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
 
-    # TODO push the command implementations into Config. Eventually make that an API.
     # TODO CLI should probably print and not log.
     while True:
         try:
-            command_options = [{"selector": "1",
-                                "prompt": "Exit.",
-                                "return": _Command.exit.name},
-                               {"selector": "2",
-                                "prompt": "Update subscriptions once. Will also download sub " +
-                                          "queues.",
-                                "return": _Command.update_once.name},
-                               {"selector": "3",
-                                "prompt": "Update subscriptions continuously. Also downloads " +
-                                          "queues.",
-                                "return": _Command.update_forever.name},
-                               {"selector": "4",
-                                "prompt": "Load/reload subscriptions configuration.",
-                                "return": _Command.load.name},
-                               {"selector": "5",
-                                "prompt": "List current subscriptions and their status.",
-                                "return": _Command.list.name},
-                               {"selector": "6",
-                                "prompt": "Provide details on one subscription's entries and " +
-                                          "queue status.",
-                                "return": _Command.details.name},
-                               {"selector": "7",
-                                "prompt": "Add to a sub's download queue. Items in queue will " +
-                                          "overwrite existing files with same name when " +
-                                          "downloaded.",
-                                "return": _Command.enqueue.name},
-                               {"selector": "8",
-                                "prompt": "Download a subscription's full queue.",
-                                "return": _Command.download_queue.name}]
-
             command = prompt.options("Choose a command", command_options)
-            # TODO wrap in something nicer, we don't want to show _Command.EXIT.
 
             if command == _Command.exit.name:
                 _handle_exit(parser)
 
-            _handle_command(command, config)
+            _handle_command(command, config, command_options)
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
@@ -113,26 +90,26 @@ def main():
 def _handle_exit(parser):
     parser.exit()
 
-def _handle_command(command, config):
+def _handle_command(command, config, command_options):
     # TODO use config exit status to return exit codes.
-    if command == _Command.update_once.name:
+    if command == Config.Command.update_once.name:
         (res, msg) = config.update_once()
 
-    elif command == _Command.update_forever.name:
+    elif command == Config.Command.update_forever.name:
         (res, msg) = config.update_forever()
 
-    elif command == _Command.load.name:
+    elif command == Config.Command.load.name:
         (res, msg) = config.load_state()
 
-    elif command == _Command.list.name:
+    elif command == Config.Command.list.name:
         (res, msg) = config.list()
 
-    elif command == _Command.details.name:
+    elif command == Config.Command.details.name:
         sub_index = _choose_sub(config)
         (res, msg) = config.details(sub_index)
         input("Press enter when done.")
 
-    elif command == _Command.enqueue.name:
+    elif command == Config.Command.enqueue.name:
         sub_index = _choose_sub(config)
 
         done = False
@@ -172,12 +149,15 @@ def _handle_command(command, config):
                 elif a == "n":
                     break
 
-    elif command == _Command.download_queue.name:
+    elif command == Config.Command.download_queue.name:
         sub_index = _choose_sub(config)
         (res, msg) = config.download_queue(sub_index)
 
     else:
         print("Unknown command!")
+        print("Allowed commands:")
+        for command in command_options:
+            print("    {}: {}".format(command["return"], command["prompt"]))
         return
 
     if not res:
@@ -305,13 +285,6 @@ def _setup_logging(log_dir):
 class _Command(Enum):
     exit = 0
     prompt = 1
-    update_once = 2
-    update_forever = 3
-    load = 4
-    list = 5
-    details = 6
-    enqueue = 7
-    download_queue = 8
 
 
 if __name__ == "__main__":
