@@ -2,6 +2,7 @@
 
 import logging
 import os
+from enum import Enum
 
 import umsgpack
 import yaml
@@ -40,7 +41,24 @@ class Config(object):
         # have changed.
         self.cache_map = {"by_name": {}, "by_url": {}}
 
+        self.commands = {Command.update_once: "Update subscriptions once. Will also download " +
+                                              "sub queues.",
+                         Command.update_forever: "Update subscriptions continuously. Also " +
+                                                 "downloads queues.",
+                         Command.load: "Load/reload subscriptions configuration.",
+                         Command.list: "List current subscriptions and their status.",
+                         Command.details: "Provide details on one subscription's entries and " +
+                                          "queue status.",
+                         Command.enqueue: "Add to a sub's download queue. Items in queue " +
+                                          "will overwrite existing files with same name when " +
+                                          "downloaded.",
+                         Command.download_queue: "Download a subscription's full queue."}
+
     # "Public" functions.
+    def get_commands(self):
+        """Provide commands that can be used on this config."""
+        return self.commands
+
     def load_state(self):
         """Load config file, and load subscription cache if we haven't yet."""
         self._load_user_settings()
@@ -299,3 +317,13 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
         if not os.path.isdir(directory):
             LOG.info("Creating nonexistent '%s'.", directory)
             os.makedirs(directory)
+
+
+class Command(Enum):
+    update_once = 100
+    update_forever = 101
+    load = 102
+    list = 103
+    details = 104
+    enqueue = 105
+    download_queue = 106
