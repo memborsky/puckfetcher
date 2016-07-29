@@ -3,16 +3,15 @@ Module for a subscription object, which manages a podcast URL, name, and informa
 many episodes of the podcast we have.
 """
 
-import copy
 import logging
 import os
 import platform
 import textwrap
 import time
+from time import mktime
 from collections import deque
 from datetime import datetime
 from enum import Enum
-from time import mktime
 
 import feedparser
 import requests
@@ -24,6 +23,7 @@ import puckfetcher.util as Util
 try:
     xrange
 except NameError:
+    # pylint: disable=invalid-name
     xrange = range
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
@@ -34,13 +34,12 @@ LOG = logging.getLogger("root")
 
 
 # TODO describe field members, function parameters in docstrings.
-# pylint: disable=too-many-instance-attributes
 class Subscription(object):
     """Object describing a podcast subscription."""
 
-    # pylint: disable=too-many-arguments
-    def __init__(self, url=None, name=None, directory=None, download_backlog=True,
-                 backlog_limit=None):
+    def __init__(self, url=None, name=None, directory=None, backlog_limit=0):
+
+        self.temp_url = None
 
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
@@ -48,9 +47,8 @@ class Subscription(object):
             raise ERROR.MalformedSubscriptionError("No URL provided.")
         else:
             LOG.debug("Storing provided url '%s'.", url)
-            self._provided_url = copy.deepcopy(url)
-            self._current_url = copy.deepcopy(url)
-            self._temp_url = None
+            self.url = url
+            self.original_url = url
 
         # Maintain name of podcast.
         if name is None or name == "":
@@ -65,13 +63,11 @@ class Subscription(object):
         # Store feed state, including etag/last_modified.
         self.feed_state = _FeedState()
 
-        self.directory = None
-        self._handle_directory(directory)
-
-        self.download_backlog = download_backlog
-        LOG.debug("Set to download backlog: %s.", download_backlog)
+        self.directory = _process_directory(directory)
 
         self.backlog_limit = backlog_limit
+
+        self.use_title_as_filename = None
 
         feedparser.USER_AGENT = CONSTANTS.USER_AGENT
 
@@ -81,7 +77,7 @@ class Subscription(object):
         """Decode subscription from dictionary."""
         sub = Subscription.__new__(Subscription)
 
-        attrs = ["name", "_current_url", "_provided_url"]
+        attrs = ["name", "original_url", "url"]
 
         for attr in attrs:
             if attr not in sub_dictionary.keys():
@@ -91,10 +87,25 @@ class Subscription(object):
                 setattr(sub, attr, sub_dictionary[attr])
 
         sub.directory = sub_dictionary.get("directory", None)
-        sub.download_backlog = sub_dictionary.get("download_backlog", None)
-        sub.backlog_limit = sub_dictionary.get("backlog_limit", None)
+
+        # NOTE - Deprecate eventually.
+        if "download_backlog" in sub_dictionary.keys():
+            if sub_dictionary["download_backlog"]:
+                sub.backlog_limit = sub_dictionary["backlog_limit"]
+            else:
+                sub.backlog_limit = 0
+
+        # NOTE - deprecate eventually.
+        if "_current_url" in sub_dictionary.keys():
+            sub.url = sub_dictionary["_current_url"]
+
+        # NOTE - deprecate eventually.
+        if "_provided_url" in sub_dictionary.keys():
+            sub.original_url = sub_dictionary["_provided_url"]
+
+        sub.backlog_limit = sub_dictionary.get("backlog_limit", 0)
         sub.use_title_as_filename = sub_dictionary.get("use_title_as_filename", None)
-        sub.feed_state = _FeedState(dict=sub_dictionary.get("feed_state", None))
+        sub.feed_state = _FeedState(feedstate_dict=sub_dictionary.get("feed_state", None))
 
         # Generate data members that shouldn't/won't be cached.
         sub.downloader = Util.generate_downloader(HEADERS, sub.name)
@@ -105,13 +116,11 @@ class Subscription(object):
     def encode_subscription(cls, sub):
         """Encode subscription to dictionary."""
 
-        # pylint: disable=protected-access
         return {"__type__": "subscription",
                 "__version__": CONSTANTS.VERSION,
-                "_current_url": sub._current_url,
-                "_provided_url": sub._provided_url,
+                "url": sub.url,
+                "original_url": sub.original_url,
                 "directory": sub.directory,
-                "download_backlog": sub.download_backlog,
                 "backlog_limit": sub.backlog_limit,
                 "use_title_as_filename": sub.use_title_as_filename,
                 "feed_state": sub.feed_state.as_dict(),
@@ -137,8 +146,8 @@ class Subscription(object):
 
         sub.name = sub_yaml["name"]
         sub.url = sub_yaml["url"]
+        sub.original_url = sub_yaml["url"]
         sub.directory = sub_yaml.get("directory", os.path.join(defaults["directory"], sub.name))
-        sub.download_backlog = sub_yaml.get("download_backlog", defaults["download_backlog"])
         sub.backlog_limit = sub_yaml.get("backlog_limit", defaults["backlog_limit"])
         sub.use_title_as_filename = sub_yaml.get("use_title_as_filename",
                                                  defaults["use_title_as_filename"])
@@ -159,33 +168,35 @@ class Subscription(object):
         # Only consider backlog if we don't have a latest entry number already.
         number_feeds = len(self.feed_state.entries)
         if self.feed_state.latest_entry_number is None:
-            if self.download_backlog:
-                if self.backlog_limit is None or self.backlog_limit == 0:
-                    self.feed_state.latest_entry_number = 0
-                    LOG.info(textwrap.dedent(
+            if self.backlog_limit is None:
+                self.feed_state.latest_entry_number = 0
+                LOG.info(
+                    textwrap.dedent(
                         """\
                         Interpreting 'None' backlog limit as "No Limit" and downloading full
                         backlog (%s entries).\
-                        """), number_feeds)
+                        """),
+                    number_feeds)
 
-                elif self.backlog_limit < 0:
-                    LOG.error("Invalid backlog limit %s, downloading nothing.", self.backlog_limit)
-                    return False
+            elif self.backlog_limit < 0:
+                LOG.error("Invalid backlog limit %s, downloading nothing.", self.backlog_limit)
+                return False
 
-                else:
-                    LOG.info("Backlog limit is '%s'", self.backlog_limit)
-                    self.backlog_limit = Util.max_clamp(self.backlog_limit, number_feeds)
-                    LOG.info("Backlog limit clamped to '%s'", self.backlog_limit)
-                    self.feed_state.latest_entry_number = number_feeds - self.backlog_limit
+            elif self.backlog_limit > 0:
+                LOG.info("Backlog limit provided as '%s'", self.backlog_limit)
+                self.backlog_limit = Util.max_clamp(self.backlog_limit, number_feeds)
+                LOG.info("Backlog limit clamped to '%s'", self.backlog_limit)
+                self.feed_state.latest_entry_number = number_feeds - self.backlog_limit
 
             else:
                 self.feed_state.latest_entry_number = number_feeds
-                LOG.info(textwrap.dedent(
-                    """\
-                    Download backlog for %s is not set.
-                    Not downloading backlog but setting number downloaded to %s.\
-                    """), self.name, self.feed_state.latest_entry_number)
-                return True
+                LOG.info(
+                    textwrap.dedent(
+                        """\
+                        Download backlog for %s is zero.
+                        Not downloading backlog but setting number downloaded to %s.\
+                        """),
+                    self.name, self.feed_state.latest_entry_number)
 
         if self.feed_state.latest_entry_number >= number_feeds:
             LOG.info("Number downloaded for %s matches feed entry count %s. Nothing to do.",
@@ -193,18 +204,19 @@ class Subscription(object):
             return True
 
         number_to_download = number_feeds - self.feed_state.latest_entry_number
-        LOG.info(textwrap.dedent(
-            """\
-            Number of downloaded feeds for %s is %s, %s less than feed entry count %s.
-            Downloading %s entries.\
-            """),
+        LOG.info(
+            textwrap.dedent(
+                """\
+                Number of downloaded feeds for %s is %s, %s less than feed entry count %s.
+                Downloading %s entries.\
+                """),
             self.name, self.feed_state.latest_entry_number, number_to_download, number_feeds,
             number_to_download)
 
         # Queuing feeds in order of age makes the most sense for RSS feeds (IMO), so we do that.
         # TODO consider wrapping queue more.
-        r = xrange(self.feed_state.latest_entry_number, number_feeds)
-        for i in r:
+        age_range = xrange(self.feed_state.latest_entry_number, number_feeds)
+        for i in age_range:
             self.feed_state.queue.append((i+1, False))
         self.download_queue()
 
@@ -300,26 +312,11 @@ class Subscription(object):
                 LOG.debug("Directory %s does not exist, creating it.", directory)
                 os.makedirs(self.directory)
 
-    def update_url(self, url):
-        """Update url for this subscription if a new one is provided."""
-        if hasattr(self, "_provided_url"):
-            if url != self._provided_url:
-                self._provided_url = copy.deepcopy(url)
-
-        else:
-            self._provided_url = copy.deepcopy(url)
-
-        self._current_url = copy.deepcopy(self._provided_url)
-
-    # TODO clean this up - reflection, or whatever Python has for that?
     def default_missing_fields(self, settings):
         """Set default values for any fields that are None (ones that were never set)."""
 
         # NOTE - directory is set separately, because we'll want to create it.
         # These are just plain options.
-
-        if self.download_backlog is None:
-            self.download_backlog = settings["download_backlog"]
 
         if self.backlog_limit is None:
             self.backlog_limit = settings["backlog_limit"]
@@ -363,38 +360,27 @@ class Subscription(object):
 
         return "\n".join(detail_lines)
 
-    # "Private" functions (messy internals).
-    def _handle_directory(self, directory):
-        """Assign directory if none was given, and create directory if necessary."""
-        directory = Util.expand(directory)
-        if directory is None:
-            self.directory = Util.expand(CONSTANTS.APPDIRS.user_data_dir)
-            LOG.debug("No directory provided, defaulting to %s.", self.directory)
-            return
-
-        self.directory = directory
-        LOG.debug("Provided directory %s.", directory)
-
-        if not os.path.isdir(self.directory):
-            LOG.debug("Directory %s does not exist, creating it.", directory)
-            os.makedirs(self.directory)
-
     def get_feed(self, attempt_count=0):
         """Get RSS structure for this subscription. Return status code indicating result."""
 
-        @Util.rate_limited(self._current_url, 120, self.name)
+        @Util.rate_limited(self.url, 120, self.name)
         def _helper():
+            res = None
             if attempt_count > MAX_RECURSIVE_ATTEMPTS:
                 LOG.error("Too many recursive attempts (%s) to get feed for sub %s, canceling.",
                           attempt_count, self.name)
-                return UpdateResult.FAILURE
+                res = UpdateResult.FAILURE
 
-            if self._current_url is None or self._current_url == "":
+            elif self.url is None or self.url == "":
                 LOG.error("URL is empty , cannot get feed for sub %s.", self.name)
-                return UpdateResult.FAILURE
+                res = UpdateResult.FAILURE
 
-            LOG.info("Getting entries (attempt %s) for subscription %s with URL %s.",
-                     attempt_count, self.name, self._current_url)
+            if res != None:
+                return res
+
+            else:
+                LOG.info("Getting entries (attempt %s) for subscription %s with URL %s.",
+                         attempt_count, self.name, self.url)
 
             (parsed, code) = self._feedparser_parse_with_options()
             if code == UpdateResult.UNNEEDED:
@@ -411,51 +397,44 @@ class Subscription(object):
             code = self._handle_http_codes(parsed)
             if code == UpdateResult.ATTEMPT_AGAIN:
                 LOG.warning("Transient HTTP error, attempting again.")
-                temp = self._temp_url
-                new_result = self.get_feed(attempt_count=attempt_count+1)
+                temp = self.temp_url
+                code = self.get_feed(attempt_count=attempt_count+1)
                 if temp is not None:
-                    self._current_url = temp
-
-                return new_result
+                    self.url = temp
 
             elif code != UpdateResult.SUCCESS:
                 LOG.error("Ran into HTTP error (%s), aborting.", code)
-                return code
 
-            self.feed_state.load_rss_info(parsed)
-            return UpdateResult.SUCCESS
+            else:
+                self.feed_state.load_rss_info(parsed)
+
+            return code
 
         return _helper()
 
+    # "Private" class functions (messy internals).
     def _feedparser_parse_with_options(self):
         """
         Perform a feedparser parse, providing arguments (like etag) we might want it to use.
         Don't provide etag/last_modified if the last get was unsuccessful.
         """
-        if (not self.feed_state.has_state) or (self.feed_state.last_modified is None and \
-                                           self.feed_state.etag is None):
-            parsed = feedparser.parse(self._current_url)
-
-        elif self.feed_state.last_modified is not None and self.feed_state.etag is not None:
-            time_struct = self.feed_state.last_modified.timetuple()
-            parsed = feedparser.parse(self._current_url, etag=self.feed_state.etag,
-                                      modified=time_struct)
-
-        elif self.feed_state.last_modified is not None:
-            time_struct = self.feed_state.last_modified.timetuple()
-            parsed = feedparser.parse(self._current_url, modified=time_struct)
-
+        if self.feed_state.last_modified is not None:
+            last_mod = self.feed_state.last_modified.timetuple()
         else:
-            parsed = feedparser.parse(self._current_url, etag=self.feed_state.etag)
+            last_mod = None
+
+        # Not sure why pylint can't work this out.
+        # pylint: disable=no-member
+        parsed = feedparser.parse(self.url, etag=self.feed_state.etag, modified=last_mod)
 
         self.feed_state.etag = parsed.get("etag", self.feed_state.etag)
-        self.feed_state.store_last_modified(parsed.get("modified_parsed",
-                                            self.feed_state.last_modified))
+        self.feed_state.store_last_modified(
+            parsed.get("modified_parsed", self.feed_state.last_modified))
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
         if "status" not in parsed and parsed.get("bozo", None) == 1:
-            # Feedparser documentation indicates that you can always call getMessage, but it's
-            # possible for feedparser to spit out a URLError, which doesn't have getMessage.
+            # NOTE: Feedparser documentation indicates that you can always call getMessage, but
+            # it's possible for feedparser to spit out a URLError, which doesn't have getMessage.
             # Catch this case.
             if hasattr(parsed.bozo_exception, "getMessage()"):
                 msg = parsed.bozo_exception.getMessage()
@@ -464,7 +443,7 @@ class Subscription(object):
                 msg = repr(parsed.bozo_exception)
 
             LOG.error("Received bozo exception %s. Unable to retrieve feed with URL %s for %s.",
-                      msg, self._current_url, self.name)
+                      msg, self.url, self.name)
             return (None, UpdateResult.FAILURE)
 
         elif parsed.get("status") == requests.codes["NOT_MODIFIED"]:
@@ -484,64 +463,71 @@ class Subscription(object):
             return UpdateResult.SUCCESS
 
         status = parsed.get("status", 200)
+        result = UpdateResult.SUCCESS
         if status == requests.codes["NOT_FOUND"]:
-            LOG.error(textwrap.dedent(
-                """\
-                Saw status %s, unable to retrieve feed text for %s.
-                Current URL %s for %s will be preserved and checked again on next attempt.\
-                """), status, self.name, self._current_url, self.name)
-            return UpdateResult.FAILURE
+            LOG.error(
+                textwrap.dedent(
+                    """\
+                    Saw status %s, unable to retrieve feed text for %s.
+                    Stored URL %s for %s will be preserved and checked again on next attempt.\
+                    """),
+                status, self.name, self.url, self.name)
+
+            # pylint: disable=redefined-variable-type
+            result = UpdateResult.FAILURE
 
         elif status in [requests.codes["UNAUTHORIZED"], requests.codes["GONE"]]:
-            LOG.error(textwrap.dedent(
-                """\
-                Saw status %s, unable to retrieve feed text for %s.
-                Clearing stored URL %s from _current_url for %s.
-                Originally provided URL %s will be maintained at _provided_url, but will no longer
-                be used.
-                Please provide new URL and authorization for subscription %s.\
-                """),
-                status, self.name, self._current_url, self.name, self._provided_url, self.name)
+            LOG.error(
+                textwrap.dedent(
+                    """\
+                    Saw status %s, unable to retrieve feed text for %s.
+                    Clearing stored URL %s for %s.
+                    Please provide new URL and authorization for subscription %s.\
+                    """),
+                status, self.name, self.url, self.name, self.name)
 
-            self._current_url = None
-            return UpdateResult.FAILURE
+            result = UpdateResult.FAILURE
 
         # Handle redirecting errors
         elif status in [requests.codes["MOVED_PERMANENTLY"], requests.codes["PERMANENT_REDIRECT"]]:
-            LOG.warning(textwrap.dedent(
-                """\
-                Saw status %s indicating permanent URL change.
-                Changing stored URL %s for %s to %s and attempting get with new URL.\
-                """), status, self._current_url, self.name, parsed.href)
+            LOG.warning(
+                textwrap.dedent(
+                    """\
+                    Saw status %s indicating permanent URL change.
+                    Changing stored URL %s for %s to %s and attempting get with new URL.\
+                    """),
+                status, self.url, self.name, parsed.href)
 
-            self._current_url = parsed.href
-            return UpdateResult.ATTEMPT_AGAIN
+            self.url = parsed.href
+            result = UpdateResult.ATTEMPT_AGAIN
 
         elif status in [requests.codes["FOUND"], requests.codes["SEE_OTHER"],
                         requests.codes["TEMPORARY_REDIRECT"]]:
-            LOG.warning(textwrap.dedent(
-                """\
-                Saw status %s indicating temporary URL change.
-                Attempting with new URL %s. Stored URL %s for %s will be unchanged.\
-                """), status, parsed.href, self._current_url, self.name)
+            LOG.warning(
+                textwrap.dedent(
+                    """\
+                    Saw status %s indicating temporary URL change.
+                    Attempting with new URL %s. Stored URL %s for %s will be unchanged.\
+                    """),
+                status, parsed.href, self.url, self.name)
 
-            self._temp_url = self._current_url
-            self._current_url = parsed.href
-            return UpdateResult.ATTEMPT_AGAIN
+            self.temp_url = self.url
+            self.url = parsed.href
+            result = UpdateResult.ATTEMPT_AGAIN
 
         elif status != 200:
             LOG.warning("Saw status %s. Attempting retrieve with URL %s for %s again.",
-                        status, self._current_url, self.name)
-            return UpdateResult.ATTEMPT_AGAIN
+                        status, self.url, self.name)
+            result = UpdateResult.ATTEMPT_AGAIN
 
         else:
-            LOG.info("Saw status 200. Sucess!")
-            return UpdateResult.SUCCESS
+            LOG.info("Saw status 200. Success!")
+
+        return result
 
     def _get_dest(self, url, title, directory):
         url_filename = url.split("/")[-1]
 
-        # TODO do some bullshit to make this a windows-safe filename.
         if platform.system() == 'Windows':
             LOG.error(textwrap.dedent(
                 """\
@@ -575,32 +561,26 @@ class Subscription(object):
 
 
 class _FeedState(object):
-    def __init__(self, dict=None):
-        if dict is not None:
+    def __init__(self, feedstate_dict=None):
+        if feedstate_dict is not None:
             LOG.info("Successfully loaded feed state dict.")
 
-            self.feed = dict.get("feed", {})
-            self.entries = dict.get("entries", [])
-            self.entries_state_dict = dict.get("entries_state_dict", {})
-            self.queue = deque(dict.get("queue", []))
+            self.feed = feedstate_dict.get("feed", {})
+            self.entries = feedstate_dict.get("entries", [])
+            self.entries_state_dict = feedstate_dict.get("entries_state_dict", {})
+            self.queue = deque(feedstate_dict.get("queue", []))
 
             # NOTE: This should be deprecated eventually.
-            temp_date = dict.get("last_modified", None)
-            if type(temp_date) is time.struct_time:
+            temp_date = feedstate_dict.get("last_modified", None)
+            if isinstance(temp_date, time.struct_time):
                 LOG.debug("Loading type time.struct_time last_modified.")
                 self.last_modified = datetime.fromtimestamp(mktime(temp_date))
-
-            elif type(temp_date) is datetime:
-                LOG.debug("Loading type datetime last_modified.")
-                self.last_modified = datetime.strptime(obj["as_str"], DATE_FORMAT_STRING)
-
             else:
                 LOG.debug("Refusing to load unsupported type.")
                 self.last_modified = None
 
-            self.etag = dict.get("etag", None)
-            self.latest_entry_number = dict.get("latest_entry_number", None)
-            self.has_state = True
+            self.etag = feedstate_dict.get("etag", None)
+            self.latest_entry_number = feedstate_dict.get("latest_entry_number", None)
 
         else:
             LOG.info("Did not successfully load feed state dict.")
@@ -612,7 +592,6 @@ class _FeedState(object):
             self.last_modified = None
             self.etag = None
             self.latest_entry_number = None
-            self.has_state = False
 
     def load_rss_info(self, parsed):
         """Load some RSS subscription elements into this feed state."""
@@ -630,11 +609,6 @@ class _FeedState(object):
     def as_dict(self):
         """Return dictionary of this feed state object."""
 
-        if self.last_modified is not None:
-            store_date = self.last_modified.strftime(DATE_FORMAT_STRING)
-        else:
-            store_date = None
-
         return {"entries": self.entries,
                 "entries_state_dict": self.entries_state_dict,
                 "queue": list(self.queue),
@@ -644,14 +618,31 @@ class _FeedState(object):
 
     def store_last_modified(self, last_modified):
         """Store last_modified as a datetime, regardless of form it's provided in."""
-        if type(last_modified) is time.struct_time:
+        if isinstance(last_modified, time.struct_time):
             self.last_modified = datetime.fromtimestamp(mktime(last_modified))
-        elif type(last_modified) is datetime:
+        elif isinstance(last_modified, datetime):
             self.last_modified = last_modified
-        elif type(last_modified) is type(None):
+        elif isinstance(last_modified, type(None)):
             LOG.info("last_modified is None, ignoring.")
         else:
             LOG.warning("Unhandled type, ignoring.")
+
+
+# "Private" file functions (messy internals).
+def _process_directory(directory):
+    """Assign directory if none was given, and create directory if necessary."""
+    directory = Util.expand(directory)
+    if directory is None:
+        LOG.debug("No directory provided, defaulting to %s.", directory)
+        return Util.expand(CONSTANTS.APPDIRS.user_data_dir)
+
+    LOG.debug("Provided directory %s.", directory)
+
+    if not os.path.isdir(directory):
+        LOG.debug("Directory %s does not exist, creating it.", directory)
+        os.makedirs(directory)
+
+    return directory
 
 
 # pylint: disable=too-few-public-methods
