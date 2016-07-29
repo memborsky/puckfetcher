@@ -61,9 +61,9 @@ def generate_downloader(headers, args):
     return _downloader
 
 
-def max_clamp(val, m):
+def max_clamp(val, cap):
     """Clamp int to maximum."""
-    return min(val, m)
+    return min(val, cap)
 
 
 def expand(directory):
@@ -72,7 +72,6 @@ def expand(directory):
     return os.path.expandvars(temp1)
 
 
-# TODO support the pile of flaming garbage that is Windows filename restrictions.
 def sanitize(filename):
     """
     Remove disallowed characters from potential filename. Currently only guaranteed on Linux and
@@ -98,7 +97,7 @@ def parse_int_string(int_string):
             if len(endpoints) != 2:
                 LOG.info("Dropping token %s as invalid - weird range.", token)
             else:
-                indices = indices.union(indices, set(range(endpoint[0], endpoint[1]+1)))
+                indices = indices.union(indices, set(range(endpoints[0], endpoints[1]+1)))
 
         else:
             try:

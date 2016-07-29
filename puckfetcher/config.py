@@ -89,7 +89,7 @@ class Config(object):
 
                 sub.name = name
                 sub.update_directory(directory, self.settings["directory"])
-                sub.update_url(url)
+                sub.url = url
 
                 sub.default_missing_fields(self.settings)
 
@@ -252,10 +252,12 @@ class Config(object):
 
         for encoded_sub in umsgpack.unpackb(data):
             decoded_sub = S.Subscription.decode_subscription(encoded_sub)
-            self.cached_subscriptions.append(decoded_sub)
 
-            self.cache_map["by_name"][decoded_sub.name] = decoded_sub
-            self.cache_map["by_url"][decoded_sub._provided_url] = decoded_sub
+            if decoded_sub is not None:
+                self.cached_subscriptions.append(decoded_sub)
+
+                self.cache_map["by_name"][decoded_sub.name] = decoded_sub
+                self.cache_map["by_url"][decoded_sub.original_url] = decoded_sub
 
     def _load_user_settings(self):
         """Load user settings from config file."""
