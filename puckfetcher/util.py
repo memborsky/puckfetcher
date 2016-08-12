@@ -96,8 +96,12 @@ def parse_int_string(int_string):
             endpoints = token.split("-")
             if len(endpoints) != 2:
                 LOG.info("Dropping token %s as invalid - weird range.", token)
-            else:
-                indices = indices.union(indices, set(range(endpoints[0], endpoints[1]+1)))
+                continue
+
+            start = int(endpoints[0])
+            end = int(endpoints[1]) + 1
+
+            indices = indices.union(indices, set(range(start,end)))
 
         else:
             try:
