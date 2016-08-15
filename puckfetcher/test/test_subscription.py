@@ -143,9 +143,8 @@ class TestSubscription(object):
 
         sub.get_feed()
 
-        # pylint: disable=protected-access
-        assert sub._current_url is None
-        assert sub._provided_url == HTTP_410_ADDRESS
+        assert sub.url is None
+        assert sub.original_url == HTTP_410_ADDRESS
 
     # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
     def test_attempt_download_backlog(self):
@@ -153,7 +152,7 @@ class TestSubscription(object):
         sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=TestSubscription.d)
 
         sub.use_backlog = True
-        sub.backlog_limit = 0
+        sub.backlog_limit = None
         sub.use_title_as_filename = False
 
         sub.attempt_update()
@@ -179,17 +178,16 @@ class TestSubscription(object):
             _check_hi_contents(i, sub.directory)
 
 
-def _test_url_helper(given, name, expected_current, expected_provided):
+def _test_url_helper(given, name, expected_current, expected_original):
     sub = SUB.Subscription(url=given, name=name, directory=TestSubscription.d)
     sub.get_feed()
 
-    # pylint: disable=protected-access
-    assert sub._current_url == expected_current
-    assert sub._provided_url == expected_provided
+    assert sub.url == expected_current
+    assert sub.original_url == expected_original
 
 
-def _check_hi_contents(n, directory):
-    file_path = os.path.join(directory, "hi0{}.txt".format(n))
+def _check_hi_contents(filename_num, directory):
+    file_path = os.path.join(directory, "hi0{}.txt".format(filename_num))
     with open(file_path, "r") as enclosure:
         data = enclosure.read().replace('\n', '')
         assert data == "hi"

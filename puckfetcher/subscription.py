@@ -291,26 +291,36 @@ class Subscription(object):
 
         return actual_nums
 
-    def update_directory(self, directory, config_dir):
-        """Update directory for this subscription if a new one is provided."""
-        if directory is None or directory == "":
+    def update(self, directory=None, config_dir=None, url=None, set_original=False, name=None):
+        """Update values for this subscription."""
+        if directory == "":
             raise ERROR.InvalidConfigError(desc=textwrap.dedent(
                 """\
                 Provided invalid sub directory '{}' for '{}'.\
                 """.format(directory, self.name)))
 
-        directory = Util.expand(directory)
+        if directory is not None:
+            directory = Util.expand(directory)
 
-        if self.directory != directory:
-            if os.path.isabs(directory):
-                self.directory = directory
+            if self.directory != directory:
+                if os.path.isabs(directory):
+                    self.directory = directory
 
-            else:
-                self.directory = os.path.join(config_dir, directory)
+                else:
+                    self.directory = os.path.join(config_dir, directory)
 
-            if not os.path.isdir(self.directory):
-                LOG.debug("Directory %s does not exist, creating it.", directory)
-                os.makedirs(self.directory)
+                if not os.path.isdir(self.directory):
+                    LOG.debug("Directory %s does not exist, creating it.", directory)
+                    os.makedirs(self.directory)
+
+        if url is not None:
+            self.url = url
+
+            if set_original:
+                self.original_url = url
+
+        if name is not None:
+            self.name = name
 
     def default_missing_fields(self, settings):
         """Set default values for any fields that are None (ones that were never set)."""
@@ -486,6 +496,7 @@ class Subscription(object):
                     """),
                 status, self.name, self.url, self.name, self.name)
 
+            self.url = None
             result = UpdateResult.FAILURE
 
         # Handle redirecting errors

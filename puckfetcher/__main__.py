@@ -36,14 +36,15 @@ def main():
 
     config = Config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
 
-    command_options = [{"selector": "1", "prompt": "Exit.", "return": _Command.exit.name}]
+    index = 1
+    command_options = [{"selector": str(index), "prompt": "Exit.", "return": _Command.exit.name}]
 
-    i = 2
+    index += 1
     config_commands = config.get_commands()
     for key in config_commands.keys():
         value = config.commands[key]
-        command_options.append({"selector": str(i), "prompt": value, "return": key.name})
-        i += 1
+        command_options.append({"selector": str(index), "prompt": value, "return": key.name})
+        index += 1
 
     # See if we got a command-line command.
     config_dir = vars(args)["config"]
@@ -129,7 +130,7 @@ def _handle_command(command, config, command_options):
             num_list = Util.parse_int_string(num_string)
 
             while True:
-                Answer = rawest_input(textwrap.dedent(
+                answer = rawest_input(textwrap.dedent(
                     """\
                     Happy with {}?
                     (If indices are too big/small, they'll be pulled out later.)
@@ -137,16 +138,16 @@ def _handle_command(command, config, command_options):
                     [Yes/yes/y or No/no/n]
                     """.format(num_list)))
 
-                if len(Answer) < 1:
+                if len(answer) < 1:
                     continue
 
-                a = Answer.lower()[0]
-                if a == "y":
+                ans = answer.lower()[0]
+                if ans == "y":
                     (res, msg) = config.enqueue(sub_index, num_list)
                     done = True
                     break
 
-                elif a == "n":
+                elif ans == "n":
                     break
 
     elif command == Config.Command.download_queue.name:
