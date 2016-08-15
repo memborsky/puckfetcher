@@ -1,5 +1,6 @@
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
 
+import collections
 import logging
 import os
 from enum import Enum
@@ -41,18 +42,19 @@ class Config(object):
         # have changed.
         self.cache_map = {"by_name": {}, "by_url": {}}
 
-        self.commands = {Command.update_once: "Update subscriptions once. Will also download " +
-                                              "sub queues.",
-                         Command.update_forever: "Update subscriptions continuously. Also " +
-                                                 "downloads queues.",
-                         Command.load: "Load/reload subscriptions configuration.",
-                         Command.list: "List current subscriptions and their status.",
-                         Command.details: "Provide details on one subscription's entries and " +
-                                          "queue status.",
-                         Command.enqueue: "Add to a sub's download queue. Items in queue " +
-                                          "will overwrite existing files with same name when " +
-                                          "downloaded.",
-                         Command.download_queue: "Download a subscription's full queue."}
+        command_pairs = ((Command.update_once,
+                          "Update subscriptions once. Will also download sub queues."),
+                         (Command.update_forever,
+                          "Update subscriptions continuously. Also downloads queues."),
+                         (Command.load, "Load/reload subscriptions configuration."),
+                         (Command.list, "List current subscriptions and their status."),
+                         (Command.details,
+                          "Provide details on one subscription's entries and queue status."),
+                         (Command.enqueue,
+                          "Add to a sub's download queue. Items in queue will overwrite " +
+                          "existing files with same name when downloaded."),
+                         (Command.download_queue, "Download a subscription's full queue."))
+        self.commands = collections.OrderedDict(command_pairs)
 
     # "Public" functions.
     def get_commands(self):
@@ -67,7 +69,6 @@ class Config(object):
         if self.subscriptions != []:
             # Iterate through subscriptions to merge user settings and cache.
             subs = []
-            # TODO this merging should probably be Subscription's responsibility.
             for sub in self.subscriptions:
 
                 # Pull out settings we need for merging metadata, or to preserve over the cache.
@@ -87,9 +88,8 @@ class Config(object):
                     LOG.debug("Found sub with url %s in cached subscriptions, merging.", url)
                     sub = self.cache_map["by_url"][url]
 
-                sub.name = name
-                sub.update_directory(directory, self.settings["directory"])
-                sub.url = url
+                sub.update(directory=directory, name=name, url=url, set_original=True,
+                           config_dir=self.settings["directory"])
 
                 sub.default_missing_fields(self.settings)
 
@@ -287,15 +287,15 @@ class Config(object):
                 self.subscriptions.append(sub)
 
 def _ensure_loaded(self):
-        if not self.state_loaded:
-            msg = "Subscription state not loaded from cache - loading!"
-            print(msg)
-            LOG.info(msg)
-            (res, _) = self.load_state()
-            return res
+    if not self.state_loaded:
+        msg = "Subscription state not loaded from cache - loading!"
+        print(msg)
+        LOG.info(msg)
+        (res, _) = self.load_state()
+        return res
 
-        else:
-            return True
+    else:
+        return True
 
 
 def _ensure_file(file_path):

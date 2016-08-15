@@ -49,6 +49,7 @@ class TestConfig:
 
     @classmethod
     def teardown_class(cls):
+        """Perform test cleanup."""
         shutil.rmtree(cls.default_config_dir)
         shutil.rmtree(cls.default_cache_dir)
         shutil.rmtree(cls.default_data_dir)
@@ -117,8 +118,8 @@ class TestConfig:
             sub.feed_state.latest_entry_number = test_nums[i]
 
             if i % 2 == 0:
-                # pylint: disable=protected-access
-                sub._provided_url = test_urls[i]
+                sub.original_url = test_urls[i]
+                sub.url = test_urls[i]
             else:
                 sub.name = test_names[i]
 
@@ -131,9 +132,8 @@ class TestConfig:
         # The url and name the user gave should be prioritized and the cache url/name discarded.
         for i, sub in enumerate(config.subscriptions):
             if i % 2 == 0:
-                # pylint: disable=protected-access
-                assert sub._provided_url != test_urls[i]
-                assert sub._current_url != test_urls[i]
+                assert sub.original_url != test_urls[i]
+                assert sub.url != test_urls[i]
             else:
                 assert sub.name != test_names[i]
 
@@ -201,7 +201,7 @@ def write_msgpack_subs_to_file(out_file=None, subs=None):
 def sub_to_user_yaml(sub):
     """Convert a subscription to YAML we expect to find in the users's config file."""
     # pylint: disable=protected-access
-    return {"url": sub._provided_url,
+    return {"url": sub.original_url,
             "name": sub.name,
             "backlog_limit": sub.backlog_limit,
             "download_backlog": sub.download_backlog,
