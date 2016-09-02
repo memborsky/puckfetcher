@@ -1,6 +1,3 @@
-.. image:: https://badge.waffle.io/andrewmichaud/puckfetcher.png?label=ready&title=Ready 
- :target: https://waffle.io/andrewmichaud/puckfetcher
- :alt: 'Stories in Ready'
 puckfetcher
 ===========
 
@@ -8,6 +5,9 @@ puckfetcher
 | |Build Status|
 | |Coverage Status|
 | |Issue Count|
+.. image:: https://badge.waffle.io/andrewmichaud/puckfetcher.png?label=ready&title=Ready 
+ :target: https://waffle.io/andrewmichaud/puckfetcher
+ :alt: 'Stories in Ready'
 
 a podcatcher that will finally work (for me)
 
