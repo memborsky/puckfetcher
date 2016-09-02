@@ -108,10 +108,6 @@ def write_subs_to_file(subs, out_file, write_type):
         with open(out_file, "w") as stream:
             yaml.dump(data, stream)
 
-    else:
-        print("Type unsupported!")
-        assert False
-
 
 # Fixtures.
 @pytest.fixture(scope="function")
