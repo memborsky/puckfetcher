@@ -1,3 +1,6 @@
+.. image:: https://badge.waffle.io/andrewmichaud/puckfetcher.png?label=ready&title=Ready 
+ :target: https://waffle.io/andrewmichaud/puckfetcher
+ :alt: 'Stories in Ready'
 puckfetcher
 ===========
 
