@@ -422,6 +422,15 @@ class Subscription(object):
 
         return _helper()
 
+    def as_config_yaml(self):
+        """Return self as config file YAML."""
+
+        return {"url": self.original_url,
+                "name": self.name,
+                "backlog_limit": self.backlog_limit,
+                "directory": self.directory}
+
+
     # "Private" class functions (messy internals).
     def _feedparser_parse_with_options(self):
         """
