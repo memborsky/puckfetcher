@@ -19,7 +19,7 @@ LAST_CALLED = {}
 # I'm unsure if this the best way to do this.
 # TODO don't support andrewmichaud.com, we should have proper local file support eventually, and
 # run tests with that.
-RATELIMIT_DOMAIN_WHITELIST = ["localhost", "www.andrewmichaud.com"]
+RATELIMIT_DOMAIN_WHITELIST = ["andrewmichaud.com"]
 
 
 def generate_downloader(headers, args):
@@ -134,7 +134,7 @@ def rate_limited(domain, max_per_hour, *args):
             LOG.debug("Rate limiter last called for '%s' at %s.", key, last_called)
             LOG.debug("Remaining cooldown time for '%s' is %s.", key, remaining)
 
-            if domain not in RATELIMIT_DOMAIN_WHITELIST and remaining > 0 and last_called > 0.0:
+            if not skip_rate_limiting(domain) and remaining > 0 and last_called > 0.0:
                 LOG.info("Self-enforced rate limit hit, sleeping %s seconds.", remaining)
                 time.sleep(remaining)
 
@@ -145,3 +145,13 @@ def rate_limited(domain, max_per_hour, *args):
 
         return _rate_limited_function
     return _decorate
+
+def skip_rate_limiting(domain):
+    """Provide a hack to skip rate limiting during tests, for certain domains."""
+    res = False
+    for sub_url in RATELIMIT_DOMAIN_WHITELIST:
+        if sub_url in domain:
+            res = True
+            break
+
+    return res

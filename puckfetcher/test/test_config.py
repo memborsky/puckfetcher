@@ -1,222 +1,168 @@
-import copy
-import logging
+"""Tests for the config module."""
 import os
-import shutil
-import tempfile
 
+import pytest
 import umsgpack
 import yaml
 
 import puckfetcher.config as PC
 import puckfetcher.subscription as PS
 
+def test_default_config_construct(default_config, default_conf_file, default_cache_file):
+    """Test config with no arguments assigns the right file vars."""
+    assert default_config.config_file == default_conf_file
+    assert default_config.cache_file == default_cache_file
 
-class TestConfig:
-    @classmethod
-    def setup_class(cls):
+def test_load_only_cache(default_config, default_cache_file, subscriptions):
+    """Subscriptions list should be empty if there are cached subs but no subs in settings."""
+    write_subs_to_file(subs=subscriptions, out_file=default_cache_file, write_type="cache")
 
-        # Mock XDG spec dirs to ensure we do the correct thing, and also that we don't put files in
-        # strange places during testing.
-        cls.old_environ = dict(os.environ)
+    default_config.load_state()
 
-        cls.default_config_dir = os.path.join(tempfile.mkdtemp(), "puckfetcher")
-        cls.default_config_file = os.path.join(cls.default_config_dir, "config.yaml")
+    assert default_config.cached_subscriptions == subscriptions
+    assert default_config.subscriptions == []
 
-        cls.default_cache_dir = os.path.join(tempfile.mkdtemp(), "puckfetcher")
+def test_load_only_user_settings_works(default_config, default_conf_file, subscriptions):
+    """Test that settings can be loaded correctly from just the user settings."""
+    write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
 
-        cls.default_log_file = os.path.join(cls.default_cache_dir, "puckfetcher.log")
-        logging.getLogger("root")
+    default_config.load_state()
 
-        cls.default_cache_file = os.path.join(cls.default_cache_dir, "puckcache")
+    assert default_config.cached_subscriptions == []
+    assert default_config.subscriptions == subscriptions
 
-        cls.default_data_dir = os.path.join(tempfile.mkdtemp(), "puckfetcher")
+def test_non_config_subs_ignore(default_config, default_conf_file, default_cache_file,
+                                subscriptions):
+    """Subscriptions in cache but not config shouldn't be in subscriptions list."""
+    write_subs_to_file(subs=subscriptions, out_file=default_cache_file, write_type="cache")
+    write_subs_to_file(subs=subscriptions[0:1], out_file=default_conf_file, write_type="config")
 
-        cls.files = [cls.default_config_file, cls.default_log_file, cls.default_cache_file]
+    default_config.load_state()
 
-        cls.subscriptions = []
-        for i in range(0, 3):
-            name = "test" + str(i)
-            url = "testurl" + str(i)
-            directory = os.path.join(cls.default_data_dir, "dir" + str(i))
+    assert default_config.cached_subscriptions == subscriptions
+    assert default_config.subscriptions == subscriptions[0:1]
 
-            sub = PS.Subscription(name=name, url=url, directory=directory)
+def test_subscriptions_matching_works(default_config, default_conf_file, default_cache_file,
+                                      subscriptions):
+    """Subscriptions in cache should be matched to subscriptions in config by name or url."""
+    write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
 
-            sub.download_backlog = True
-            sub.backlog_limit = 1
-            sub.use_title_as_filename = False
+    test_urls = ["bababba", "aaaaaaa", "ccccccc"]
+    test_names = ["ffffff", "ggggg", "hhhhhh"]
+    test_nums = [23, 555, 66666]
 
-            cls.subscriptions.append(sub)
+    # Change names and urls in subscriptions. They should be able to be matched to config
+    # subscriptions.
+    for i, sub in enumerate(subscriptions):
+        sub.feed_state.latest_entry_number = test_nums[i]
 
-    @classmethod
-    def teardown_class(cls):
-        """Perform test cleanup."""
-        shutil.rmtree(cls.default_config_dir)
-        shutil.rmtree(cls.default_cache_dir)
-        shutil.rmtree(cls.default_data_dir)
+        if i % 2 == 0:
+            sub.original_url = test_urls[i]
+            sub.url = test_urls[i]
+        else:
+            sub.name = test_names[i]
 
-    # pylint: disable=invalid-name, no-self-use
-    def test_default_config_assigns_files(self):
-        """Test config with arguments assigns the right file vars."""
-        config = _create_test_config()
+        subscriptions[i] = sub
 
-        assert config.config_file == TestConfig.default_config_file
-        assert config.cache_file == TestConfig.default_cache_file
+    write_subs_to_file(subs=subscriptions, out_file=default_cache_file, write_type="cache")
 
-    # pylint: disable=invalid-name, no-self-use
-    def test_load_only_cache_loads_nothing(self):
-        """If there are only subs in the cache, none in settings, discard them."""
-        config = _create_test_config()
+    default_config.load_state()
 
-        write_msgpack_subs_to_file()
+    # The url and name the user gave should be prioritized and the cached url/name discarded.
+    for i, sub in enumerate(default_config.subscriptions):
+        if i % 2 == 0:
+            assert sub.original_url != test_urls[i]
+            assert sub.url != test_urls[i]
+        else:
+            assert sub.name != test_names[i]
 
-        config.load_state()
+        assert sub.feed_state.latest_entry_number == test_nums[i]
 
-        assert config.cached_subscriptions == TestConfig.subscriptions
-        assert config.subscriptions == []
 
-    # pylint: disable=invalid-name, no-self-use
-    def test_load_only_user_settings_works(self):
-        """Test that settings can be loaded correctly from just the user settings."""
-        config = _create_test_config()
+def test_save_works(default_config, default_cache_file, subscriptions):
+    """Test that we can save subscriptions correctly."""
+    default_config.subscriptions = subscriptions
 
-        write_yaml_subs_to_file()
+    default_config.save_cache()
 
-        config.load_state()
+    with open(default_cache_file, "rb") as stream:
+        contents = stream.read()
+        subs = [PS.Subscription.decode_subscription(sub) for sub in umsgpack.unpackb(contents)]
 
-        assert config.cached_subscriptions == []
-        assert config.subscriptions == TestConfig.subscriptions
-
-    # pylint: disable=invalid-name, no-self-use
-    def test_non_config_subs_ignore(self):
-        """Subscriptions in cache but not config shouldn't be in subscriptions list."""
-        config = _create_test_config()
-
-        write_msgpack_subs_to_file()
-        write_yaml_subs_to_file(subs=[TestConfig.subscriptions[0]])
-
-        config.load_state()
-
-        assert config.cached_subscriptions == TestConfig.subscriptions
-        assert config.subscriptions == [TestConfig.subscriptions[0]]
-
-    # pylint: disable=invalid-name, no-self-use
-    def test_subscriptions_matching_works(self):
-        """Subscriptions in cache should be matched to subscriptions in config by name or url."""
-        config = _create_test_config()
-
-        subs = _deep_copy_subs()
-
-        write_yaml_subs_to_file(subs=subs)
-
-        test_urls = ["bababba", "aaaaaaa", "ccccccc"]
-        test_names = ["ffffff", "ggggg", "hhhhhh"]
-        test_nums = [23, 555, 66666]
-
-        # Change names and urls in subscriptions. They should be able to be matched to config
-        # subscriptions.
-        for i, sub in enumerate(subs):
-            sub.feed_state.latest_entry_number = test_nums[i]
-
-            if i % 2 == 0:
-                sub.original_url = test_urls[i]
-                sub.url = test_urls[i]
-            else:
-                sub.name = test_names[i]
-
-            subs[i] = sub
-
-        write_msgpack_subs_to_file(subs=subs)
-
-        config.load_state()
-
-        # The url and name the user gave should be prioritized and the cache url/name discarded.
-        for i, sub in enumerate(config.subscriptions):
-            if i % 2 == 0:
-                assert sub.original_url != test_urls[i]
-                assert sub.url != test_urls[i]
-            else:
-                assert sub.name != test_names[i]
-
-            assert sub.feed_state.latest_entry_number == test_nums[i]
-
-    # pylint: disable=no-self-use
-    def test_save_works(self):
-        """Test that we can save subscriptions correctly."""
-        config = _create_test_config()
-
-        config.subscriptions = TestConfig.subscriptions
-
-        config.save_cache()
-
-        with open(TestConfig.default_cache_file, "rb") as fff:
-            contents = fff.read()
-            subs = [PS.Subscription.decode_subscription(sub) for sub in umsgpack.unpackb(contents)]
-
-        assert config.subscriptions == subs
+    assert default_config.subscriptions == subs
 
 
 # Helpers.
-def _deep_copy_subs():
-    return [copy.deepcopy(sub) for sub in TestConfig.subscriptions]
+def write_subs_to_file(subs, out_file, write_type):
+    """Write subs to a file with the selected type."""
+
+    if write_type == "cache":
+        encoded_subs = [PS.Subscription.encode_subscription(sub) for sub in subs]
+        data = umsgpack.packb(encoded_subs)
+        with open(out_file, "wb") as stream:
+            stream.write(data)
+
+    elif write_type == "config":
+        data = {}
+        data["subscriptions"] = [sub.as_config_yaml() for sub in subs]
+        with open(out_file, "w") as stream:
+            yaml.dump(data, stream)
 
 
-def _create_test_config():
-    for created_file in TestConfig.files:
-        if os.path.isfile(created_file):
-            os.remove(created_file)
+# Fixtures.
+@pytest.fixture(scope="function")
+def config_dirs(tmpdir):
+    """Generate XDG dirs and vars."""
+    config_dir = str(tmpdir.mkdir("config"))
+    cache_dir = str(tmpdir.mkdir("cache"))
+    data_dir = str(tmpdir.mkdir("data"))
 
-    return PC.Config(config_dir=TestConfig.default_config_dir,
-                     cache_dir=TestConfig.default_cache_dir,
-                     data_dir=TestConfig.default_data_dir)
+    os.environ["XDG_CONFIG_HOME"] = config_dir
+    os.environ["XDG_CACHE_DIR"] = cache_dir
+    os.environ["XDG_DATA_DIR"] = data_dir
 
-
-def _ensure_file(out_file, default):
-    # I don't like this, but it didn't seem like I could set keyword arguments to default to
-    # class variables.
-    if out_file is None:
-        out_file = default
-
-    directory, _ = os.path.split(out_file)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    return out_file
+    return (config_dir, cache_dir, data_dir)
 
 
-def write_msgpack_subs_to_file(out_file=None, subs=None):
-    """Write subs to a file through msgpack."""
-
-    out_file = _ensure_file(out_file, TestConfig.default_cache_file)
-
-    if subs is None:
-        subs = TestConfig.subscriptions
-
-    encoded_subs = [PS.Subscription.encode_subscription(sub) for sub in subs]
-
-    with open(out_file, "wb") as stream:
-        packed = umsgpack.packb(encoded_subs)
-        stream.write(packed)
+@pytest.fixture(scope="function")
+def default_conf_file(config_dirs):
+    """Provide name of default config file config object should use."""
+    (config_dir, _, _) = config_dirs
+    return os.path.join(config_dir, "config.yaml")
 
 
-def sub_to_user_yaml(sub):
-    """Convert a subscription to YAML we expect to find in the users's config file."""
-    # pylint: disable=protected-access
-    return {"url": sub.original_url,
-            "name": sub.name,
-            "backlog_limit": sub.backlog_limit,
-            "download_backlog": sub.download_backlog,
-            "directory": sub.directory}
+@pytest.fixture(scope="function")
+def default_cache_file(config_dirs):
+    """Provide name of default cache file config object should use."""
+    (_, cache_dir, _) = config_dirs
+    return os.path.join(cache_dir, "puckcache")
 
 
-def write_yaml_subs_to_file(out_file=None, subs=None):
-    """Write subscriptions in YAML to the config file."""
-    out_file = _ensure_file(out_file, TestConfig.default_config_file)
+@pytest.fixture(scope="function")
+def subscriptions(tmpdir):
+    """Generate subscriptions for config testing."""
+    sub_dir = str(tmpdir.mkdir("foo"))
 
-    data = {}
-    if subs is None:
-        subs = TestConfig.subscriptions
+    subs = []
+    for i in range(0, 3):
+        name = "test" + str(i)
+        url = "testurl" + str(i)
+        directory = os.path.join(sub_dir, "dir" + str(i))
 
-    data["subscriptions"] = [sub_to_user_yaml(sub) for sub in subs]
+        sub = PS.Subscription(name=name, url=url, directory=directory)
 
-    with open(out_file, "w") as stream:
-        yaml.dump(data, stream)
+        sub.download_backlog = True
+        sub.backlog_limit = 1
+        sub.use_title_as_filename = False
+
+        subs.append(sub)
+
+    return subs
+
+
+@pytest.fixture(scope="function")
+def default_config(config_dirs):
+    """Create test config with temporary test dirs."""
+    (config_dir, cache_dir, data_dir) = config_dirs
+
+    return PC.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
