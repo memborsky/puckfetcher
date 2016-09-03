@@ -1,6 +1,18 @@
-0.9.0 (???):
-    * pylint
-    * Move some stuff to issues
+0.9.0 (2016-09-02):
+    * Support PyPy, in theory.
+    * Don't load cache multiple times.
+    * Add some documentation - 1.0 will have more.
+    * Fix last_modified, date storing.
+    * Fix print formatting and log formatting.
+    * Add new sub options:
+        * Get details on sub.
+        * Add to sub download queue.
+        * Download full queue for sub.
+    * Fix issues around cache loading/saving, and don't save unnecessary stuff in cache.
+    * Fix off-by-one error around entry age - first of many.
+    * NOTE: 0.9.0 has some logic to port earlier caches to this version. 1.0.0 will drop it.
+    Please upgrade to 0.9.0 and then 1.0.0, or be happy with losing your cache and possibly having
+    to re-download podcasts.
 
 0.8.2 (2016-04-08):
     * Fix download URL in setup.py.
