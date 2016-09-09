@@ -5,7 +5,6 @@ import string
 
 import pytest
 
-import puckfetcher.config as PE
 import puckfetcher.error as PE
 import puckfetcher.subscription as SUB
 
@@ -109,6 +108,30 @@ def test_gone_fails(strdir):
 
     assert sub.url is None
     assert sub.original_url == HTTP_410_ADDRESS
+
+
+def test_new_attempt_update(strdir):
+    """Attempting update on a new subscription (no backlog) should download nothing."""
+    test_dir = strdir
+    sub = SUB.Subscription(url="foo", name="foo", directory=test_dir)
+
+    sub.attempt_update()
+    assert len(os.listdir(test_dir)) == 0
+
+def test_attempt_update_new_entry(strdir):
+    """Attempting update on a podcast with a new entry should download the new entry only."""
+    test_dir = strdir
+    sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=test_dir)
+
+    sub.attempt_update()
+    assert len(os.listdir(test_dir)) == 0
+    assert sub.feed_state.latest_entry_number is not None
+
+    sub.feed_state.latest_entry_number = sub.feed_state.latest_entry_number - 1
+
+    sub.attempt_update()
+    assert len(os.listdir(test_dir)) == 1
+    _check_hi_contents(0, test_dir)
 
 
 # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.

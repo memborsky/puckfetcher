@@ -22,7 +22,7 @@ def test_load_only_cache(default_config, default_cache_file, subscriptions):
     assert default_config.cached_subscriptions == subscriptions
     assert default_config.subscriptions == []
 
-def test_load_only_user_settings_works(default_config, default_conf_file, subscriptions):
+def test_load_only_user_settings(default_config, default_conf_file, subscriptions):
     """Test that settings can be loaded correctly from just the user settings."""
     write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
 
@@ -42,7 +42,7 @@ def test_non_config_subs_ignore(default_config, default_conf_file, default_cache
     assert default_config.cached_subscriptions == subscriptions
     assert default_config.subscriptions == subscriptions[0:1]
 
-def test_subscriptions_matching_works(default_config, default_conf_file, default_cache_file,
+def test_subscriptions_matching(default_config, default_conf_file, default_cache_file,
                                       subscriptions):
     """Subscriptions in cache should be matched to subscriptions in config by name or url."""
     write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
