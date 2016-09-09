@@ -61,9 +61,9 @@ def generate_downloader(headers, args):
     return _downloader
 
 
-def max_clamp(val, cap):
-    """Clamp int to maximum."""
-    return min(val, cap)
+def max_clamp(val, limit):
+    """Clamp int to limit."""
+    return min(val, limit)
 
 
 def expand(directory):
@@ -101,7 +101,7 @@ def parse_int_string(int_string):
             start = int(endpoints[0])
             end = int(endpoints[1]) + 1
 
-            indices = indices.union(indices, set(range(start,end)))
+            indices = indices.union(indices, set(range(start, end)))
 
         else:
             try:
