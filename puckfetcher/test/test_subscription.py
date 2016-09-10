@@ -118,6 +118,7 @@ def test_new_attempt_update(strdir):
     sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
 
+
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
     test_dir = strdir
@@ -138,7 +139,7 @@ def test_attempt_update_new_entry(strdir):
 
 # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
 def test_attempt_download_backlog(strdir):
-    """Should download full backlog by default."""
+    """Should download full backlog if backlog limit set to None."""
     sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
 
     sub.use_backlog = True
@@ -160,10 +161,10 @@ def test_attempt_download_partial_backlog(strdir):
     # Maybe Subscription should handle these attributes missing better?
     # Maybe have a cleaner way to hack them in in tests?
     sub.use_backlog = True
+    sub.backlog_limit = 4
     sub.use_title_as_filename = False
     sub.attempt_update()
 
-    assert len(sub.feed_state.entries) == 10
     for i in range(0, 4):
         _check_hi_contents(i, sub.directory)
 
