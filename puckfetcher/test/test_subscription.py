@@ -121,20 +121,19 @@ def test_new_attempt_update(strdir):
 
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
-    test_dir = strdir
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=test_dir)
+    sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=strdir)
 
     sub.attempt_update()
     assert sub.feed_state.latest_entry_number is not None
     assert sub.backlog_limit == 0
-    assert len(os.listdir(test_dir)) == 0
+    assert len(os.listdir(sub.directory)) == 0
 
     sub.feed_state.latest_entry_number = sub.feed_state.latest_entry_number - 1
 
     sub.attempt_update()
     assert sub.backlog_limit == 0
-    assert len(os.listdir(test_dir)) == 1
-    _check_hi_contents(0, test_dir)
+    assert len(os.listdir(sub.directory)) == 1
+    _check_hi_contents(0, sub.directory)
 
 
 # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
