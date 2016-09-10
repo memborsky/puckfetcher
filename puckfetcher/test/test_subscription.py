@@ -119,6 +119,23 @@ def test_new_attempt_update(strdir):
     assert len(os.listdir(test_dir)) == 0
 
 
+# TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
+def test_attempt_download_backlog(strdir):
+    """Should download full backlog if backlog limit set to None."""
+    sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+
+    sub.use_backlog = True
+    sub.backlog_limit = None
+    sub.use_title_as_filename = False
+
+    sub.attempt_update()
+
+    assert len(sub.feed_state.entries) == 10
+    assert len(os.listdir(sub.directory)) == 10
+    for i in range(1, 9):
+        _check_hi_contents(i, sub.directory)
+
+
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
     sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=strdir)
@@ -134,22 +151,6 @@ def test_attempt_update_new_entry(strdir):
     assert sub.backlog_limit == 0
     assert len(os.listdir(sub.directory)) == 1
     _check_hi_contents(0, sub.directory)
-
-
-# TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
-def test_attempt_download_backlog(strdir):
-    """Should download full backlog if backlog limit set to None."""
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
-
-    sub.use_backlog = True
-    sub.backlog_limit = None
-    sub.use_title_as_filename = False
-
-    sub.attempt_update()
-
-    assert len(sub.feed_state.entries) == 10
-    for i in range(1, 9):
-        _check_hi_contents(i, sub.directory)
 
 
 def test_attempt_download_partial_backlog(strdir):
