@@ -126,11 +126,13 @@ def test_attempt_update_new_entry(strdir):
     sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
     assert sub.feed_state.latest_entry_number is not None
+    assert sub.backlog_limit == 0
 
     sub.feed_state.latest_entry_number = sub.feed_state.latest_entry_number - 1
 
     sub.attempt_update()
     assert len(os.listdir(test_dir)) == 1
+    assert sub.backlog_limit == 0
     _check_hi_contents(0, test_dir)
 
 
