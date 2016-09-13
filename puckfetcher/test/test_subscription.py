@@ -151,23 +151,6 @@ def test_attempt_download_backlog(strdir):
         _check_hi_contents(i, sub.directory)
 
 
-def test_attempt_update_new_entry(strdir):
-    """Attempting update on a podcast with a new entry should download the new entry only."""
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=strdir)
-
-    sub.attempt_update()
-    assert sub.feed_state.latest_entry_number is not None
-    assert sub.backlog_limit == 0
-    assert len(os.listdir(sub.directory)) == 0
-
-    sub.feed_state.latest_entry_number = sub.feed_state.latest_entry_number - 1
-
-    sub.attempt_update()
-    assert sub.backlog_limit == 0
-    assert len(os.listdir(sub.directory)) == 1
-    _check_hi_contents(0, sub.directory)
-
-
 def test_attempt_download_partial_backlog(strdir):
     """Should download partial backlog if limit is specified."""
     sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5, directory=strdir)
