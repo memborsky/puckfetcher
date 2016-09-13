@@ -268,8 +268,8 @@ class Subscription(object):
                     dest = self._get_dest(url, entry["title"], directory)
                     self.downloader(url=url, dest=dest, overwrite=overwrite)
 
-                if entry_num > self.feed_state.latest_entry_number:
-                    self.feed_state.latest_entry_number = entry_num
+                if entry_num+1 > self.feed_state.latest_entry_number:
+                    self.feed_state.latest_entry_number = entry_num+1
 
                 self.feed_state.entries_state_dict[entry_num] = True
                 LOG.info("Have downloaded %s entries for sub %s.",
