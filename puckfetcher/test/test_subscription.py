@@ -123,13 +123,12 @@ def test_attempt_update_new_entry(strdir):
     test_dir = strdir
     sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=test_dir)
 
-    sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
-    assert sub.feed_state.latest_entry_number is not None
 
-    sub.feed_state.latest_entry_number = sub.feed_state.latest_entry_number - 1
+    sub.feed_state.latest_entry_number = 9
 
     sub.attempt_update()
+    assert sub.feed_state.latest_entry_number == 10
     assert len(os.listdir(test_dir)) == 1
     _check_hi_contents(0, test_dir)
 
