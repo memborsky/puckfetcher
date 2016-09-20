@@ -317,6 +317,7 @@ class Subscription(object):
             self.feed_state.entries_state_dict[num] = True
 
         LOG.info("Items marked as downloaded for %s: %s", self.name, actual_nums)
+        return actual_nums
 
     def unmark(self, nums):
         """
@@ -329,6 +330,7 @@ class Subscription(object):
             self.feed_state.entries_state_dict[num] = False
 
         LOG.info("Items marked as not downloaded for %s: %s", self.name, actual_nums)
+        return actual_nums
 
     def update(self, directory=None, config_dir=None, url=None, set_original=False, name=None):
         """Update values for this subscription."""
