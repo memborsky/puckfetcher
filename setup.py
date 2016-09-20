@@ -1,22 +1,19 @@
 """setuptools-based setup module for puckfetcher."""
 
 # Modeled on Python sample project setup.py - https://github.com/pypa/sampleproject
-# Use a consistent encoding.
-import codecs
 import sys
 from os import path
+# pylint: disable=redefined-builtin
+from io import open
 # Prefer setuptools over distutils.
 from setuptools import setup, find_packages
 
 HERE = path.abspath(path.dirname(__file__))
 
-# Get the long description from the README file.
-# Python standard seems to be .rst, but I prefer Markdown.
-with codecs.open(path.join(HERE, "README.rst"), encoding="utf-8") as f:
+with open(path.join(HERE, "README.rst"), encoding="utf-8") as f:
     LONG_DESCRIPTION = f.read()
 
-# Retrieve version.
-with codecs.open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
+with open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
     VERSION = f.read()
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
