@@ -45,9 +45,6 @@ class Config(object):
         command_pairs = (
             (Command.update_once,
              "Update subscriptions once. Will also download sub queues."),
-            (Command.update_forever,
-             "Update subscriptions continuously. Also downloads queues."),
-            (Command.load, "Load/reload subscriptions configuration."),
             (Command.list, "List current subscriptions and their status."),
             (Command.details,
              "Provide details on one subscription's entries and queue status."),
@@ -152,22 +149,6 @@ class Config(object):
 
         else:
             return (False, "Load unsuccessful, cannot update!")
-
-    def update_forever(self):
-        """Update all subscriptions continuously until terminated."""
-        while True:
-            try:
-                (res, msg) = self.update_once()
-                if not res:
-                    return (res, msg)
-
-            except KeyboardInterrupt:
-                LOG.info("Stopping looping forever.")
-                break
-
-        msg = "Continuous update stopped, no issues."
-        LOG.info(msg)
-        return (True, msg)
 
     def list(self):
         """Load state and list subscriptions. Return if loading succeeded."""
