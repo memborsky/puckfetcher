@@ -42,18 +42,25 @@ class Config(object):
         # have changed.
         self.cache_map = {"by_name": {}, "by_url": {}}
 
-        command_pairs = ((Command.update_once,
-                          "Update subscriptions once. Will also download sub queues."),
-                         (Command.update_forever,
-                          "Update subscriptions continuously. Also downloads queues."),
-                         (Command.load, "Load/reload subscriptions configuration."),
-                         (Command.list, "List current subscriptions and their status."),
-                         (Command.details,
-                          "Provide details on one subscription's entries and queue status."),
-                         (Command.enqueue,
-                          "Add to a sub's download queue. Items in queue will overwrite " +
-                          "existing files with same name when downloaded."),
-                         (Command.download_queue, "Download a subscription's full queue."))
+        command_pairs = (
+            (Command.update_once,
+             "Update subscriptions once. Will also download sub queues."),
+            (Command.update_forever,
+             "Update subscriptions continuously. Also downloads queues."),
+            (Command.load, "Load/reload subscriptions configuration."),
+            (Command.list, "List current subscriptions and their status."),
+            (Command.details,
+             "Provide details on one subscription's entries and queue status."),
+            (Command.enqueue,
+             "Add to a sub's download queue. Items will be skipped if already in queue, or " +
+             "invalid."),
+            (Command.mark,
+             "Mark a subscription entry as downloaded."),
+            (Command.unmark,
+             "Mark a subscription entry as not downloaded."),
+            (Command.download_queue, "Download a subscription's full queue. Files with the same " +
+             "name as a to-be-downloaded entry will be overridden."))
+
         self.commands = collections.OrderedDict(command_pairs)
 
     # "Public" functions.
@@ -199,9 +206,9 @@ class Config(object):
         """Add item(s) to a sub's download queue."""
         if _ensure_loaded(self):
             sub = self.subscriptions[sub_index]
-            actual_nums = sub.enqueue(nums)
+            enqueued_nums = sub.enqueue(nums)
 
-            msg = "Added items {} to queue successfully.".format(actual_nums)
+            msg = "Added items {} to queue successfully.".format(enqueued_nums)
             LOG.info(msg)
             self.save_cache()
             return (True, msg)
@@ -211,10 +218,41 @@ class Config(object):
             LOG.debug(msg)
             return (False, msg)
 
+    def mark(self, sub_index, nums):
+        """Mark items as downloaded by a subscription."""
+        if _ensure_loaded(self):
+            sub = self.subscriptions[sub_index]
+            marked_nums = sub.mark(nums)
+
+            msg = "Marked items {} as downloaded successfully.".format(marked_nums)
+            LOG.info(msg)
+            self.save_cache()
+            return (True, msg)
+
+        else:
+            msg = "Load unsuccessful, cannot mark items."
+            LOG.debug(msg)
+            return (False, msg)
+
+    def unmark(self, sub_index, nums):
+        """Unmark items as downloaded by a subscription."""
+        if _ensure_loaded(self):
+            sub = self.subscriptions[sub_index]
+            unmarked_nums = sub.unmark(nums)
+
+            msg = "Unmarked items {} successfully.".format(unmarked_nums)
+            LOG.info(msg)
+            self.save_cache()
+            return (True, msg)
+
+        else:
+            msg = "Load unsuccessful, cannot unmark items."
+            LOG.debug(msg)
+            return (False, msg)
+
     def download_queue(self, sub_index):
         """Download one sub's download queue."""
         if _ensure_loaded(self):
-            num_subs = len(self.subscriptions)
             sub = self.subscriptions[sub_index]
             sub.download_queue()
 
@@ -274,13 +312,13 @@ class Config(object):
         if yaml_settings is not None:
 
             # Update self.settings, but only currently valid settings.
-            for k, v in yaml_settings.items():
-                if k == "subscriptions":
+            for name, value in yaml_settings.items():
+                if name == "subscriptions":
                     pass
-                elif k not in self.settings:
-                    LOG.warn("Setting %s is not a valid setting, ignoring.", k)
+                elif name not in self.settings:
+                    LOG.warning("Setting %s is not a valid setting, ignoring.", name)
                 else:
-                    self.settings[k] = v
+                    self.settings[name] = value
 
             for yaml_sub in yaml_settings.get("subscriptions", []):
                 sub = S.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
@@ -322,10 +360,13 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
 
 
 class Command(Enum):
+    """Commands a Config can perform."""
     update_once = 100
-    update_forever = 101
-    load = 102
-    list = 103
-    details = 104
-    enqueue = 105
-    download_queue = 106
+    update_forever = 200
+    load = 300
+    list = 400
+    details = 500
+    enqueue = 600
+    mark = 700
+    unmark = 750
+    download_queue = 800

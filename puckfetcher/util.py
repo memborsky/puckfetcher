@@ -25,20 +25,13 @@ RATELIMIT_DOMAIN_WHITELIST = ["andrewmichaud.com"]
 def generate_downloader(headers, args):
     """Create function to download with rate limiting and text progress."""
 
-    def _downloader(url, dest, overwrite=True):
-
+    def _downloader(url, dest):
         domain = urlparse(url).netloc
         if domain == "":
             domain = "localhost"
 
         @rate_limited(domain, 30, args)
         def _rate_limited_download():
-            # If there is a file with the name we intend to save to, assume the podcast has
-            # been downloaded already.
-            if os.path.isfile(dest) and not overwrite:
-                LOG.info("File %s exists, not overwriting, assuming downloaded.", dest)
-                print("File exists. Assuming already downloaded and skipping.")
-                return
 
             # Create parent directory of file, and its parents, if they don't exist.
             parent = os.path.dirname(dest)
@@ -46,8 +39,8 @@ def generate_downloader(headers, args):
                 os.makedirs(parent)
 
             response = requests.get(url, headers=headers, stream=True)
-            LOG.info("Actually downloading from %s", url)
-            LOG.info("Trying to save to %s", dest)
+            LOG.info("Downloading from '%s'.", url)
+            LOG.info("Trying to save to '%s'.", dest)
 
             total_length = int(response.headers.get("content-length"))
             expected_size = (total_length / 1024) + 1

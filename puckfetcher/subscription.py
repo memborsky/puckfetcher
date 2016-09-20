@@ -213,11 +213,10 @@ class Subscription(object):
             self.name, self.feed_state.latest_entry_number, number_to_download, number_feeds,
             number_to_download)
 
-        # Queuing feeds in order of age makes the most sense for RSS feeds (IMO), so we do that.
-        # TODO consider wrapping queue more.
+        # Queuing feeds in order of age makes the most sense for RSS feeds, so we do that.
         age_range = xrange(self.feed_state.latest_entry_number, number_feeds)
         for i in age_range:
-            self.feed_state.queue.append((i+1, False))
+            self.feed_state.queue.append(i+1)
         self.download_queue()
 
         return True
@@ -234,62 +233,102 @@ class Subscription(object):
 
         try:
             while self.feed_state.queue:
-                (entry_num, overwrite) = self.feed_state.queue.popleft()
-                entry_num = entry_num - 1
-                num_entries = len(self.feed_state.entries)
-                entry_age = num_entries - (entry_num + 1)
 
+                # Pull index from queue, transform from one-indexing to zero-indexing.
+                one_indexed_entry_num = self.feed_state.queue.popleft()
+                entry_num = one_indexed_entry_num - 1
+
+                # Fetch matching entry.
+                num_entries = len(self.feed_state.entries)
+                entry_age = num_entries - (one_indexed_entry_num)
                 entry = self.feed_state.entries[entry_age]
 
-                urls = entry["urls"]
-                num_entry_files = len(urls)
+                # Don't overwrite files if we have the matching entry downloaded already, according
+                # to records.
+                if self.feed_state.entries_state_dict.get(entry_num, False):
+                    msg = textwrap.dedent(
+                        """\
+                        SKIPPING entry number {} (age {}) for '{}', recorded as downloaded.
+                        """).format(
+                            entry_num, entry_age, self.name)
 
-                msg = "Trying to download entry number {} (age {}) for '{}'.".format(entry_num,
-                                                                                     entry_age,
-                                                                                     self.name)
-                LOG.info(msg)
-                print(msg)
+                    LOG.info(msg)
+                    print(msg)
 
-                # Create directory just for enclosures for this entry if there are many.
-                directory = self.directory
-                if num_entry_files > 1:
-                    directory = os.path.join(directory, entry["title"])
-                    LOG.info("Creating directory to store %s enclosures.", num_entry_files)
-                    print("{} enclosures for this feed entry.".format(num_entry_files))
+                else:
+                    urls = entry["urls"]
+                    num_entry_files = len(urls)
 
-                for i, url in enumerate(urls):
+                    msg = "Trying to download entry number {} (age {}) for '{}'.".format(entry_num,
+                                                                                         entry_age,
+                                                                                         self.name)
+                    LOG.info(msg)
+                    print(msg)
+
+                    # Create directory just for enclosures for this entry if there are many.
+                    directory = self.directory
                     if num_entry_files > 1:
-                        LOG.info("Handling enclosure %s of %s.", i+1, num_entry_files)
-                        print("Downloading enclosure {} of {}".format(i+1, num_entry_files))
+                        directory = os.path.join(directory, entry["title"])
+                        LOG.info("Creating directory to store %s enclosures.", num_entry_files)
+                        print("{} enclosures for this feed entry.".format(num_entry_files))
 
-                    LOG.info("Extracted url %s.", url)
+                    for i, url in enumerate(urls):
+                        if num_entry_files > 1:
+                            LOG.info("Handling enclosure %s of %s.", i+1, num_entry_files)
+                            print("Downloading enclosure {} of {}".format(i+1, num_entry_files))
 
-                    # TODO catch errors? What if we try to save to a nonsense file?
-                    dest = self._get_dest(url, entry["title"], directory)
-                    self.downloader(url=url, dest=dest, overwrite=overwrite)
+                        LOG.info("Extracted url %s.", url)
 
-                if entry_num+1 > self.feed_state.latest_entry_number:
-                    self.feed_state.latest_entry_number = entry_num+1
+                        # TODO catch errors? What if we try to save to a nonsense file?
+                        dest = self._get_dest(url, entry["title"], directory)
+                        self.downloader(url=url, dest=dest)
 
-                self.feed_state.entries_state_dict[entry_num] = True
-                LOG.info("Have downloaded %s entries for sub %s.",
-                         self.feed_state.latest_entry_number, self.name)
+                    if one_indexed_entry_num > self.feed_state.latest_entry_number:
+                        self.feed_state.latest_entry_number = one_indexed_entry_num
+                        LOG.info("Have downloaded %s entries for sub %s.",
+                                 self.feed_state.latest_entry_number, self.name)
+
+                    self.feed_state.entries_state_dict[entry_num] = True
 
         except KeyboardInterrupt:
-            self.feed_state.queue.appendleft((entry_num, True))
+            self.feed_state.queue.appendleft(entry_num)
 
     def enqueue(self, nums):
         """Add entries to this subscription's download queue."""
-        actual_nums = []
-        for num in nums:
-            if num > 0 and num <= len(self.feed_state.entries) \
-               and num not in self.feed_state.queue:
-                actual_nums.append((num, True))
+        actual_nums = _filter_nums(nums, 0, len(self.feed_state.entries))
 
-        self.feed_state.queue.extend(actual_nums)
+        for one_indexed_num in actual_nums:
+            num = one_indexed_num-1
+            if num not in self.feed_state.queue:
+                self.feed_state.queue.append(num)
+
         LOG.info("New queue for %s: %s", self.name, list(self.feed_state.queue))
 
         return actual_nums
+
+    def mark(self, nums):
+        """
+        Mark entries as downloaded for this subscription. Do not download or do anything else.
+        """
+        actual_nums = _filter_nums(nums, 0, len(self.feed_state.entries))
+
+        for one_indexed_num in actual_nums:
+            num = one_indexed_num-1
+            self.feed_state.entries_state_dict[num] = True
+
+        LOG.info("Items marked as downloaded for %s: %s", self.name, actual_nums)
+
+    def unmark(self, nums):
+        """
+        Mark entries as not downloaded for this subscription. Do not download or do anything else.
+        """
+        actual_nums = _filter_nums(nums, 0, len(self.feed_state.entries))
+
+        for one_indexed_num in actual_nums:
+            num = one_indexed_num-1
+            self.feed_state.entries_state_dict[num] = False
+
+        LOG.info("Items marked as not downloaded for %s: %s", self.name, actual_nums)
 
     def update(self, directory=None, config_dir=None, url=None, set_original=False, name=None):
         """Update values for this subscription."""
@@ -663,6 +702,16 @@ def _process_directory(directory):
         os.makedirs(directory)
 
     return directory
+
+
+def _filter_nums(nums, min_lim, max_lim):
+    """Given two limits, remove elements from the list that aren't in that range."""
+    actual_nums = []
+    for num in nums:
+        if num > min_lim and num <= max_lim:
+            actual_nums.append(num)
+
+    return actual_nums
 
 
 # pylint: disable=too-few-public-methods
