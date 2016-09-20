@@ -43,7 +43,7 @@ def test_non_config_subs_ignore(default_config, default_conf_file, default_cache
     assert default_config.subscriptions == subscriptions[0:1]
 
 def test_subscriptions_matching(default_config, default_conf_file, default_cache_file,
-                                      subscriptions):
+                                subscriptions):
     """Subscriptions in cache should be matched to subscriptions in config by name or url."""
     write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
 
@@ -77,7 +77,6 @@ def test_subscriptions_matching(default_config, default_conf_file, default_cache
             assert sub.name != test_names[i]
 
         assert sub.feed_state.latest_entry_number == test_nums[i]
-
 
 def test_save_works(default_config, default_cache_file, subscriptions):
     """Test that we can save subscriptions correctly."""
@@ -123,20 +122,17 @@ def config_dirs(tmpdir):
 
     return (config_dir, cache_dir, data_dir)
 
-
 @pytest.fixture(scope="function")
 def default_conf_file(config_dirs):
     """Provide name of default config file config object should use."""
     (config_dir, _, _) = config_dirs
     return os.path.join(config_dir, "config.yaml")
 
-
 @pytest.fixture(scope="function")
 def default_cache_file(config_dirs):
     """Provide name of default cache file config object should use."""
     (_, cache_dir, _) = config_dirs
     return os.path.join(cache_dir, "puckcache")
-
 
 @pytest.fixture(scope="function")
 def subscriptions(tmpdir):
@@ -158,7 +154,6 @@ def subscriptions(tmpdir):
         subs.append(sub)
 
     return subs
-
 
 @pytest.fixture(scope="function")
 def default_config(config_dirs):

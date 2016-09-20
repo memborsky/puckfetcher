@@ -2,6 +2,9 @@
 import os
 import random
 import string
+# pylint: disable=redefined-builtin
+from builtins import dict
+from future.utils import viewitems
 
 import pytest
 
@@ -30,7 +33,6 @@ def test_empty_url_cons(strdir):
 
     assert exception.value.desc == "No URL provided."
 
-
 def test_none_url_cons(strdir):
     """
     Constructing a subscription with a URL that is None should throw a MalformedSubscriptionError.
@@ -39,7 +41,6 @@ def test_none_url_cons(strdir):
         SUB.Subscription(name="noneConstruction", directory=strdir)
 
     assert exception.value.desc == "No URL provided."
-
 
 def test_empty_name_cons(strdir):
     """
@@ -50,7 +51,6 @@ def test_empty_name_cons(strdir):
 
     assert exception.value.desc == "No name provided."
 
-
 def test_none_name_cons(strdir):
     """
     Constructing a subscription with a name that is None should throw a MalformedSubscriptionError.
@@ -59,7 +59,6 @@ def test_none_name_cons(strdir):
         SUB.Subscription(url="foo", name=None, directory=strdir)
 
     assert exception.value.desc == "No name provided."
-
 
 def test_get_feed_max(strdir, salt):
     """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
@@ -72,7 +71,6 @@ def test_get_feed_max(strdir, salt):
     assert sub.feed_state.feed == {}
     assert sub.feed_state.entries == []
 
-
 def test_temporary_redirect(strdir, salt):
     """
     If we are redirected temporarily to a valid RSS feed, we should successfully parse that
@@ -81,7 +79,6 @@ def test_temporary_redirect(strdir, salt):
     _test_url_helper(strdir, HTTP_302_ADDRESS, "302Test" + salt, HTTP_302_ADDRESS,
                      HTTP_302_ADDRESS)
 
-
 def test_permanent_redirect(strdir, salt):
     """
     If we are redirected permanently to a valid RSS feed, we should successfully parse that
@@ -89,11 +86,9 @@ def test_permanent_redirect(strdir, salt):
     """
     _test_url_helper(strdir, HTTP_301_ADDRESS, "301Test" + salt, RSS_ADDRESS, HTTP_301_ADDRESS)
 
-
 def test_not_found_fails(strdir):
     """If the URL is Not Found, we should not change the saved URL."""
     _test_url_helper(strdir, HTTP_404_ADDRESS, "404Test", HTTP_404_ADDRESS, HTTP_404_ADDRESS)
-
 
 def test_gone_fails(strdir):
     """If the URL is Gone, the current url should be set to None, and we should return None."""
@@ -109,7 +104,6 @@ def test_gone_fails(strdir):
     assert sub.url is None
     assert sub.original_url == HTTP_410_ADDRESS
 
-
 def test_new_attempt_update(strdir):
     """Attempting update on a new subscription (no backlog) should download nothing."""
     test_dir = strdir
@@ -117,7 +111,6 @@ def test_new_attempt_update(strdir):
 
     sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
-
 
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
@@ -132,7 +125,6 @@ def test_attempt_update_new_entry(strdir):
     assert sub.feed_state.latest_entry_number == 10
     assert len(os.listdir(test_dir)) == 1
     _check_hi_contents(0, test_dir)
-
 
 # TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
 def test_attempt_download_backlog(strdir):
@@ -150,7 +142,6 @@ def test_attempt_download_backlog(strdir):
     for i in range(1, 9):
         _check_hi_contents(i, sub.directory)
 
-
 def test_attempt_download_partial_backlog(strdir):
     """Should download partial backlog if limit is specified."""
     sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5, directory=strdir)
@@ -166,6 +157,39 @@ def test_attempt_download_partial_backlog(strdir):
     for i in range(0, 4):
         _check_hi_contents(i, sub.directory)
 
+def test_mark(sub):
+    """Should mark subscription entries correctly."""
+    for entry_downloaded in sub.feed_state.entries_state_dict.values():
+        assert not entry_downloaded
+
+    test_nums = [2, 3, 4, 5]
+    bad_nums = [-1, -12, 10000]
+    all_nums = bad_nums + test_nums + bad_nums
+
+    sub.mark(all_nums)
+
+    for (key, value) in viewitems(sub.feed_state.entries_state_dict):
+        if key in test_nums:
+            assert value
+        else:
+            assert not value
+
+def test_unmark(sub):
+    """Should unmark subscription entries correctly."""
+    for key in sub.feed_state.entries_state_dict:
+        sub.feed_state.entries_state_dict[key] = True
+
+    test_nums = [2, 3, 4, 5]
+    bad_nums = [-1, -12, 10000]
+    all_nums = bad_nums + test_nums + bad_nums
+
+    sub.unmark(all_nums)
+
+    for (key, value) in viewitems(sub.feed_state.entries_state_dict):
+        if key in test_nums:
+            assert not value
+        else:
+            assert value
 
 # Helpers.
 def _test_url_helper(strdir, given, name, expected_current, expected_original):
@@ -194,3 +218,8 @@ def strdir(tmpdir):
 def salt():
     """Provide random string to avoid my rate-limiting."""
     return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+
+@pytest.fixture(scope="function")
+def sub(strdir):
+    """Create a test subscription."""
+    return SUB.Subscription(url="test", name="test", directory=strdir)
