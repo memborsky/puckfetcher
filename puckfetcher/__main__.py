@@ -51,15 +51,14 @@ def main():
     command = vars(args)["command"]
     if command:
         if command == _Command.exit.name:
-            _handle_exit(parser)
+            parser.exit()
 
-        elif command == _Command.prompt.name:
+        elif command == _Command.menu.name:
             pass
 
         else:
-            # TODO do something cleaner than passing all this to handle_command.
             _handle_command(command, config, command_options)
-            _handle_exit(parser)
+            parser.exit()
 
     logger.info("%s %s started!", __package__, CONSTANTS.VERSION)
 
@@ -69,7 +68,7 @@ def main():
             command = prompt.options("Choose a command", command_options)
 
             if command == _Command.exit.name:
-                _handle_exit(parser)
+                parser.exit()
 
             _handle_command(command, config, command_options)
 
@@ -86,21 +85,10 @@ def main():
     parser.exit()
 
 
-# TODO maybe reorganize helper functions?? Not sure what to do, but this looks messy.
-# Theoretically this would do cleanup if we needed to do any.
-def _handle_exit(parser):
-    parser.exit()
-
+# TODO find a way to simplify and/or push logic into Config.
 def _handle_command(command, config, command_options):
-    # TODO use config exit status to return exit codes.
     if command == Config.Command.update_once.name:
         (res, msg) = config.update_once()
-
-    elif command == Config.Command.update_forever.name:
-        (res, msg) = config.update_forever()
-
-    elif command == Config.Command.load.name:
-        (res, msg) = config.load_state()
 
     elif command == Config.Command.list.name:
         (res, msg) = config.list()
@@ -232,11 +220,15 @@ def _setup_program_arguments():
                         help=textwrap.dedent(
                             """\
                             Command to run, one of:
-                            update_once - update all subscriptions once
-                            update_forever - update all subscriptions in a loop until terminated
-                            load - (re)load configuration (currently useless from shell...)
-                            list - list current subscriptions, after reloading config
-                            prompt - go to a prompt to choose option\
+                            exit - exit
+                            update_once - update all subscriptions once, and force queue download
+                            list - list current subscriptions
+                            details - provide details on entries for a subscription
+                            enqueue - add to download queue for subscription
+                            mark - mark entry downloaded for subcription
+                            unmark - mark entry as not downloaded for a subcription
+                            download_queue - cause subcription to download full queue
+                            menu - provide these options in a menu\
                             """))
 
     parser.add_argument("--cache", "-a", dest="cache",
@@ -316,7 +308,7 @@ def _setup_logging(log_dir):
 
 class _Command(Enum):
     exit = 0
-    prompt = 1
+    menu = 1
 
 
 if __name__ == "__main__":
