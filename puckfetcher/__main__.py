@@ -112,43 +112,33 @@ def _handle_command(command, config, command_options):
 
     elif command == Config.Command.enqueue.name:
         sub_index = _choose_sub(config)
+        config.details(sub_index)
+        print("COMMAND - {}".format(command))
+        entry_nums = _choose_entries()
+        if entry_nums is None:
+            (res, msg) = (False, "Canceled enqueuing.")
+        else:
+            (res, msg) = config.enqueue(sub_index, entry_nums)
 
-        done = False
-        while not done:
-            num_string = rawest_input(textwrap.dedent(
-                """
-                Provide numbers of entries to put in download queue.
-                Invalid numbers will be ignored.
-                Press enter with an empty line to go back to command menu.
-                """))
+    elif command == Config.Command.mark.name:
+        sub_index = _choose_sub(config)
+        config.details(sub_index)
+        print("COMMAND - {}".format(command))
+        entry_nums = _choose_entries()
+        if entry_nums is None:
+            (res, msg) = (False, "Canceled marking.")
+        else:
+            (res, msg) = config.mark(sub_index, entry_nums)
 
-            if len(num_string) == 0:
-                done = True
-                (res, msg) = (False, "Canceled enqueuing")
-                break
-
-            num_list = Util.parse_int_string(num_string)
-
-            while True:
-                answer = rawest_input(textwrap.dedent(
-                    """\
-                    Happy with {}?
-                    (If indices are too big/small, they'll be pulled out later.)
-                    (No will let you try again)
-                    [Yes/yes/y or No/no/n]
-                    """.format(num_list)))
-
-                if len(answer) < 1:
-                    continue
-
-                ans = answer.lower()[0]
-                if ans == "y":
-                    (res, msg) = config.enqueue(sub_index, num_list)
-                    done = True
-                    break
-
-                elif ans == "n":
-                    break
+    elif command == Config.Command.unmark.name:
+        sub_index = _choose_sub(config)
+        config.details(sub_index)
+        print("COMMAND - {}".format(command))
+        entry_nums = _choose_entries()
+        if entry_nums is None:
+            (res, msg) = (False, "Canceled unmarking.")
+        else:
+            (res, msg) = config.unmark(sub_index, entry_nums)
 
     elif command == Config.Command.download_queue.name:
         sub_index = _choose_sub(config)
@@ -167,10 +157,51 @@ def _handle_command(command, config, command_options):
 def _choose_sub(config):
     sub_names = config.get_subs()
     subscription_options = []
+    pad_num = len(str(len(sub_names)))
     for i, sub_name in enumerate(sub_names):
-        subscription_options.append({"selector": str(i+1), "prompt": sub_name, "return": i})
+        subscription_options.append(
+            {"selector": str(i+1).zfill(pad_num), "prompt": sub_name, "return": i})
 
     return prompt.options("Choose a subscription:", subscription_options)
+
+def _choose_entries():
+    done = False
+    while not done:
+        num_string = rawest_input(textwrap.dedent(
+            """
+            Provide numbers of entries for this command.
+            Invalid numbers will be ignored.
+            Press enter with an empty line to go back to command menu.
+            """))
+
+        if len(num_string) == 0:
+            done = True
+            num_list = None
+            break
+
+        num_list = Util.parse_int_string(num_string)
+
+        while True:
+            answer = rawest_input(textwrap.dedent(
+                """\
+                Happy with {}?
+                (If indices are too big/small, they'll be pulled out later.)
+                (No will let you try again)
+                [Yes/yes/y or No/no/n]
+                """.format(num_list)))
+
+            if len(answer) < 1:
+                continue
+
+            ans = answer.lower()[0]
+            if ans == "y":
+                done = True
+                break
+
+            elif ans == "n":
+                break
+
+    return num_list
 
 
 # Helpers.
