@@ -20,12 +20,14 @@ with codecs.open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
     VERSION = f.read()
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
-INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "pyyaml", "requests", "u-msgpack-python"]
+INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "future", "pyyaml", "requests",
+                    "u-msgpack-python"]
+
 if sys.version_info < (3, 4):
     INSTALL_REQUIRES += ["enum34"]
 
 setup(author="Andrew Michaud",
-      author_email="andrewjmichaud+puckfetcher@gmail.com",
+      author_email="puckfetcher@mail.andrewmichaud.com",
 
       classifiers=["Development Status :: 4 - Beta",
                    "Environment :: Console",
@@ -47,7 +49,7 @@ setup(author="Andrew Michaud",
       description="A simple command-line podcatcher.",
 
       download_url="https://github.com/andrewmichaud/puckfetcher/archive/" +
-                   "v{}.tar.gz".format(VERSION),
+      "v{}.tar.gz".format(VERSION),
 
       entry_points={
           "console_scripts": ["puckfetcher = puckfetcher.__main__:main"]

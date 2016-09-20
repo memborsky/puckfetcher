@@ -2,6 +2,8 @@
 import os
 import random
 import string
+# pylint: disable=redefined-builtin
+from builtins import dict
 from future.utils import viewitems
 
 import pytest
