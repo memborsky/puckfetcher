@@ -5,6 +5,8 @@ puckfetcher
 | |Build Status|
 | |Coverage Status|
 | |Issue Count|
+.. image:: https://badge.fury.io/py/puckfetcher.svg
+    :target: https://badge.fury.io/py/puckfetcher
 .. image:: https://badge.waffle.io/andrewmichaud/puckfetcher.png?label=ready&title=Ready 
  :target: https://waffle.io/andrewmichaud/puckfetcher
  :alt: 'Stories in Ready'
