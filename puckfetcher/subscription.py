@@ -88,21 +88,6 @@ class Subscription(object):
 
         sub.directory = sub_dictionary.get("directory", None)
 
-        # NOTE - Deprecate eventually.
-        if "download_backlog" in sub_dictionary.keys():
-            if sub_dictionary["download_backlog"]:
-                sub.backlog_limit = sub_dictionary["backlog_limit"]
-            else:
-                sub.backlog_limit = 0
-
-        # NOTE - deprecate eventually.
-        if "_current_url" in sub_dictionary.keys():
-            sub.url = sub_dictionary["_current_url"]
-
-        # NOTE - deprecate eventually.
-        if "_provided_url" in sub_dictionary.keys():
-            sub.original_url = sub_dictionary["_provided_url"]
-
         sub.backlog_limit = sub_dictionary.get("backlog_limit", 0)
         sub.use_title_as_filename = sub_dictionary.get("use_title_as_filename", None)
         sub.feed_state = _FeedState(feedstate_dict=sub_dictionary.get("feed_state", None))
@@ -368,7 +353,6 @@ class Subscription(object):
 
         # NOTE - directory is set separately, because we'll want to create it.
         # These are just plain options.
-
         if self.backlog_limit is None:
             self.backlog_limit = settings["backlog_limit"]
 
@@ -483,13 +467,10 @@ class Subscription(object):
         else:
             last_mod = None
 
-        # Not sure why pylint can't work this out.
-        # pylint: disable=no-member
         parsed = feedparser.parse(self.url, etag=self.feed_state.etag, modified=last_mod)
 
         self.feed_state.etag = parsed.get("etag", self.feed_state.etag)
-        self.feed_state.store_last_modified(
-            parsed.get("modified_parsed", self.feed_state.last_modified))
+        self.feed_state.store_last_modified(parsed.get("modified_parsed", None))
 
         # Detect bozo errors (malformed RSS/ATOM feeds).
         if "status" not in parsed and parsed.get("bozo", None) == 1:
@@ -631,14 +612,8 @@ class _FeedState(object):
             self.entries_state_dict = feedstate_dict.get("entries_state_dict", {})
             self.queue = deque(feedstate_dict.get("queue", []))
 
-            # NOTE: This should be deprecated eventually.
-            temp_date = feedstate_dict.get("last_modified", None)
-            if isinstance(temp_date, time.struct_time):
-                LOG.debug("Loading type time.struct_time last_modified.")
-                self.last_modified = datetime.fromtimestamp(mktime(temp_date))
-            else:
-                LOG.debug("Refusing to load unsupported type.")
-                self.last_modified = None
+            last_modified = feedstate_dict.get("last_modified", None)
+            self.store_last_modified(last_modified)
 
             self.etag = feedstate_dict.get("etag", None)
             self.latest_entry_number = feedstate_dict.get("latest_entry_number", None)
@@ -680,11 +655,8 @@ class _FeedState(object):
     def store_last_modified(self, last_modified):
         """Store last_modified as a datetime, regardless of form it's provided in."""
         if isinstance(last_modified, time.struct_time):
+            LOG.info("Updated last_modified.")
             self.last_modified = datetime.fromtimestamp(mktime(last_modified))
-        elif isinstance(last_modified, datetime):
-            self.last_modified = last_modified
-        elif isinstance(last_modified, type(None)):
-            LOG.info("last_modified is None, ignoring.")
         else:
             LOG.warning("Unhandled type, ignoring.")
 
