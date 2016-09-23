@@ -157,36 +157,42 @@ def test_attempt_download_partial_backlog(strdir):
     for i in range(0, 4):
         _check_hi_contents(i, sub.directory)
 
-def test_mark(sub):
+def test_mark(sub_with_entries):
     """Should mark subscription entries correctly."""
-    for entry_downloaded in sub.feed_state.entries_state_dict.values():
+    assert len(sub_with_entries.feed_state.entries) > 0
+    for entry_downloaded in sub_with_entries.feed_state.entries_state_dict.values():
         assert not entry_downloaded
 
     test_nums = [2, 3, 4, 5]
     bad_nums = [-1, -12, 10000]
     all_nums = bad_nums + test_nums + bad_nums
 
-    sub.mark(all_nums)
+    sub_with_entries.mark(all_nums)
 
-    for (key, value) in viewitems(sub.feed_state.entries_state_dict):
-        if key in test_nums:
+    assert len(sub_with_entries.feed_state.entries_state_dict) > 0
+    print(sub_with_entries.feed_state.entries_state_dict)
+    print(sub_with_entries.feed_state.entries)
+    for (zero_indexed_key, value) in viewitems(sub_with_entries.feed_state.entries_state_dict):
+        if zero_indexed_key+1 in test_nums:
             assert value
         else:
             assert not value
 
-def test_unmark(sub):
+def test_unmark(sub_with_entries):
     """Should unmark subscription entries correctly."""
-    for key in sub.feed_state.entries_state_dict:
-        sub.feed_state.entries_state_dict[key] = True
+    assert len(sub_with_entries.feed_state.entries) > 0
+    for key in sub_with_entries.feed_state.entries_state_dict:
+        sub_with_entries.feed_state.entries_state_dict[key] = True
 
     test_nums = [2, 3, 4, 5]
     bad_nums = [-1, -12, 10000]
     all_nums = bad_nums + test_nums + bad_nums
 
-    sub.unmark(all_nums)
+    sub_with_entries.unmark(all_nums)
 
-    for (key, value) in viewitems(sub.feed_state.entries_state_dict):
-        if key in test_nums:
+    assert len(sub_with_entries.feed_state.entries_state_dict) > 0
+    for (zero_indexed_key, value) in viewitems(sub_with_entries.feed_state.entries_state_dict):
+        if zero_indexed_key+1 in test_nums:
             assert not value
         else:
             assert value
@@ -223,3 +229,10 @@ def salt():
 def sub(strdir):
     """Create a test subscription."""
     return SUB.Subscription(url="test", name="test", directory=strdir)
+
+@pytest.fixture(scope="function")
+def sub_with_entries(sub):
+    """Create a test subscription with faked entries."""
+    sub.feed_state.entries = list(range(0, 20))
+
+    return sub
