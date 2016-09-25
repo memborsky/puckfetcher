@@ -3,6 +3,7 @@
 import collections
 import logging
 import os
+
 from enum import Enum
 
 import umsgpack
@@ -43,8 +44,8 @@ class Config(object):
         self.cache_map = {"by_name": {}, "by_url": {}}
 
         command_pairs = (
-            (Command.update_once,
-             "Update subscriptions once. Will also download sub queues."),
+            (Command.update,
+             "Update all subscriptions. Will also download sub queues."),
             (Command.list, "List current subscriptions and their status."),
             (Command.details,
              "Provide details on one subscription's entries and queue status."),
@@ -127,7 +128,7 @@ class Config(object):
             LOG.error(msg)
             return (False, msg)
 
-    def update_once(self):
+    def update(self):
         """Update all subscriptions once. Return True if we successfully updated."""
         if _ensure_loaded(self):
             num_subs = len(self.subscriptions)
@@ -342,9 +343,7 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
 
 class Command(Enum):
     """Commands a Config can perform."""
-    update_once = 100
-    update_forever = 200
-    load = 300
+    update = 100
     list = 400
     details = 500
     enqueue = 600

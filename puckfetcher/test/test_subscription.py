@@ -160,12 +160,13 @@ def test_attempt_download_partial_backlog(strdir):
 def test_mark(sub_with_entries):
     """Should mark subscription entries correctly."""
     assert len(sub_with_entries.feed_state.entries) > 0
-    for entry_downloaded in sub_with_entries.feed_state.entries_state_dict.values():
-        assert not entry_downloaded
 
     test_nums = [2, 3, 4, 5]
     bad_nums = [-1, -12, 10000]
     all_nums = bad_nums + test_nums + bad_nums
+
+    for entry_downloaded in sub_with_entries.feed_state.entries_state_dict.values():
+        assert not entry_downloaded
 
     sub_with_entries.mark(all_nums)
 
