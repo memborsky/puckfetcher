@@ -9,6 +9,10 @@ import platform
 import textwrap
 import time
 from time import mktime
+
+# NOTE - Python 2 shim.
+# pylint: disable=redefined-builtin
+from builtins import range
 from collections import deque
 from datetime import datetime
 from enum import Enum
@@ -17,14 +21,8 @@ import feedparser
 import requests
 
 import puckfetcher.constants as CONSTANTS
-import puckfetcher.error as ERROR
+import puckfetcher.error as Error
 import puckfetcher.util as Util
-
-try:
-    xrange
-except NameError:
-    # pylint: disable=invalid-name
-    xrange = range
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
 HEADERS = {"User-Agent": CONSTANTS.USER_AGENT}
@@ -44,7 +42,7 @@ class Subscription(object):
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
         if url is None or url == "":
-            raise ERROR.MalformedSubscriptionError("No URL provided.")
+            raise Error.MalformedSubscriptionError("No URL provided.")
         else:
             LOG.debug("Storing provided url '%s'.", url)
             self.url = url
@@ -52,13 +50,16 @@ class Subscription(object):
 
         # Maintain name of podcast.
         if name is None or name == "":
-            raise ERROR.MalformedSubscriptionError("No name provided.")
+            raise Error.MalformedSubscriptionError("No name provided.")
         else:
             LOG.debug("Provided name '%s'.", name)
             self.name = name
 
         # Our file downloader.
         self.downloader = Util.generate_downloader(HEADERS, self.name)
+
+        # Our wrapper around feedparser's parse for rate limiting.
+        self.parser = _generate_feedparser(self.name)
 
         # Store feed state, including etag/last_modified.
         self.feed_state = _FeedState()
@@ -199,7 +200,7 @@ class Subscription(object):
             number_to_download)
 
         # Queuing feeds in order of age makes the most sense for RSS feeds, so we do that.
-        age_range = xrange(self.feed_state.latest_entry_number, number_feeds)
+        age_range = range(self.feed_state.latest_entry_number, number_feeds)
         for i in age_range:
             self.feed_state.queue.append(i+1)
         self.download_queue()
@@ -320,7 +321,7 @@ class Subscription(object):
     def update(self, directory=None, config_dir=None, url=None, set_original=False, name=None):
         """Update values for this subscription."""
         if directory == "":
-            raise ERROR.InvalidConfigError(desc=textwrap.dedent(
+            raise Error.InvalidConfigError(desc=textwrap.dedent(
                 """\
                 Provided invalid sub directory '{}' for '{}'.\
                 """.format(directory, self.name)))
@@ -363,6 +364,7 @@ class Subscription(object):
             self.feed_state = _FeedState()
 
         self.downloader = Util.generate_downloader(HEADERS, self.name)
+        self.parser = _generate_feedparser(self.name)
 
     def get_status(self, index, total_subs):
         """Provide status of subscription."""
@@ -385,7 +387,7 @@ class Subscription(object):
         detail_lines.append("Status of podcast entries:")
 
         entry_indicators = []
-        for i in xrange(num_entries+1):
+        for i in range(num_entries+1):
             if i in self.feed_state.entries_state_dict.keys():
                 entry_indicators.append("{}+".format(str(i+1).zfill(pad_num)))
             else:
@@ -398,7 +400,6 @@ class Subscription(object):
     def get_feed(self, attempt_count=0):
         """Get RSS structure for this subscription. Return status code indicating result."""
 
-        @Util.rate_limited(self.url, 120, self.name)
         def _helper():
             res = None
             if attempt_count > MAX_RECURSIVE_ATTEMPTS:
@@ -467,7 +468,7 @@ class Subscription(object):
         else:
             last_mod = None
 
-        parsed = feedparser.parse(self.url, etag=self.feed_state.etag, modified=last_mod)
+        parsed = self.parser(self.url, self.feed_state.etag, last_mod)
 
         self.feed_state.etag = parsed.get("etag", self.feed_state.etag)
         self.feed_state.store_last_modified(parsed.get("modified_parsed", None))
@@ -538,9 +539,9 @@ class Subscription(object):
                     Saw status %s indicating permanent URL change.
                     Changing stored URL %s for %s to %s and attempting get with new URL.\
                     """),
-                status, self.url, self.name, parsed.href)
+                status, self.url, self.name, parsed.get("href"))
 
-            self.url = parsed.href
+            self.url = parsed.get("href")
             result = UpdateResult.ATTEMPT_AGAIN
 
         elif status in [requests.codes["FOUND"], requests.codes["SEE_OTHER"],
@@ -551,10 +552,10 @@ class Subscription(object):
                     Saw status %s indicating temporary URL change.
                     Attempting with new URL %s. Stored URL %s for %s will be unchanged.\
                     """),
-                status, parsed.href, self.url, self.name)
+                status, parsed.get("href"), self.url, self.name)
 
             self.temp_url = self.url
-            self.url = parsed.href
+            self.url = parsed.get("href")
             result = UpdateResult.ATTEMPT_AGAIN
 
         elif status != 200:
@@ -632,7 +633,7 @@ class _FeedState(object):
     def load_rss_info(self, parsed):
         """Load some RSS subscription elements into this feed state."""
         self.entries = []
-        for entry in parsed["entries"]:
+        for entry in parsed.get("entries"):
             new_entry = {}
             new_entry["title"] = entry["title"]
 
@@ -686,6 +687,15 @@ def _filter_nums(nums, min_lim, max_lim):
             actual_nums.append(num)
 
     return actual_nums
+
+def _generate_feedparser(name):
+    """ Generate rate-limited wrapper around feedparser."""
+
+    @Util.rate_limited(120, name)
+    def _rate_limited_parser(url, etag, last_modified):
+        return feedparser.parse(url, etag=etag, modified=last_modified)
+
+    return _rate_limited_parser
 
 
 # pylint: disable=too-few-public-methods

@@ -7,6 +7,10 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 import textwrap
+
+# NOTE - Python 2 shim.
+# pylint: disable=redefined-builtin
+from builtins import input
 from enum import Enum
 
 from clint.textui import prompt
@@ -14,12 +18,6 @@ from clint.textui import prompt
 import puckfetcher.constants as CONSTANTS
 import puckfetcher.config as Config
 import puckfetcher.util as Util
-
-try:
-    rawest_input = raw_input
-except NameError:
-    rawest_input = input
-
 
 # TODO consolidate printing and logging into one log handler.
 # 'logs' to stdout shouldn't hove date/time stuff and should only be info level or above, unless
@@ -87,8 +85,8 @@ def main():
 
 # TODO find a way to simplify and/or push logic into Config.
 def _handle_command(command, config, command_options):
-    if command == Config.Command.update_once.name:
-        (res, msg) = config.update_once()
+    if command == Config.Command.update.name:
+        (res, msg) = config.update()
 
     elif command == Config.Command.list.name:
         (res, msg) = config.list()
@@ -104,7 +102,7 @@ def _handle_command(command, config, command_options):
         print("COMMAND - {}".format(command))
         entry_nums = _choose_entries()
         if entry_nums is None:
-            (res, msg) = (False, "Canceled enqueuing.")
+            (res, msg) = (False, "Canceled.")
         else:
             (res, msg) = config.enqueue(sub_index, entry_nums)
 
@@ -114,7 +112,7 @@ def _handle_command(command, config, command_options):
         print("COMMAND - {}".format(command))
         entry_nums = _choose_entries()
         if entry_nums is None:
-            (res, msg) = (False, "Canceled marking.")
+            (res, msg) = (False, "Canceled.")
         else:
             (res, msg) = config.mark(sub_index, entry_nums)
 
@@ -124,7 +122,7 @@ def _handle_command(command, config, command_options):
         print("COMMAND - {}".format(command))
         entry_nums = _choose_entries()
         if entry_nums is None:
-            (res, msg) = (False, "Canceled unmarking.")
+            (res, msg) = (False, "Canceled.")
         else:
             (res, msg) = config.unmark(sub_index, entry_nums)
 
@@ -155,7 +153,7 @@ def _choose_sub(config):
 def _choose_entries():
     done = False
     while not done:
-        num_string = rawest_input(textwrap.dedent(
+        num_string = input(textwrap.dedent(
             """
             Provide numbers of entries for this command.
             Invalid numbers will be ignored.
@@ -170,7 +168,7 @@ def _choose_entries():
         num_list = Util.parse_int_string(num_string)
 
         while True:
-            answer = rawest_input(textwrap.dedent(
+            answer = input(textwrap.dedent(
                 """\
                 Happy with {}?
                 (If indices are too big/small, they'll be pulled out later.)
@@ -220,15 +218,16 @@ def _setup_program_arguments():
                         help=textwrap.dedent(
                             """\
                             Command to run, one of:
-                            exit - exit
-                            update_once - update all subscriptions once, and force queue download
-                            list - list current subscriptions
+                            exit    - exit
+                            update  - update all subscriptions to get newest entries list, and force
+                                      queue download
+                            list    - list current subscriptions
                             details - provide details on entries for a subscription
                             enqueue - add to download queue for subscription
-                            mark - mark entry downloaded for subcription
-                            unmark - mark entry as not downloaded for a subcription
-                            download_queue - cause subcription to download full queue
-                            menu - provide these options in a menu\
+                            mark    - mark entry downloaded for subcription
+                            unmark  - mark entry as not downloaded for a subscription
+                            download_queue - cause subscription to download full queue
+                            menu    - provide these options in a menu\
                             """))
 
     parser.add_argument("--cache", "-a", dest="cache",
