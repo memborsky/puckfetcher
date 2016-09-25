@@ -1,26 +1,21 @@
 """Tests for the subscription module."""
 
 import os
-import string
 
 from future.utils import viewitems
 
-import feedparser
 import pytest
 
 import puckfetcher.error as PE
 import puckfetcher.subscription as SUB
 
-HERE = os.path.abspath(os.path.dirname(__file__))
+RSS_ADDRESS = "valid"
+PERM_REDIRECT = "301"
+TEMP_REDIRECT = "302"
+NOT_FOUND = "404"
+GONE = "410"
 
-RSS_TEST_HOST = "https://www.andrewmichaud.com/"
-RSS_ADDRESS = RSS_TEST_HOST + "rss.xml"
-LOCAL_RESOURCE_ADDRESS = "txt/hi.txt"
-REMOTE_RESOURCE_ADDRESS = "https://www.andrewmichaud.com/txt/hi.txt"
-HTTP_302_ADDRESS = RSS_TEST_HOST + "302"
-HTTP_301_ADDRESS = RSS_TEST_HOST + "301"
-HTTP_404_ADDRESS = RSS_TEST_HOST + "404"
-HTTP_410_ADDRESS = RSS_TEST_HOST + "410"
+ERROR_CASES = [TEMP_REDIRECT, PERM_REDIRECT, NOT_FOUND, GONE]
 
 
 def test_empty_url_cons(strdir):
@@ -61,108 +56,108 @@ def test_none_name_cons(strdir):
 
 def test_get_feed_max(strdir):
     """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
-    sub = SUB.Subscription(url=HTTP_302_ADDRESS, name="tooManyAttemptsTest", directory=strdir)
+    test_sub = SUB.Subscription(url=PERM_REDIRECT, name="tooManyAttemptsTest", directory=strdir)
 
-    sub.get_feed(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
+    test_sub.get_feed(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
 
-    assert sub.feed_state.feed == {}
-    assert sub.feed_state.entries == []
+    assert test_sub.feed_state.feed == {}
+    assert test_sub.feed_state.entries == []
 
 def test_temporary_redirect(strdir):
     """
     If we are redirected temporarily to a valid RSS feed, we should successfully parse that
     feed and not change our url. The originally provided URL should be unchanged.
     """
-    _test_url_helper(strdir, HTTP_302_ADDRESS, "302Test", HTTP_302_ADDRESS, HTTP_302_ADDRESS)
+    _test_url_helper(strdir, TEMP_REDIRECT, "302Test", TEMP_REDIRECT, TEMP_REDIRECT)
 
 def test_permanent_redirect(strdir):
     """
     If we are redirected permanently to a valid RSS feed, we should successfully parse that
     feed and change our url. The originally provided URL should be unchanged.
     """
-    _test_url_helper(strdir, HTTP_301_ADDRESS, "301Test", RSS_ADDRESS, HTTP_301_ADDRESS)
+    _test_url_helper(strdir, PERM_REDIRECT, "301Test", RSS_ADDRESS, PERM_REDIRECT)
 
 def test_not_found_fails(strdir):
     """If the URL is Not Found, we should not change the saved URL."""
-    _test_url_helper(strdir, HTTP_404_ADDRESS, "404Test", HTTP_404_ADDRESS, HTTP_404_ADDRESS)
+    _test_url_helper(strdir, NOT_FOUND, "404Test", NOT_FOUND, NOT_FOUND)
 
 def test_gone_fails(strdir):
     """If the URL is Gone, the current url should be set to None, and we should return None."""
 
-    sub = SUB.Subscription(url=HTTP_410_ADDRESS, name="410Test", directory=strdir)
+    test_sub = SUB.Subscription(url=GONE, name="410Test", directory=strdir)
 
-    sub.use_backlog = True
-    sub.backlog_limit = 1
-    sub.use_title_as_filename = False
+    test_sub.use_backlog = True
+    test_sub.backlog_limit = 1
+    test_sub.use_title_as_filename = False
 
-    sub.downloader = generate_fake_downloader()
-    sub.parser = generate_feedparser()
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
 
-    sub.get_feed()
+    test_sub.get_feed()
 
-    assert sub.url is None
-    assert sub.original_url == HTTP_410_ADDRESS
+    assert test_sub.url is None
+    assert test_sub.original_url == GONE
 
 def test_new_attempt_update(strdir):
     """Attempting update on a new subscription (no backlog) should download nothing."""
     test_dir = strdir
-    sub = SUB.Subscription(url="foo", name="foo", directory=test_dir)
-    sub.downloader = generate_fake_downloader()
-    sub.parser = generate_feedparser()
+    test_sub = SUB.Subscription(url="foo", name="foo", directory=test_dir)
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
 
-    sub.attempt_update()
+    test_sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
 
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
     test_dir = strdir
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="bar", directory=test_dir)
-    sub.downloader = generate_fake_downloader()
-    sub.parser = generate_feedparser()
+    test_sub = SUB.Subscription(url=RSS_ADDRESS, name="bar", directory=test_dir)
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
 
     assert len(os.listdir(test_dir)) == 0
 
-    sub.feed_state.latest_entry_number = 9
+    test_sub.feed_state.latest_entry_number = 9
 
-    sub.attempt_update()
-    assert sub.feed_state.latest_entry_number == 10
+    test_sub.attempt_update()
+    assert test_sub.feed_state.latest_entry_number == 10
     assert len(os.listdir(test_dir)) == 1
     _check_hi_contents(0, test_dir)
 
 def test_attempt_download_backlog(strdir):
     """Should download full backlog if backlog limit set to None."""
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
-    sub.downloader = generate_fake_downloader()
-    sub.parser = generate_feedparser()
+    test_sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
 
-    sub.use_backlog = True
-    sub.backlog_limit = None
-    sub.use_title_as_filename = False
+    test_sub.use_backlog = True
+    test_sub.backlog_limit = None
+    test_sub.use_title_as_filename = False
 
-    sub.attempt_update()
+    test_sub.attempt_update()
 
-    assert len(sub.feed_state.entries) == 10
-    assert len(os.listdir(sub.directory)) == 10
+    assert len(test_sub.feed_state.entries) == 10
+    assert len(os.listdir(test_sub.directory)) == 10
     for i in range(1, 9):
-        _check_hi_contents(i, sub.directory)
+        _check_hi_contents(i, test_sub.directory)
 
 def test_attempt_download_partial_backlog(strdir):
     """Should download partial backlog if limit is specified."""
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5, directory=strdir)
+    test_sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5, directory=strdir)
 
-    sub.downloader = generate_fake_downloader()
-    sub.parser = generate_feedparser()
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
 
     # TODO find a cleaner way to set these.
-    # Maybe Subscription should handle these attributes missing better?
+    # Maybe test_subscription should handle these attributes missing better?
     # Maybe have a cleaner way to hack them in in tests?
-    sub.use_backlog = True
-    sub.backlog_limit = 4
-    sub.use_title_as_filename = False
-    sub.attempt_update()
+    test_sub.use_backlog = True
+    test_sub.backlog_limit = 4
+    test_sub.use_title_as_filename = False
+    test_sub.attempt_update()
 
     for i in range(0, 4):
-        _check_hi_contents(i, sub.directory)
+        _check_hi_contents(i, test_sub.directory)
 
 def test_mark(sub_with_entries):
     """Should mark subscription entries correctly."""
@@ -239,11 +234,36 @@ def generate_fake_downloader():
 def generate_feedparser():
     """Feedparser wrapper without rate_limiting, for testing."""
 
-    def _rate_limited_parser(url, etag, last_modified):
+    # pylint: disable=unused-argument
+    def _fake_parser(url, etag, last_modified):
 
-        return feedparser.parse(url, etag=etag, modified=last_modified)
+        fake_parsed = {}
+        entries = []
+        href = ""
+        for i in range(0, 10):
+            entry = {}
+            entry["title"] = "hi"
 
-    return _rate_limited_parser
+            entry["enclosures"] = [{"href": "hi0{}.txt".format(i)}]
+
+            entries.append(entry)
+
+        if url in ERROR_CASES:
+            status = int(url)
+
+            if url == PERM_REDIRECT or url == TEMP_REDIRECT:
+                href = RSS_ADDRESS
+
+        else:
+            status = 200
+
+        fake_parsed["entries"] = entries
+        fake_parsed["href"] = href
+        fake_parsed["status"] = status
+
+        return fake_parsed
+
+    return _fake_parser
 
 
 # Fixtures.
