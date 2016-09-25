@@ -9,6 +9,10 @@ import platform
 import textwrap
 import time
 from time import mktime
+
+# NOTE - Python 2 shim.
+# pylint: disable=redefined-builtin
+from builtins import range
 from collections import deque
 from datetime import datetime
 from enum import Enum
@@ -17,14 +21,8 @@ import feedparser
 import requests
 
 import puckfetcher.constants as CONSTANTS
-import puckfetcher.error as ERROR
+import puckfetcher.error as Error
 import puckfetcher.util as Util
-
-try:
-    xrange
-except NameError:
-    # pylint: disable=invalid-name
-    xrange = range
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
 HEADERS = {"User-Agent": CONSTANTS.USER_AGENT}
@@ -44,7 +42,7 @@ class Subscription(object):
         # Maintain separate data members for originally provided URL and URL we may develop due to
         # redirects.
         if url is None or url == "":
-            raise ERROR.MalformedSubscriptionError("No URL provided.")
+            raise Error.MalformedSubscriptionError("No URL provided.")
         else:
             LOG.debug("Storing provided url '%s'.", url)
             self.url = url
@@ -52,7 +50,7 @@ class Subscription(object):
 
         # Maintain name of podcast.
         if name is None or name == "":
-            raise ERROR.MalformedSubscriptionError("No name provided.")
+            raise Error.MalformedSubscriptionError("No name provided.")
         else:
             LOG.debug("Provided name '%s'.", name)
             self.name = name
@@ -199,7 +197,7 @@ class Subscription(object):
             number_to_download)
 
         # Queuing feeds in order of age makes the most sense for RSS feeds, so we do that.
-        age_range = xrange(self.feed_state.latest_entry_number, number_feeds)
+        age_range = range(self.feed_state.latest_entry_number, number_feeds)
         for i in age_range:
             self.feed_state.queue.append(i+1)
         self.download_queue()
@@ -320,7 +318,7 @@ class Subscription(object):
     def update(self, directory=None, config_dir=None, url=None, set_original=False, name=None):
         """Update values for this subscription."""
         if directory == "":
-            raise ERROR.InvalidConfigError(desc=textwrap.dedent(
+            raise Error.InvalidConfigError(desc=textwrap.dedent(
                 """\
                 Provided invalid sub directory '{}' for '{}'.\
                 """.format(directory, self.name)))
@@ -385,7 +383,7 @@ class Subscription(object):
         detail_lines.append("Status of podcast entries:")
 
         entry_indicators = []
-        for i in xrange(num_entries+1):
+        for i in range(num_entries+1):
             if i in self.feed_state.entries_state_dict.keys():
                 entry_indicators.append("{}+".format(str(i+1).zfill(pad_num)))
             else:

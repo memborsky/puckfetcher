@@ -3,10 +3,11 @@
 import logging
 import os
 import time
-try:
-    from urlparse import urlparse
-except ImportError:
-    # pylint: disable=no-name-in-module, import-error
+
+# NOTE - Python 2 shim.
+from future.standard_library import hooks
+
+with hooks():
     from urllib.parse import urlparse
 
 import requests
