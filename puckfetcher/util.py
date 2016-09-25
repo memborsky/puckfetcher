@@ -4,34 +4,20 @@ import logging
 import os
 import time
 
-# NOTE - Python 2 shim.
-from future.standard_library import hooks
-
-with hooks():
-    from urllib.parse import urlparse
-
 import requests
+
 from clint.textui import progress
 
 LOG = logging.getLogger("root")
 
 LAST_CALLED = {}
 
-# I'm unsure if this the best way to do this.
-# TODO don't support andrewmichaud.com, we should have proper local file support eventually, and
-# run tests with that.
-RATELIMIT_DOMAIN_WHITELIST = ["andrewmichaud.com"]
-
-
 def generate_downloader(headers, args):
     """Create function to download with rate limiting and text progress."""
 
     def _downloader(url, dest):
-        domain = urlparse(url).netloc
-        if domain == "":
-            domain = "localhost"
 
-        @rate_limited(domain, 30, args)
+        @rate_limited(30, args)
         def _rate_limited_download():
 
             # Create parent directory of file, and its parents, if they don't exist.
@@ -113,7 +99,7 @@ def parse_int_string(int_string):
 
 
 # Modified from https://stackoverflow.com/a/667706
-def rate_limited(domain, max_per_hour, *args):
+def rate_limited(max_per_hour, *args):
     """Decorator to limit function to N calls/hour."""
     min_interval = 3600.0 / float(max_per_hour)
 
@@ -134,7 +120,7 @@ def rate_limited(domain, max_per_hour, *args):
             LOG.debug("Rate limiter last called for '%s' at %s.", key, last_called)
             LOG.debug("Remaining cooldown time for '%s' is %s.", key, remaining)
 
-            if not skip_rate_limiting(domain) and remaining > 0 and last_called > 0.0:
+            if remaining > 0 and last_called > 0.0:
                 LOG.info("Self-enforced rate limit hit, sleeping %s seconds.", remaining)
                 time.sleep(remaining)
 
@@ -145,13 +131,3 @@ def rate_limited(domain, max_per_hour, *args):
 
         return _rate_limited_function
     return _decorate
-
-def skip_rate_limiting(domain):
-    """Provide a hack to skip rate limiting during tests, for certain domains."""
-    res = False
-    for sub_url in RATELIMIT_DOMAIN_WHITELIST:
-        if sub_url in domain:
-            res = True
-            break
-
-    return res

@@ -1,11 +1,11 @@
 """Tests for the subscription module."""
+
 import os
-import random
 import string
-# pylint: disable=redefined-builtin
-from builtins import dict
+
 from future.utils import viewitems
 
+import feedparser
 import pytest
 
 import puckfetcher.error as PE
@@ -14,7 +14,6 @@ import puckfetcher.subscription as SUB
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 RSS_TEST_HOST = "https://www.andrewmichaud.com/"
-# RSS_ADDRESS = os.path.join(HERE, "rss.xml")
 RSS_ADDRESS = RSS_TEST_HOST + "rss.xml"
 LOCAL_RESOURCE_ADDRESS = "txt/hi.txt"
 REMOTE_RESOURCE_ADDRESS = "https://www.andrewmichaud.com/txt/hi.txt"
@@ -60,31 +59,28 @@ def test_none_name_cons(strdir):
 
     assert exception.value.desc == "No name provided."
 
-def test_get_feed_max(strdir, salt):
+def test_get_feed_max(strdir):
     """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
-    sub = SUB.Subscription(url=HTTP_302_ADDRESS, name="tooManyAttemptsTest" + salt,
-                           directory=strdir)
+    sub = SUB.Subscription(url=HTTP_302_ADDRESS, name="tooManyAttemptsTest", directory=strdir)
 
-    # TODO tests need to be rewritten to check log output or something.
     sub.get_feed(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
 
     assert sub.feed_state.feed == {}
     assert sub.feed_state.entries == []
 
-def test_temporary_redirect(strdir, salt):
+def test_temporary_redirect(strdir):
     """
     If we are redirected temporarily to a valid RSS feed, we should successfully parse that
     feed and not change our url. The originally provided URL should be unchanged.
     """
-    _test_url_helper(strdir, HTTP_302_ADDRESS, "302Test" + salt, HTTP_302_ADDRESS,
-                     HTTP_302_ADDRESS)
+    _test_url_helper(strdir, HTTP_302_ADDRESS, "302Test", HTTP_302_ADDRESS, HTTP_302_ADDRESS)
 
-def test_permanent_redirect(strdir, salt):
+def test_permanent_redirect(strdir):
     """
     If we are redirected permanently to a valid RSS feed, we should successfully parse that
     feed and change our url. The originally provided URL should be unchanged.
     """
-    _test_url_helper(strdir, HTTP_301_ADDRESS, "301Test" + salt, RSS_ADDRESS, HTTP_301_ADDRESS)
+    _test_url_helper(strdir, HTTP_301_ADDRESS, "301Test", RSS_ADDRESS, HTTP_301_ADDRESS)
 
 def test_not_found_fails(strdir):
     """If the URL is Not Found, we should not change the saved URL."""
@@ -99,6 +95,9 @@ def test_gone_fails(strdir):
     sub.backlog_limit = 1
     sub.use_title_as_filename = False
 
+    sub.downloader = generate_fake_downloader()
+    sub.parser = generate_feedparser()
+
     sub.get_feed()
 
     assert sub.url is None
@@ -108,6 +107,8 @@ def test_new_attempt_update(strdir):
     """Attempting update on a new subscription (no backlog) should download nothing."""
     test_dir = strdir
     sub = SUB.Subscription(url="foo", name="foo", directory=test_dir)
+    sub.downloader = generate_fake_downloader()
+    sub.parser = generate_feedparser()
 
     sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
@@ -115,7 +116,9 @@ def test_new_attempt_update(strdir):
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
     test_dir = strdir
-    sub = SUB.Subscription(url=RSS_ADDRESS, name="foo", directory=test_dir)
+    sub = SUB.Subscription(url=RSS_ADDRESS, name="bar", directory=test_dir)
+    sub.downloader = generate_fake_downloader()
+    sub.parser = generate_feedparser()
 
     assert len(os.listdir(test_dir)) == 0
 
@@ -126,10 +129,11 @@ def test_attempt_update_new_entry(strdir):
     assert len(os.listdir(test_dir)) == 1
     _check_hi_contents(0, test_dir)
 
-# TODO attempt to make tests that are less fragile/dependent on my website configuration/files.
 def test_attempt_download_backlog(strdir):
     """Should download full backlog if backlog limit set to None."""
     sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+    sub.downloader = generate_fake_downloader()
+    sub.parser = generate_feedparser()
 
     sub.use_backlog = True
     sub.backlog_limit = None
@@ -145,6 +149,9 @@ def test_attempt_download_backlog(strdir):
 def test_attempt_download_partial_backlog(strdir):
     """Should download partial backlog if limit is specified."""
     sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5, directory=strdir)
+
+    sub.downloader = generate_fake_downloader()
+    sub.parser = generate_feedparser()
 
     # TODO find a cleaner way to set these.
     # Maybe Subscription should handle these attributes missing better?
@@ -171,8 +178,6 @@ def test_mark(sub_with_entries):
     sub_with_entries.mark(all_nums)
 
     assert len(sub_with_entries.feed_state.entries_state_dict) > 0
-    print(sub_with_entries.feed_state.entries_state_dict)
-    print(sub_with_entries.feed_state.entries)
     for (zero_indexed_key, value) in viewitems(sub_with_entries.feed_state.entries_state_dict):
         if zero_indexed_key+1 in test_nums:
             assert value
@@ -201,6 +206,10 @@ def test_unmark(sub_with_entries):
 # Helpers.
 def _test_url_helper(strdir, given, name, expected_current, expected_original):
     sub = SUB.Subscription(url=given, name=name, directory=strdir)
+
+    sub.downloader = generate_fake_downloader()
+    sub.parser = generate_feedparser()
+
     sub.get_feed()
 
     assert sub.url == expected_current
@@ -213,6 +222,29 @@ def _check_hi_contents(filename_num, directory):
         data = enclosure.read().replace('\n', '')
         assert data == "hi"
 
+def generate_fake_downloader():
+    """Fake downloader for test purposes."""
+
+    def _downloader(url=None, dest=None):
+        contents = "hi"
+
+        open(dest, "a").close()
+        # per http://stackoverflow.com/a/20943461
+        with open(dest, "w") as stream:
+            stream.write(contents)
+            stream.flush()
+
+    return _downloader
+
+def generate_feedparser():
+    """Feedparser wrapper without rate_limiting, for testing."""
+
+    def _rate_limited_parser(url, etag, last_modified):
+
+        return feedparser.parse(url, etag=etag, modified=last_modified)
+
+    return _rate_limited_parser
+
 
 # Fixtures.
 @pytest.fixture(scope="function")
@@ -222,18 +254,17 @@ def strdir(tmpdir):
 
 
 @pytest.fixture(scope="function")
-def salt():
-    """Provide random string to avoid my rate-limiting."""
-    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-
-@pytest.fixture(scope="function")
 def sub(strdir):
     """Create a test subscription."""
-    return SUB.Subscription(url="test", name="test", directory=strdir)
+    test_sub = SUB.Subscription(url="test", name="test", directory=strdir)
+
+    return test_sub
 
 @pytest.fixture(scope="function")
 def sub_with_entries(sub):
     """Create a test subscription with faked entries."""
     sub.feed_state.entries = list(range(0, 20))
+
+    sub.downloader = generate_fake_downloader()
 
     return sub
