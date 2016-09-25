@@ -539,9 +539,9 @@ class Subscription(object):
                     Saw status %s indicating permanent URL change.
                     Changing stored URL %s for %s to %s and attempting get with new URL.\
                     """),
-                status, self.url, self.name, parsed.href)
+                status, self.url, self.name, parsed.get("href"))
 
-            self.url = parsed.href
+            self.url = parsed.get("href")
             result = UpdateResult.ATTEMPT_AGAIN
 
         elif status in [requests.codes["FOUND"], requests.codes["SEE_OTHER"],
@@ -552,10 +552,10 @@ class Subscription(object):
                     Saw status %s indicating temporary URL change.
                     Attempting with new URL %s. Stored URL %s for %s will be unchanged.\
                     """),
-                status, parsed.href, self.url, self.name)
+                status, parsed.get("href"), self.url, self.name)
 
             self.temp_url = self.url
-            self.url = parsed.href
+            self.url = parsed.get("href")
             result = UpdateResult.ATTEMPT_AGAIN
 
         elif status != 200:
@@ -633,7 +633,7 @@ class _FeedState(object):
     def load_rss_info(self, parsed):
         """Load some RSS subscription elements into this feed state."""
         self.entries = []
-        for entry in parsed["entries"]:
+        for entry in parsed.get("entries"):
             new_entry = {}
             new_entry["title"] = entry["title"]
 
