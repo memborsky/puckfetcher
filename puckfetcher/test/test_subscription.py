@@ -167,36 +167,41 @@ def test_mark(sub_with_entries):
     bad_nums = [-1, -12, 10000]
     all_nums = bad_nums + test_nums + bad_nums
 
-    for entry_downloaded in sub_with_entries.feed_state.entries_state_dict.values():
-        assert not entry_downloaded
+    for test_num in test_nums:
+        assert test_num not in sub_with_entries.feed_state.entries_state_dict
 
     sub_with_entries.mark(all_nums)
 
     assert len(sub_with_entries.feed_state.entries_state_dict) > 0
-    for (zero_indexed_key, value) in viewitems(sub_with_entries.feed_state.entries_state_dict):
-        if zero_indexed_key+1 in test_nums:
-            assert value
-        else:
-            assert not value
+    for test_num in test_nums:
+        zero_indexed_num = test_num-1
+        assert zero_indexed_num in sub_with_entries.feed_state.entries_state_dict
+        assert sub_with_entries.feed_state.entries_state_dict[zero_indexed_num]
+
+    for bad_num in bad_nums:
+        assert bad_num not in sub_with_entries.feed_state.entries_state_dict
 
 def test_unmark(sub_with_entries):
     """Should unmark subscription entries correctly."""
     assert len(sub_with_entries.feed_state.entries) > 0
-    for key in sub_with_entries.feed_state.entries_state_dict:
-        sub_with_entries.feed_state.entries_state_dict[key] = True
 
     test_nums = [2, 3, 4, 5]
     bad_nums = [-1, -12, 10000]
     all_nums = bad_nums + test_nums + bad_nums
 
+    for num in test_nums:
+        sub_with_entries.feed_state.entries_state_dict[num-1] = True
+
     sub_with_entries.unmark(all_nums)
 
     assert len(sub_with_entries.feed_state.entries_state_dict) > 0
-    for (zero_indexed_key, value) in viewitems(sub_with_entries.feed_state.entries_state_dict):
-        if zero_indexed_key+1 in test_nums:
-            assert not value
-        else:
-            assert value
+    for test_num in test_nums:
+        zero_indexed_num = test_num-1
+        assert zero_indexed_num in sub_with_entries.feed_state.entries_state_dict
+        assert not sub_with_entries.feed_state.entries_state_dict[zero_indexed_num]
+
+    for bad_num in bad_nums:
+        assert bad_num not in sub_with_entries.feed_state.entries_state_dict
 
 # Helpers.
 def _test_url_helper(strdir, given, name, expected_current, expected_original):
