@@ -58,6 +58,9 @@ class Subscription(object):
         # Our file downloader.
         self.downloader = Util.generate_downloader(HEADERS, self.name)
 
+        # Our wrapper around feedparser's parse for rate limiting.
+        self.parser = _generate_feedparser(self.name)
+
         # Store feed state, including etag/last_modified.
         self.feed_state = _FeedState()
 
@@ -361,6 +364,7 @@ class Subscription(object):
             self.feed_state = _FeedState()
 
         self.downloader = Util.generate_downloader(HEADERS, self.name)
+        self.parser = _generate_feedparser(self.name)
 
     def get_status(self, index, total_subs):
         """Provide status of subscription."""
@@ -396,7 +400,6 @@ class Subscription(object):
     def get_feed(self, attempt_count=0):
         """Get RSS structure for this subscription. Return status code indicating result."""
 
-        @Util.rate_limited(self.url, 120, self.name)
         def _helper():
             res = None
             if attempt_count > MAX_RECURSIVE_ATTEMPTS:
@@ -465,7 +468,7 @@ class Subscription(object):
         else:
             last_mod = None
 
-        parsed = feedparser.parse(self.url, etag=self.feed_state.etag, modified=last_mod)
+        parsed = self.parser(self.url, self.feed_state.etag, last_mod)
 
         self.feed_state.etag = parsed.get("etag", self.feed_state.etag)
         self.feed_state.store_last_modified(parsed.get("modified_parsed", None))
@@ -684,6 +687,15 @@ def _filter_nums(nums, min_lim, max_lim):
             actual_nums.append(num)
 
     return actual_nums
+
+def _generate_feedparser(name):
+    """ Generate rate-limited wrapper around feedparser."""
+
+    @Util.rate_limited(120, name)
+    def _rate_limited_parser(url, etag, last_modified):
+        return feedparser.parse(url, etag=etag, modified=last_modified)
+
+    return _rate_limited_parser
 
 
 # pylint: disable=too-few-public-methods
