@@ -30,7 +30,6 @@ class Config(object):
 
         self.settings = {
             "directory": data_dir,
-            "download_backlog": True,
             "backlog_limit": 1,
             "use_title_as_filename": False
         }
