@@ -5,28 +5,47 @@
 ###################################################################################################
 
 ## Global settings (usable).
-#directory: "$XDG_DATA_HOME" # Should be an absolute path.
-#download_backlog: true
+## Directory to store subscriptions in by default.
+## Subscriptions will live in subdirectories of this directory.
+## Should be an absolute path.
+#directory: "$XDG_DATA_HOME"
+
+## Whether to download backlog of this podcast, and how much of it.
+## 0 means none of the backlog will be downloaded.
+## A positive number means that amount of the backlog will be downloaded.
+## '~' or 'null' means "Download full backlog".
+## Anything else will be ignored
 #backlog_limit: 1
-#use_title_as_filename: false
+
+## When downloading an entry, set the filename to the entry's title.
+##use_title_as_filename: false
 
 ## Example subscription list (don't use without modifying).
 ## These are OS X/Linux directory examples, also - Windows would be different.
 ## subscriptions:
 ##     - name: "Example Podcast"
 ##       url: "https://www.example.com/rss.xml"
-##       download_backlog: False
 ##       # Default directory is name appended to global dir.
+
 ##     - name: "Example Podcast 23"
 ##       url: "https://www.example.com/rss.xml"
-##       download_backlog: True
 ##       backlog_limit: 3
-##       directory: "foo/bar/baz" # Not absolute, appended to global dir.
+##       # This is assumed to not be an absolute path because there's no leading slash, so it will
+##       # be appended to the global directory.
+##       directory: "foo/bar/baz"
+
 ##     - name: "fish"
 ##       url: "http://www.example.com/rss.xml"
 ##       backlog_limit: 4
-##       directory: "/foo/bar/baz" # An absolute path, overrides global dir.
+##       # This is assumed to be an absolute path because of the leading slash, so it will override
+##       # the global directory.
+##       directory: "/foo/bar/baz"
+
 ##     - name: "foo"
 ##       url: "http://www.example.com/rss.xml"
+##       # Download full backlog.
+##       backlog_limit: null
 ##       use_title_as_filename: true
-##       directory: "/foo/foo/foo/foo" # An absolute path, overrides global dir.
+##       # This is assumed to be an absolute path because of the leading slash, so it will override
+##       # the global directory.
+##       directory: "/foo/foo/foo/foo"
