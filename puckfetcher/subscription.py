@@ -660,6 +660,7 @@ class _FeedState(object):
             self.last_modified = datetime.fromtimestamp(mktime(last_modified))
         else:
             LOG.warning("Unhandled type, ignoring.")
+            self.last_modified = None
 
 
 # "Private" file functions (messy internals).
