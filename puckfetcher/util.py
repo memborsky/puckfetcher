@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Utility methods for Python packages (written with puckfetcher in mind)."""
 # NOTE - Python 2 shim.
 from __future__ import unicode_literals

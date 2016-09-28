@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests for the subscription module."""
 # NOTE - Python 2 shim.
 from __future__ import unicode_literals
@@ -208,42 +209,6 @@ def test_unmark(sub_with_entries):
     for bad_num in bad_nums:
         assert bad_num not in sub_with_entries.feed_state.entries_state_dict
 
-    # def _get_dest(self, url, title, directory):
-    #
-    #     # URL example: "https://www.example.com/foo.mp3?test=1"
-    #
-    #     # Cut everything but filename and (possibly) query params.
-    #     # URL example: "foo.mp3?test=1"
-    #     url_end = url.split("/")[-1]
-    #
-    #     # URL example: "foo.mp3?test=1"
-    #     # Cut query params.
-    #     # I think I could assume there's only one '?' after the file extension, but after being
-    #     # surprised by query parameters, I want to be extra careful.
-    #     # URL example: "foo.mp3"
-    #     url_filename = url_end.split("?")[0]
-    #
-    #     filename = url_filename
-    #
-    #     if platform.system() == "Windows":
-    #         LOG.error(textwrap.dedent(
-    #             """\
-    #             Sorry, we can't guarantee valid filenames on Windows if we use RSS
-    #             subscription titles.
-    #             We'll support it eventually!
-    #             Using URL filename.\
-    #             """))
-    #
-    #     elif self.use_title_as_filename:
-    #         ext = os.path.splitext(url_filename)[1][1:]
-    #         filename = "{}.{}".format(title, ext) # It's an owl!
-    #
-    #     # Remove characters we can't allow in filenames.
-    #     filename = Util.sanitize(filename)
-    #
-    #     return os.path.join(directory, filename)
-
-
 def test_url_with_qparams():
     """Test that the _get_dest helper handles query parameters properly."""
     test_sub = SUB.Subscription(url="test", name="test", directory="test")
@@ -261,7 +226,10 @@ def test_url_with_qparams():
     assert filename == "/test/bar.mp3"
 
 def test_url_sanitize():
-    """Test that the _get_dest helper sanitizes correctly on non-Windows."""
+    """
+    Test that the _get_dest helper sanitizes correctly on non-Windows. Only / should need to be
+    replaced
+    """
     test_sub = SUB.Subscription(url="test", name="test", directory="test")
 
     test_sub.use_title_as_filename = True
@@ -270,6 +238,16 @@ def test_url_sanitize():
     filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "p/////uck",
                                   "/test")
     assert filename == "/test/p-----uck.mp3"
+
+    # pylint: disable=protected-access
+    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "p🤔🤔🤔🤔uck",
+                                  "/test")
+    assert filename == "/test/p🤔🤔🤔🤔uck.mp3"
+
+    # pylint: disable=protected-access
+    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "p*%$^\\1uck",
+                                  "/test")
+    assert filename == "/test/p*%$^\\1uck.mp3"
 
 
 # Helpers.

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
 # NOTE - Python 2 shims.
 from __future__ import print_function

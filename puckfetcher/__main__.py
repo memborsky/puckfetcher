@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
 # NOTE - Python 2 shims.
 from __future__ import print_function

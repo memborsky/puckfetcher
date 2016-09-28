@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """setuptools-based setup module for puckfetcher."""
 # NOTE - Python 2 shim.
 from __future__ import unicode_literals

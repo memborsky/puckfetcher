@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests for the config module."""
 # NOTE - Python 2 shim.
 from __future__ import unicode_literals
