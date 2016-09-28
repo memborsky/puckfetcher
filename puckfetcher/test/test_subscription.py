@@ -1,10 +1,12 @@
 """Tests for the subscription module."""
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
 
 import os
 
-from future.utils import viewitems
-
 import pytest
+
+from future.utils import viewitems
 
 import puckfetcher.error as PE
 import puckfetcher.subscription as SUB

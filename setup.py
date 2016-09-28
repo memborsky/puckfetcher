@@ -1,10 +1,13 @@
 """setuptools-based setup module for puckfetcher."""
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
 
 # Modeled on Python sample project setup.py - https://github.com/pypa/sampleproject
 import sys
-from os import path
+
 # pylint: disable=redefined-builtin
 from io import open
+from os import path
 # Prefer setuptools over distutils.
 from setuptools import setup, find_packages
 
@@ -17,6 +20,7 @@ with open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
     VERSION = f.read()
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
+# NOTE - Future needed as a Python 2 shim.
 INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "future", "pyyaml", "requests",
                     "u-msgpack-python"]
 
