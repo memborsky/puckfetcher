@@ -234,7 +234,7 @@ class Subscription(object):
                 if self.feed_state.entries_state_dict.get(entry_num, False):
                     msg = textwrap.dedent(
                         u"""\
-                        SKIPPING entry number {} (age {}) for '{}', recorded as downloaded.
+                        SKIPPING entry number {} (age {}) for '{}', recorded as downloaded.\
                         """).format(
                             entry_num, entry_age, self.name)
 
@@ -245,8 +245,10 @@ class Subscription(object):
                     urls = entry[u"urls"]
                     num_entry_files = len(urls)
 
-                    msg = u"Trying to download entry number {} (age {}) for '{}'."
-                    .format(entry_num, entry_age, self.name)
+                    msg = textwrap.dedent(
+                        u"""Trying to download entry number {} (age {}) for '{}'.\
+                        """).format(
+                            entry_num, entry_age, self.name)
 
                     LOG.info(msg)
                     print(msg)
