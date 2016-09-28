@@ -1,4 +1,6 @@
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
 
 import collections
 import logging
