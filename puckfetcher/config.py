@@ -293,7 +293,8 @@ class Config(object):
         def construct_yaml_str(self, node):
             """Override to force PyYAML to handle unicode on Python 2."""
             return self.construct_scalar(node)
-        SafeLoader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
+
+        SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", construct_yaml_str)
 
         with open(self.config_file, "r") as stream:
             LOG.info("Opening config file to retrieve settings.")
