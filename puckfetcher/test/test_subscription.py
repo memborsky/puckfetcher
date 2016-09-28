@@ -203,18 +203,86 @@ def test_unmark(sub_with_entries):
     for bad_num in bad_nums:
         assert bad_num not in sub_with_entries.feed_state.entries_state_dict
 
+    # def _get_dest(self, url, title, directory):
+    #
+    #     # URL example: "https://www.example.com/foo.mp3?test=1"
+    #
+    #     # Cut everything but filename and (possibly) query params.
+    #     # URL example: "foo.mp3?test=1"
+    #     url_end = url.split("/")[-1]
+    #
+    #     # URL example: "foo.mp3?test=1"
+    #     # Cut query params.
+    #     # I think I could assume there's only one '?' after the file extension, but after being
+    #     # surprised by query parameters, I want to be extra careful.
+    #     # URL example: "foo.mp3"
+    #     url_filename = url_end.split("?")[0]
+    #
+    #     filename = url_filename
+    #
+    #     if platform.system() == "Windows":
+    #         LOG.error(textwrap.dedent(
+    #             """\
+    #             Sorry, we can't guarantee valid filenames on Windows if we use RSS
+    #             subscription titles.
+    #             We'll support it eventually!
+    #             Using URL filename.\
+    #             """))
+    #
+    #     elif self.use_title_as_filename:
+    #         ext = os.path.splitext(url_filename)[1][1:]
+    #         filename = "{}.{}".format(title, ext) # It's an owl!
+    #
+    #     # Remove characters we can't allow in filenames.
+    #     filename = Util.sanitize(filename)
+    #
+    #     return os.path.join(directory, filename)
+
+
+def test_url_with_qparams():
+    """Test that the _get_dest helper handles query parameters properly."""
+    test_sub = SUB.Subscription(url="test", name="test", directory="test")
+
+    test_sub.use_title_as_filename = True
+
+    # pylint: disable=protected-access
+    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "puck", "/test")
+    assert filename == "/test/puck.mp3"
+
+    test_sub.use_title_as_filename = False
+
+    # pylint: disable=protected-access
+    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "puck", "/test")
+    assert filename == "/test/bar.mp3"
+
+def test_url_sanitize():
+    """Test that the _get_dest helper sanitizes correctly on non-Windows."""
+    test_sub = SUB.Subscription(url="test", name="test", directory="test")
+
+    test_sub.use_title_as_filename = True
+
+    # pylint: disable=protected-access
+    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "p/////uck",
+                                  "/test")
+    assert filename == "/test/p-----uck.mp3"
+
+    # pylint: disable=protected-access
+    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", u"p🤔🤔🤔🤔uck",
+                                  "/test")
+    assert filename == u"/test/p🤔🤔🤔🤔uck.mp3"
+
+
 # Helpers.
 def _test_url_helper(strdir, given, name, expected_current, expected_original):
-    sub = SUB.Subscription(url=given, name=name, directory=strdir)
+    test_sub = SUB.Subscription(url=given, name=name, directory=strdir)
 
-    sub.downloader = generate_fake_downloader()
-    sub.parser = generate_feedparser()
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
 
-    sub.get_feed()
+    test_sub.get_feed()
 
-    assert sub.url == expected_current
-    assert sub.original_url == expected_original
-
+    assert test_sub.url == expected_current
+    assert test_sub.original_url == expected_original
 
 def _check_hi_contents(filename_num, directory):
     file_path = os.path.join(directory, "hi0{}.txt".format(filename_num))
