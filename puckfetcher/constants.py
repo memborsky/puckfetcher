@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Constants used for the puckfetcher application."""
 # NOTE - Python 2 shim.
 from __future__ import unicode_literals
