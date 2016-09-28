@@ -10,6 +10,8 @@ from enum import Enum
 
 import umsgpack
 import yaml
+# Python 2/PyPy shims - unicode_literals breaks yaml loading for some reason on those versions.
+from yaml import SafeLoader
 
 import puckfetcher.error as E
 import puckfetcher.subscription as S
@@ -284,6 +286,14 @@ class Config(object):
         """Load user settings from config file."""
         _ensure_file(self.config_file)
         self.subscriptions = []
+
+        # Python 2/PyPy shim, per
+        # https://stackoverflow.com/questions/2890146/how-to-force-pyyaml-to-load-strings-as-unicode-objects
+        # Override the default string handling function to always return unicode objects.
+        def construct_yaml_str(self, node):
+            """Override to force PyYAML to handle unicode on Python 2."""
+            return self.construct_scalar(node)
+        SafeLoader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
 
         with open(self.config_file, "r") as stream:
             LOG.info("Opening config file to retrieve settings.")
