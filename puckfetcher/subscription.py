@@ -2,6 +2,8 @@
 Module for a subscription object, which manages a podcast URL, name, and information about how
 many episodes of the podcast we have.
 """
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
 
 import logging
 import os

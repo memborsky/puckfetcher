@@ -1,4 +1,6 @@
 """Errors for puckfetcher."""
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
 
 # TODO inherit desc from this error in whatever the Python way is.
 class PuckError(Exception):

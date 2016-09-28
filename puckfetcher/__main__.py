@@ -1,4 +1,6 @@
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
 
 import argparse
 from argparse import RawTextHelpFormatter
