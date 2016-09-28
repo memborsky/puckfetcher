@@ -1,5 +1,6 @@
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
-# NOTE - Python 2 shim.
+# NOTE - Python 2 shims.
+from __future__ import print_function
 from __future__ import unicode_literals
 
 import collections
@@ -88,7 +89,7 @@ class Config(object):
                 # If the user has changed either we can still match the sub and update settings
                 # correctly.
                 # If they update neither, there's nothing we can do.
-                if name in self.cache_map["by_name"].keys():
+                if name in self.cache_map["by_name"]:
                     LOG.debug("Found sub with name %s in cached subscriptions, merging.", name)
                     sub = self.cache_map["by_name"][name]
 

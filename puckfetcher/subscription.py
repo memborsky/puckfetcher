@@ -2,7 +2,8 @@
 Module for a subscription object, which manages a podcast URL, name, and information about how
 many episodes of the podcast we have.
 """
-# NOTE - Python 2 shim.
+# NOTE - Python 2 shims.
+from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
@@ -83,7 +84,7 @@ class Subscription(object):
         attrs = ["name", "original_url", "url"]
 
         for attr in attrs:
-            if attr not in sub_dictionary.keys():
+            if attr not in sub_dictionary:
                 LOG.error("Sub to decode is missing %s, can't continue.", attr)
                 return None
             else:
@@ -124,11 +125,11 @@ class Subscription(object):
 
         sub = Subscription.__new__(Subscription)
 
-        if "name" not in sub_yaml.keys():
+        if "name" not in sub_yaml:
             LOG.error("No name provided, name is mandatory!")
             return None
 
-        if "url" not in sub_yaml.keys():
+        if "url" not in sub_yaml:
             LOG.error("No URL provided, URL is mandatory!")
             return None
 
@@ -392,7 +393,7 @@ class Subscription(object):
 
         entry_indicators = []
         for i in range(num_entries+1):
-            if i in self.feed_state.entries_state_dict.keys():
+            if i in self.feed_state.entries_state_dict:
                 entry_indicators.append("{}+".format(str(i+1).zfill(pad_num)))
             else:
                 entry_indicators.append("{}-".format(str(i+1).zfill(pad_num)))

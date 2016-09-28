@@ -1,9 +1,12 @@
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
-# NOTE - Python 2 shim.
+# NOTE - Python 2 shims.
+from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
 from argparse import RawTextHelpFormatter
+# pylint: disable=redefined-builtin
+from builtins import input
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -41,7 +44,7 @@ def main():
 
     index += 1
     config_commands = config.get_commands()
-    for key in config_commands.keys():
+    for key in config_commands:
         value = config.commands[key]
         command_options.append({"selector": str(index), "prompt": value, "return": key.name})
         index += 1
@@ -283,7 +286,7 @@ def _setup_logging(log_dir):
         os.makedirs(log_dir)
 
     if not os.path.isfile(log_filename):
-        open(log_filename, 'a').close()
+        open(log_filename, "a").close()
 
     logger = logging.getLogger("root")
 
