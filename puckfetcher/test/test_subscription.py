@@ -4,6 +4,9 @@ from __future__ import unicode_literals
 
 import os
 
+# pylint: disable=redefined-builtin
+from builtins import range
+
 import pytest
 
 from future.utils import viewitems

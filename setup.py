@@ -19,11 +19,10 @@ with open(path.join(HERE, "README.rst"), encoding="utf-8") as f:
 with open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
     VERSION = f.read()
 
-# Use enum34 to allow enums in Python 3.3 and 2.7.
-# NOTE - Future needed as a Python 2 shim.
 INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "future", "pyyaml", "requests",
                     "u-msgpack-python"]
 
+# Use enum34 to allow enums in Python 3.3 and 2.7.
 if sys.version_info < (3, 4):
     INSTALL_REQUIRES += ["enum34"]
 
