@@ -234,7 +234,7 @@ class Subscription(object):
                 if self.feed_state.entries_state_dict.get(entry_num, False):
                     msg = textwrap.dedent(
                         """\
-                        SKIPPING entry number {} (age {}) for '{}', recorded as downloaded.
+                        SKIPPING entry number {} (age {}) for '{}', recorded as downloaded.\
                         """).format(
                             entry_num, entry_age, self.name)
 
@@ -245,9 +245,11 @@ class Subscription(object):
                     urls = entry["urls"]
                     num_entry_files = len(urls)
 
-                    msg = "Trying to download entry number {} (age {}) for '{}'.".format(entry_num,
-                                                                                         entry_age,
-                                                                                         self.name)
+                    msg = textwrap.dedent(
+                        """Trying to download entry number {} (age {}) for '{}'.\
+                        """).format(
+                            entry_num, entry_age, self.name)
+
                     LOG.info(msg)
                     print(msg)
 
@@ -532,7 +534,8 @@ class Subscription(object):
             result = UpdateResult.FAILURE
 
         # Handle redirecting errors
-        elif status in [requests.codes["MOVED_PERMANENTLY"], requests.codes["PERMANENT_REDIRECT"]]:
+        elif status in [requests.codes["MOVED_PERMANENTLY"],
+                       requests.codes["PERMANENT_REDIRECT"]]:
             LOG.warning(
                 textwrap.dedent(
                     """\
@@ -569,9 +572,23 @@ class Subscription(object):
         return result
 
     def _get_dest(self, url, title, directory):
-        url_filename = url.split("/")[-1]
 
-        if platform.system() == 'Windows':
+        # URL example: "https://www.example.com/foo.mp3?test=1"
+
+        # Cut everything but filename and (possibly) query params.
+        # URL example: "foo.mp3?test=1"
+        url_end = url.split("/")[-1]
+
+        # URL example: "foo.mp3?test=1"
+        # Cut query params.
+        # I think I could assume there's only one '?' after the file extension, but after being
+        # surprised by query parameters, I want to be extra careful.
+        # URL example: "foo.mp3"
+        url_filename = url_end.split("?")[0]
+
+        filename = url_filename
+
+        if platform.system() == "Windows":
             LOG.error(textwrap.dedent(
                 """\
                 Sorry, we can't guarantee valid filenames on Windows if we use RSS
@@ -579,14 +596,10 @@ class Subscription(object):
                 We'll support it eventually!
                 Using URL filename.\
                 """))
-            filename = url_filename
 
         elif self.use_title_as_filename:
             ext = os.path.splitext(url_filename)[1][1:]
             filename = "{}.{}".format(title, ext) # It's an owl!
-
-        else:
-            filename = url_filename
 
         # Remove characters we can't allow in filenames.
         filename = Util.sanitize(filename)
