@@ -21,7 +21,6 @@ with open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
 # NOTE - Future needed as a Python 2 shim.
-from __future__ import unicode_literals
 INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "future", "pyyaml", "requests",
                     "u-msgpack-python"]
 
