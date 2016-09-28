@@ -266,11 +266,6 @@ def test_url_sanitize():
                                   "/test")
     assert filename == "/test/p-----uck.mp3"
 
-    # pylint: disable=protected-access
-    filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", u"p🤔🤔🤔🤔uck",
-                                  "/test")
-    assert filename == u"/test/p🤔🤔🤔🤔uck.mp3"
-
 
 # Helpers.
 def _test_url_helper(strdir, given, name, expected_current, expected_original):
