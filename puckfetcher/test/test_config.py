@@ -1,4 +1,7 @@
 """Tests for the config module."""
+# NOTE - Python 2 shim.
+from __future__ import unicode_literals
+
 import os
 
 import pytest
