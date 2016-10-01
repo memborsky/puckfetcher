@@ -10,8 +10,6 @@ from builtins import range
 
 import pytest
 
-from future.utils import viewitems
-
 import puckfetcher.error as Error
 import puckfetcher.subscription as SUB
 

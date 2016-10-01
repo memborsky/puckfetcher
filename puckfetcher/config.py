@@ -14,8 +14,8 @@ import yaml
 # Python 2/PyPy shim - unicode_literals breaks yaml loading for some reason on those versions.
 from yaml import SafeLoader
 
-import puckfetcher.error as E
-import puckfetcher.subscription as S
+import puckfetcher.error as Error
+import puckfetcher.subscription as Subscription
 
 LOG = logging.getLogger("root")
 
@@ -200,7 +200,7 @@ class Config(object):
         """Write current in-memory config to cache file."""
         LOG.info("Writing settings to cache file '%s'.", self.cache_file)
         with open(self.cache_file, "wb") as stream:
-            dicts = [S.Subscription.encode_subscription(sub) for sub in self.subscriptions]
+            dicts = [Subscription.Subscription.encode_subscription(s) for s in self.subscriptions]
             packed = umsgpack.packb(dicts)
             stream.write(packed)
 
@@ -224,9 +224,9 @@ class Config(object):
 
         for encoded_sub in umsgpack.unpackb(data):
             try:
-                decoded_sub = S.Subscription.decode_subscription(encoded_sub)
+                decoded_sub = Subscription.Subscription.decode_subscription(encoded_sub)
 
-            except E.MalformedSubscriptionError as exception:
+            except Error.MalformedSubscriptionError as exception:
                 LOG.debug("Encountered error in subscription decoding:")
                 LOG.debug(exception)
                 LOG.debug("Skipping this sub.")
@@ -242,7 +242,7 @@ class Config(object):
         successful = _ensure_file(self.config_file)
 
         if not successful:
-            LOG.ERROR("Unable to load user config file.")
+            LOG.error("Unable to load user config file.")
             return
 
         self.subscriptions = []
@@ -276,7 +276,7 @@ class Config(object):
 
             fail_count = 0
             for i, yaml_sub in enumerate(yaml_settings.get("subscriptions", [])):
-                sub = S.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
+                sub = Subscription.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
 
                 if sub is None:
                     LOG.debug("Unable to parse user YAML for sub # %s - something is wrong.",
@@ -311,7 +311,7 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
     for directory in [config_dir, cache_dir, data_dir]:
         if os.path.isfile(directory):
             msg = "Provided directory '{}' is actually a file!".format(directory)
-            raise E.MalformedConfigError(msg)
+            raise Error.MalformedConfigError(msg)
 
         if not os.path.isdir(directory):
             LOG.debug("Creating nonexistent '%s'.", directory)

@@ -699,13 +699,14 @@ def _process_directory(directory):
 
 def _filter_nums(nums, min_lim, max_lim):
     """Given two limits, remove elements from the list that aren't in that range."""
-    return [num for num in nums if (num > min_lim and num <= max_lim)]
+    return [num for num in nums if num > min_lim and num <= max_lim]
 
 def _generate_feedparser(name):
     """ Generate rate-limited wrapper around feedparser."""
 
     @Util.rate_limited(120, name)
     def _rate_limited_parser(url, etag, last_modified):
+        # pylint: disable=no-member
         return feedparser.parse(url, etag=etag, modified=last_modified)
 
     return _rate_limited_parser
