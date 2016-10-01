@@ -3,35 +3,27 @@
 # NOTE - Python 2 shim.
 from __future__ import unicode_literals
 
-# TODO inherit desc from this error in whatever the Python way is.
 class PuckError(Exception):
     """
     Generic Exception for errors in this project.
-    """
-    pass
-
-
-class InvalidConfigError(PuckError):
-    """
-    Exception when we were provided invalid user config options and can't recover.
 
     Attributes:
         desc    -- short message describing error
     """
     def __init__(self, desc):
+        super(PuckError, self).__init__()
         self.desc = desc
 
 
-class InvalidCacheError(PuckError):
+class MalformedConfigError(PuckError):
     """
-    Exception raised when the cache file provides invalid options and we can't recover.
+    Exception raised when we were provided invalid options during Config construction.
 
     Attributes:
         desc    -- short message describing error
     """
     def __init__(self, desc):
-        self.desc = desc
-
+        super(MalformedConfigError, self).__init__(desc)
 
 class MalformedFeedError(PuckError):
     """
@@ -42,31 +34,15 @@ class MalformedFeedError(PuckError):
         bozo_msg -- bozo exception message
     """
     def __init__(self, desc, bozo_msg):
-        self.desc = desc
+        super(MalformedFeedError, self).__init__(desc)
         self.bozo_msg = bozo_msg
-
 
 class MalformedSubscriptionError(PuckError):
     """
-    Exception raised for badly formatted Subscription object.
+    Exception raised when we were provided invalid options during Subscription construction.
 
     Attributes:
         desc -- short message describing error
     """
     def __init__(self, desc):
-        self.desc = desc
-
-
-class UnreachableFeedError(PuckError):
-    """
-    Exception raised for unreachable feeds.
-
-    Attributes:
-        desc -- short message describing error
-        code -- HTTP error code, if applicable
-        name -- HTTP error name, if applicable
-    """
-    def __init__(self, desc, code=None, name=None):
-        self.desc = desc
-        self.code = code
-        self.name = name
+        super(MalformedSubscriptionError, self).__init__(desc)

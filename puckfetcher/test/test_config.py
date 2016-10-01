@@ -26,7 +26,6 @@ def test_load_only_cache(default_config, default_cache_file, subscriptions):
 
     default_config.load_state()
 
-    assert default_config.cached_subscriptions == subscriptions
     assert default_config.subscriptions == []
 
 def test_load_only_user_settings(default_config, default_conf_file, subscriptions):
@@ -35,7 +34,6 @@ def test_load_only_user_settings(default_config, default_conf_file, subscription
 
     default_config.load_state()
 
-    assert default_config.cached_subscriptions == []
     assert default_config.subscriptions == subscriptions
 
 def test_non_config_subs_ignore(default_config, default_conf_file, default_cache_file,
@@ -46,7 +44,6 @@ def test_non_config_subs_ignore(default_config, default_conf_file, default_cache
 
     default_config.load_state()
 
-    assert default_config.cached_subscriptions == subscriptions
     assert default_config.subscriptions == subscriptions[0:1]
 
 def test_subscriptions_matching(default_config, default_conf_file, default_cache_file,
