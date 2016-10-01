@@ -12,7 +12,7 @@ import pytest
 
 from future.utils import viewitems
 
-import puckfetcher.error as PE
+import puckfetcher.error as Error
 import puckfetcher.subscription as SUB
 
 RSS_ADDRESS = "valid"
@@ -26,45 +26,45 @@ ERROR_CASES = [TEMP_REDIRECT, PERM_REDIRECT, NOT_FOUND, GONE]
 
 def test_empty_url_cons(strdir):
     """
-    Constructing a subscription with an empty URL should throw a MalformedSubscriptionError.
+    Constructing a subscription with an empty URL should return a None object.
     """
-    with pytest.raises(PE.MalformedSubscriptionError) as exception:
+    with pytest.raises(Error.MalformedSubscriptionError) as exception:
         SUB.Subscription(url="", name="emptyConstruction", directory=strdir)
 
-    assert exception.value.desc == "No URL provided."
+    assert exception.value.desc == "URL is None or empty - can't create subscription."
 
 def test_none_url_cons(strdir):
     """
     Constructing a subscription with a URL that is None should throw a MalformedSubscriptionError.
     """
-    with pytest.raises(PE.MalformedSubscriptionError) as exception:
+    with pytest.raises(Error.MalformedSubscriptionError) as exception:
         SUB.Subscription(name="noneConstruction", directory=strdir)
 
-    assert exception.value.desc == "No URL provided."
+    assert exception.value.desc == "URL is None or empty - can't create subscription."
 
 def test_empty_name_cons(strdir):
     """
     Constructing a subscription with an empty name should throw a MalformedSubscriptionError.
     """
-    with pytest.raises(PE.MalformedSubscriptionError) as exception:
+    with pytest.raises(Error.MalformedSubscriptionError) as exception:
         SUB.Subscription(url="foo", name="", directory=strdir)
 
-    assert exception.value.desc == "No name provided."
+    assert exception.value.desc == "Name is None or empty - can't create subscription."
 
 def test_none_name_cons(strdir):
     """
     Constructing a subscription with a name that is None should throw a MalformedSubscriptionError.
     """
-    with pytest.raises(PE.MalformedSubscriptionError) as exception:
+    with pytest.raises(Error.MalformedSubscriptionError) as exception:
         SUB.Subscription(url="foo", name=None, directory=strdir)
 
-    assert exception.value.desc == "No name provided."
+    assert exception.value.desc == "Name is None or empty - can't create subscription."
 
 def test_get_feed_max(strdir):
-    """If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
+    """ If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
     test_sub = SUB.Subscription(url=PERM_REDIRECT, name="tooManyAttemptsTest", directory=strdir)
 
-    test_sub.get_feed(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS+1)
+    test_sub.get_feed(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS + 1)
 
     assert test_sub.feed_state.feed == {}
     assert test_sub.feed_state.entries == []
@@ -322,7 +322,6 @@ def generate_feedparser():
 def strdir(tmpdir):
     """Create temp directory, in string format."""
     return str(tmpdir.mkdir("foo"))
-
 
 @pytest.fixture(scope="function")
 def sub(strdir):
