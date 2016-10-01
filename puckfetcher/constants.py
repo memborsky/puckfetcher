@@ -9,7 +9,6 @@ from appdirs import AppDirs
 
 APPDIRS = AppDirs("puckfetcher")
 
-# TODO find a better way
 URL = "https://github.com/andrewmichaud/puckfetcher"
 
 VERSION = pkg_resources.require(__package__)[0].version
