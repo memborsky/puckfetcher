@@ -235,6 +235,12 @@ class Subscription(object):
 
                 # Fetch matching entry.
                 num_entries = len(self.feed_state.entries)
+
+                # Do a bounds check in case we accidentally let something bad into the queue.
+                if entry_num < 0 or entry_num >= num_entries:
+                    LOG.debug("Invalid num %s in queue - skipping.", one_indexed_entry_num)
+                    continue
+
                 entry_age = num_entries - (one_indexed_entry_num)
                 entry = self.feed_state.entries[entry_age]
 
@@ -247,7 +253,7 @@ class Subscription(object):
                             SKIPPING entry number %s (age %s) for '%s' - it's recorded as
                             downloaded.\
                             """),
-                        entry_num, entry_age, self.name)
+                        one_indexed_entry_num, entry_age, self.name)
 
                 else:
                     urls = entry["urls"]
@@ -258,7 +264,7 @@ class Subscription(object):
                             """\
                             Trying to download entry number %s (age %s) for '%s'.\
                             """),
-                        entry_num, entry_age, self.name)
+                        one_indexed_entry_num, entry_age, self.name)
 
                     # Create directory just for enclosures for this entry if there are many.
                     directory = self.directory
@@ -292,9 +298,8 @@ class Subscription(object):
         actual_nums = _filter_nums(nums, 0, len(self.feed_state.entries))
 
         for one_indexed_num in actual_nums:
-            num = one_indexed_num - 1
-            if num not in self.feed_state.queue:
-                self.feed_state.queue.append(num)
+            if one_indexed_num not in self.feed_state.queue:
+                self.feed_state.queue.append(one_indexed_num)
 
         LOG.info("New queue for %s: %s", self.name, list(self.feed_state.queue))
 
@@ -394,66 +399,62 @@ class Subscription(object):
         detail_lines.append("Status of podcast entries:")
 
         entry_indicators = []
-        for zero_indexed_entry in range(num_entries):
-            if zero_indexed_entry in self.feed_state.entries_state_dict:
-                entry_indicators.append("{}+".format(str(zero_indexed_entry + 1).zfill(pad_num)))
+        for entry in range(num_entries):
+            if self.feed_state.entries_state_dict.get(entry, False):
+                entry_indicators.append("{}+".format(str(entry + 1).zfill(pad_num)))
             else:
-                entry_indicators.append("{}-".format(str(zero_indexed_entry + 1).zfill(pad_num)))
+                entry_indicators.append("{}-".format(str(entry + 1).zfill(pad_num)))
 
         detail_lines.append(" ".join(entry_indicators))
-
-        return "\n".join(detail_lines)
+        details = "\n".join(detail_lines)
+        LOG.info(details)
 
     def get_feed(self, attempt_count=0):
         """Get RSS structure for this subscription. Return status code indicating result."""
+        res = None
+        if attempt_count > MAX_RECURSIVE_ATTEMPTS:
+            LOG.debug("Too many recursive attempts (%s) to get feed for sub %s, canceling.",
+                      attempt_count, self.name)
+            res = UpdateResult.FAILURE
 
-        def _helper():
-            res = None
-            if attempt_count > MAX_RECURSIVE_ATTEMPTS:
-                LOG.debug("Too many recursive attempts (%s) to get feed for sub %s, canceling.",
-                          attempt_count, self.name)
-                res = UpdateResult.FAILURE
+        elif self.url is None or self.url == "":
+            LOG.debug("URL is empty , cannot get feed for sub %s.", self.name)
+            res = UpdateResult.FAILURE
 
-            elif self.url is None or self.url == "":
-                LOG.debug("URL is empty , cannot get feed for sub %s.", self.name)
-                res = UpdateResult.FAILURE
+        if res is not None:
+            return res
 
-            if res is not None:
-                return res
+        else:
+            LOG.info("Getting entries (attempt %s) for subscription %s with URL %s.",
+                     attempt_count, self.name, self.url)
 
-            else:
-                LOG.info("Getting entries (attempt %s) for subscription %s with URL %s.",
-                         attempt_count, self.name, self.url)
-
-            (parsed, code) = self._feedparser_parse_with_options()
-            if code == UpdateResult.UNNEEDED:
-                LOG.info("We have the latest feed, nothing to do.")
-                return code
-
-            elif code != UpdateResult.SUCCESS:
-                LOG.info("Feedparser parse failed (%s), aborting.", code)
-                return code
-
-            LOG.info("Feedparser parse succeeded.")
-
-            # Detect some kinds of HTTP status codes signaling failure.
-            code = self._handle_http_codes(parsed)
-            if code == UpdateResult.ATTEMPT_AGAIN:
-                LOG.debug("Transient HTTP error, attempting again.")
-                temp = self.temp_url
-                code = self.get_feed(attempt_count=attempt_count + 1)
-                if temp is not None:
-                    self.url = temp
-
-            elif code != UpdateResult.SUCCESS:
-                LOG.debug("Ran into HTTP error (%s), aborting.", code)
-
-            else:
-                self.feed_state.load_rss_info(parsed)
-
+        (parsed, code) = self._feedparser_parse_with_options()
+        if code == UpdateResult.UNNEEDED:
+            LOG.info("We have the latest feed, nothing to do.")
             return code
 
-        return _helper()
+        elif code != UpdateResult.SUCCESS:
+            LOG.info("Feedparser parse failed (%s), aborting.", code)
+            return code
+
+        LOG.info("Feedparser parse succeeded.")
+
+        # Detect some kinds of HTTP status codes signaling failure.
+        code = self._handle_http_codes(parsed)
+        if code == UpdateResult.ATTEMPT_AGAIN:
+            LOG.debug("Transient HTTP error, attempting again.")
+            temp = self.temp_url
+            code = self.get_feed(attempt_count=attempt_count + 1)
+            if temp is not None:
+                self.url = temp
+
+        elif code != UpdateResult.SUCCESS:
+            LOG.debug("Ran into HTTP error (%s), aborting.", code)
+
+        else:
+            self.feed_state.load_rss_info(parsed)
+
+        return code
 
     def as_config_yaml(self):
         """Return self as config file YAML."""
@@ -474,6 +475,9 @@ class Subscription(object):
         else:
             last_mod = None
 
+        # NOTE - this naming is a bit confusing here - parser is really a thing you call with
+        # arguments to get a feedparser result.
+        # Maybe better called parser-generator, or parse-performer or something?
         parsed = self.parser(self.url, self.feed_state.etag, last_mod)
 
         self.feed_state.etag = parsed.get("etag", self.feed_state.etag)
@@ -702,7 +706,7 @@ def _filter_nums(nums, min_lim, max_lim):
     return [num for num in nums if num > min_lim and num <= max_lim]
 
 def _generate_feedparser(name):
-    """ Generate rate-limited wrapper around feedparser."""
+    """Perform rate-limited parse with feedparser."""
 
     @Util.rate_limited(120, name)
     def _rate_limited_parser(url, etag, last_modified):
