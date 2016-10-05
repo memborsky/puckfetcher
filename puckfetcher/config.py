@@ -148,19 +148,30 @@ class Config(object):
 
     def details(self, sub_index):
         """Get details on one sub, including last update date and what entries we have."""
-        _ensure_loaded(self)
+        try:
+            self._validate_command(sub_index)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
         num_subs = len(self.subscriptions)
         sub = self.subscriptions[sub_index]
-        LOG.info(sub.get_details(sub_index, num_subs))
+        sub.get_details(sub_index, num_subs)
 
         LOG.debug("Load + detail completed, no issues.")
 
     def enqueue(self, sub_index, nums):
         """Add item(s) to a sub's download queue."""
-        _ensure_loaded(self)
+        try:
+            self._validate_list_command(sub_index, nums)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
         sub = self.subscriptions[sub_index]
+        # Implicitly mark subs we're manually adding to the queue as undownloaded. User shouldn't
+        # have to manually do that.
+        sub.unmark(nums)
         enqueued_nums = sub.enqueue(nums)
 
         LOG.info("Added items %s to queue successfully.", enqueued_nums)
@@ -168,7 +179,11 @@ class Config(object):
 
     def mark(self, sub_index, nums):
         """Mark items as downloaded by a subscription."""
-        _ensure_loaded(self)
+        try:
+            self._validate_list_command(sub_index, nums)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
         sub = self.subscriptions[sub_index]
         marked_nums = sub.mark(nums)
@@ -178,7 +193,11 @@ class Config(object):
 
     def unmark(self, sub_index, nums):
         """Unmark items as downloaded by a subscription."""
-        _ensure_loaded(self)
+        try:
+            self._validate_list_command(sub_index, nums)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
         sub = self.subscriptions[sub_index]
         unmarked_nums = sub.unmark(nums)
@@ -188,7 +207,12 @@ class Config(object):
 
     def download_queue(self, sub_index):
         """Download one sub's download queue."""
-        _ensure_loaded(self)
+        # TODO I don't like this pattern - handle the error higher up or something.
+        try:
+            self._validate_command(sub_index)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
         sub = self.subscriptions[sub_index]
         sub.download_queue()
@@ -205,6 +229,18 @@ class Config(object):
             stream.write(packed)
 
     # "Private" functions (messy internals).
+    def _validate_list_command(self, sub_index, nums):
+        if nums is None or len(nums) <= 0:
+            raise Error.BadCommandError("Invalid list of nums {}.".format(nums))
+
+        self._validate_command(sub_index)
+
+    def _validate_command(self, sub_index):
+        if sub_index < 0 or sub_index > len(self.subscriptions):
+            raise Error.BadCommandError("Invalid sub index {}.".format(sub_index))
+
+        _ensure_loaded(self)
+
     def _load_cache_settings(self):
         """Load settings from cache to self.cached_settings."""
 
@@ -291,10 +327,10 @@ class Config(object):
 
         return True
 
-def _ensure_loaded(self):
-    if not self.state_loaded:
+def _ensure_loaded(config):
+    if not config.state_loaded:
         LOG.debug("State not loaded from config file and cache - loading!")
-        self.load_state()
+        config.load_state()
 
 def _ensure_file(file_path):
     if os.path.exists(file_path) and not os.path.isfile(file_path):
