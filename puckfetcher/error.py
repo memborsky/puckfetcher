@@ -14,6 +14,14 @@ class PuckError(Exception):
         super(PuckError, self).__init__()
         self.desc = desc
 
+class BadCommandError(PuckError):
+    """
+    Exception raised when a command is given bad arguments.
+    Attributes:
+        desc -- short message describing error.
+    """
+    def __init__(self, desc):
+        super(BadCommandError, self).__init__(desc)
 
 class MalformedConfigError(PuckError):
     """

@@ -104,20 +104,18 @@ def _handle_command(command, config, command_options, log):
         sub_index = _choose_sub(config)
         config.download_queue(sub_index)
 
+    # TODO this needs work.
     elif command == Config.Command.enqueue.name:
-        entry_nums = _sub_list_command_wrapper(config, command, log)
-        if entry_nums is not None:
-            config.enqueue(sub_index, entry_nums)
+        (sub_index, entry_nums) = _sub_list_command_wrapper(config, command, log)
+        config.enqueue(sub_index, entry_nums)
 
     elif command == Config.Command.mark.name:
-        entry_nums = _sub_list_command_wrapper(config, command, log)
-        if entry_nums is not None:
-            config.mark(sub_index, entry_nums)
+        (sub_index, entry_nums) = _sub_list_command_wrapper(config, command, log)
+        config.mark(sub_index, entry_nums)
 
     elif command == Config.Command.unmark.name:
-        entry_nums = _sub_list_command_wrapper(config, command, log)
-        if entry_nums is not None:
-            config.unmark(sub_index, entry_nums)
+        (sub_index, entry_nums) = _sub_list_command_wrapper(config, command, log)
+        config.unmark(sub_index, entry_nums)
 
     else:
         log.error("Unknown command. Allowed commands are:")
@@ -129,7 +127,7 @@ def _sub_list_command_wrapper(config, command, log):
     sub_index = _choose_sub(config)
     config.details(sub_index)
     log.info("COMMAND - {}".format(command))
-    return _choose_entries()
+    return (sub_index, _choose_entries())
 
 def _choose_sub(config):
     sub_names = config.get_subs()
