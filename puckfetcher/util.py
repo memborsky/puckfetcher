@@ -15,6 +15,17 @@ LOG = logging.getLogger("root")
 
 LAST_CALLED = {}
 
+def ensure_dir(directory):
+    """Create a directory if it doesn't exist."""
+    if not os.path.isdir(directory):
+        LOG.debug("Directory %s does not exist, creating it.", directory)
+        os.makedirs(directory)
+
+def expand(directory):
+    """Apply expanduser and expandvars to directory to expand '~' and env vars."""
+    temp1 = os.path.expanduser(directory)
+    return os.path.expandvars(temp1)
+
 def generate_downloader(headers, args):
     """Create function to download with rate limiting and text progress."""
 
@@ -49,36 +60,21 @@ def generate_downloader(headers, args):
 
     return _downloader
 
-
 def max_clamp(val, limit):
     """Clamp int to limit."""
     return min(val, limit)
-
-
-def expand(directory):
-    """Apply expanduser and expandvars to directory to expand '~' and env vars."""
-    temp1 = os.path.expanduser(directory)
-    return os.path.expandvars(temp1)
-
-
-def sanitize(filename):
-    """
-    Remove disallowed characters from potential filename. Currently only guaranteed on Linux and
-    OS X.
-    """
-    return filename.replace("/", "-")
-
 
 def parse_int_string(int_string):
     """
     Given a string like "1 23 4-8 32 1", return a unique list of those integers in the string and
     the integers in the ranges in the string.
-    Non-numbers ignored.
+    Non-numbers ignored. Not necessarily sorted
     """
-    cleaned_spaces = " ".join(int_string.strip().split())
-    cleaned_dashes = cleaned_spaces.replace(" - ", "-")
+    cleaned = " ".join(int_string.strip().split())
+    cleaned = cleaned.replace(" - ", "-")
+    cleaned = cleaned.replace(",", " ")
 
-    tokens = cleaned_dashes.split(" ")
+    tokens = cleaned.split(" ")
     indices = set()
     for token in tokens:
         if "-" in token:
@@ -99,7 +95,6 @@ def parse_int_string(int_string):
                 LOG.info("Dropping token %s as invalid - not an int.", token)
 
     return list(indices)
-
 
 # Modified from https://stackoverflow.com/a/667706
 def rate_limited(max_per_hour, *args):
@@ -134,3 +129,10 @@ def rate_limited(max_per_hour, *args):
 
         return _rate_limited_function
     return _decorate
+
+def sanitize(filename):
+    """
+    Remove disallowed characters from potential filename. Currently only guaranteed on Linux and
+    OS X.
+    """
+    return filename.replace("/", "-")
