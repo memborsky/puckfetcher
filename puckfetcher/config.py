@@ -16,6 +16,7 @@ from yaml import SafeLoader
 
 import puckfetcher.error as Error
 import puckfetcher.subscription as Subscription
+import puckfetcher.util as Util
 
 LOG = logging.getLogger("root")
 
@@ -349,9 +350,7 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
             msg = "Provided directory '{}' is actually a file!".format(directory)
             raise Error.MalformedConfigError(msg)
 
-        if not os.path.isdir(directory):
-            LOG.debug("Creating nonexistent '%s'.", directory)
-            os.makedirs(directory)
+        Util.ensure_dir(directory)
 
 
 class Command(Enum):
