@@ -5,11 +5,11 @@ os:
 
 python:
     - "2.7"
-    - "3.3"
-    - "3.4"
-    - "3.5"
-    - "nightly"
     - "pypy"
+    - "nightly"
+    - "3.5"
+    - "3.4"
+    - "3.3"
 
 install:
     - |
@@ -26,6 +26,9 @@ install:
           source "$HOME/virtualenvs/pypy-$PYPY_VERSION/bin/activate"
           echo "Manually-installed PyPy version:"
           python --version
+          pip install setuptools
+          # For some reason this fails with easy_install.
+          pip install mock
         fi
     - python setup.py install
     - pip install coveralls

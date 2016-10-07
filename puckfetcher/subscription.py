@@ -348,9 +348,7 @@ class Subscription(object):
                 else:
                     self.directory = os.path.join(config_dir, directory)
 
-                if not os.path.isdir(self.directory):
-                    LOG.debug("Directory %s does not exist, creating it.", directory)
-                    os.makedirs(self.directory)
+                Util.ensure_dir(self.directory)
 
         if url is not None:
             self.url = url
@@ -694,9 +692,7 @@ def _process_directory(directory):
 
     LOG.debug("Provided directory %s.", directory)
 
-    if not os.path.isdir(directory):
-        LOG.debug("Directory %s does not exist, creating it.", directory)
-        os.makedirs(directory)
+    Util.ensure_dir(directory)
 
     return directory
 
