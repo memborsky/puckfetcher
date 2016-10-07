@@ -24,8 +24,14 @@ INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "future", "pyyaml", "reque
                     "u-msgpack-python"]
 
 # Use enum34 to allow enums in Python 3.3 and 2.7.
-if sys.version_info < (3, 4):
-    INSTALL_REQUIRES += ["enum34"]
+# NOTE Python 2.7/Python 3.3 shim.
+INSTALL_REQUIRES += ["enum34"]
+
+TEST_REQUIRES = ["coveralls", "pytest"]
+
+# Use mock to allow mock in Python 2.7.
+# NOTE - Python 2.7/PyPy 2 shim.
+TEST_REQUIRES += ["mock"]
 
 setup(author="Andrew Michaud",
       author_email="puckfetcher@mail.andrewmichaud.com",
@@ -71,7 +77,7 @@ setup(author="Andrew Michaud",
       setup_requires=["pytest-runner"],
 
       test_suite="tests",
-      tests_require=["coveralls", "pytest"],
+      tests_require=TEST_REQUIRES,
 
       # Project"s main homepage
       url="https://github.com/andrewmichaud/puckfetcher",

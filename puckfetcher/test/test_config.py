@@ -12,8 +12,8 @@ import pytest
 import umsgpack
 import yaml
 
-import puckfetcher.config as PC
-import puckfetcher.subscription as PS
+import puckfetcher.config as Config
+import puckfetcher.subscription as Subscription
 
 def test_default_config_construct(default_config, default_conf_file, default_cache_file):
     """Test config with no arguments assigns the right file vars."""
@@ -90,7 +90,8 @@ def test_save_works(default_config, default_cache_file, subscriptions):
 
     with open(default_cache_file, "rb") as stream:
         contents = stream.read()
-        subs = [PS.Subscription.decode_subscription(sub) for sub in umsgpack.unpackb(contents)]
+        unpacked_contents = umsgpack.unpackb(contents)
+        subs = [Subscription.Subscription.decode_subscription(sub) for sub in unpacked_contents]
 
     assert default_config.subscriptions == subs
 
@@ -100,7 +101,7 @@ def write_subs_to_file(subs, out_file, write_type):
     """Write subs to a file with the selected type."""
 
     if write_type == "cache":
-        encoded_subs = [PS.Subscription.encode_subscription(sub) for sub in subs]
+        encoded_subs = [Subscription.Subscription.encode_subscription(sub) for sub in subs]
         data = umsgpack.packb(encoded_subs)
         with open(out_file, "wb") as stream:
             stream.write(data)
@@ -149,7 +150,7 @@ def subscriptions(tmpdir):
         url = "testurl" + str(i)
         directory = os.path.join(sub_dir, "dir" + str(i))
 
-        sub = PS.Subscription(name=name, url=url, directory=directory)
+        sub = Subscription.Subscription(name=name, url=url, directory=directory)
 
         sub.download_backlog = True
         sub.backlog_limit = 1
@@ -164,4 +165,4 @@ def default_config(config_dirs):
     """Create test config with temporary test dirs."""
     (config_dir, cache_dir, data_dir) = config_dirs
 
-    return PC.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
+    return Config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)

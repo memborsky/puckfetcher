@@ -178,7 +178,7 @@ def test_mark(sub_with_entries):
 
     assert len(sub_with_entries.feed_state.entries_state_dict) > 0
     for test_num in test_nums:
-        zero_indexed_num = test_num-1
+        zero_indexed_num = test_num - 1
         assert zero_indexed_num in sub_with_entries.feed_state.entries_state_dict
         assert sub_with_entries.feed_state.entries_state_dict[zero_indexed_num]
 
@@ -194,13 +194,13 @@ def test_unmark(sub_with_entries):
     all_nums = bad_nums + test_nums + bad_nums
 
     for num in test_nums:
-        sub_with_entries.feed_state.entries_state_dict[num-1] = True
+        sub_with_entries.feed_state.entries_state_dict[num - 1] = True
 
     sub_with_entries.unmark(all_nums)
 
     assert len(sub_with_entries.feed_state.entries_state_dict) > 0
     for test_num in test_nums:
-        zero_indexed_num = test_num-1
+        zero_indexed_num = test_num - 1
         assert zero_indexed_num in sub_with_entries.feed_state.entries_state_dict
         assert not sub_with_entries.feed_state.entries_state_dict[zero_indexed_num]
 
