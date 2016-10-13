@@ -11,11 +11,9 @@ puckfetcher
  :target: https://waffle.io/andrewmichaud/puckfetcher
  :alt: 'Stories in Ready'
 
-a podcatcher that will finally work (for me)
+A simple command-line podcatcher.
 
-Hello!
-
-This should support Python 2.7, 3.3, 3.4, and 3.5. Feel free to report
+TSupports Python 2.7, 3.3, 3.4, and 3.5, and Python 2.7 on PyPy. Feel free to report
 any issues here, and I’ll investigate when/if I can.
 
 | You’ll need setuptools (https://pypi.python.org/pypi/setuptools) to
