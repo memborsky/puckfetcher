@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
-# NOTE - Python 2 shims.
-from __future__ import print_function
+# NOTE - Python 2 shim.
 from __future__ import unicode_literals
 
 import collections
@@ -12,11 +11,12 @@ from enum import Enum
 
 import umsgpack
 import yaml
-# Python 2/PyPy shims - unicode_literals breaks yaml loading for some reason on those versions.
+# Python 2/PyPy shim - unicode_literals breaks yaml loading for some reason on those versions.
 from yaml import SafeLoader
 
-import puckfetcher.error as E
-import puckfetcher.subscription as S
+import puckfetcher.error as Error
+import puckfetcher.subscription as Subscription
+import puckfetcher.util as Util
 
 LOG = logging.getLogger("root")
 
@@ -29,10 +29,10 @@ class Config(object):
         _validate_dirs(config_dir, cache_dir, data_dir)
 
         self.config_file = os.path.join(config_dir, "config.yaml")
-        LOG.info("Using config file '%s'.", self.config_file)
+        LOG.debug("Using config file '%s'.", self.config_file)
 
         self.cache_file = os.path.join(cache_dir, "puckcache")
-        LOG.info("Using cache file '%s'.", self.cache_file)
+        LOG.debug("Using cache file '%s'.", self.cache_file)
 
         self.settings = {
             "directory": data_dir,
@@ -41,7 +41,6 @@ class Config(object):
         }
 
         self.state_loaded = False
-        self.cached_subscriptions = []
         self.subscriptions = []
 
         # This map is used to match user subs to cache subs, in case names or URLs (but not both)
@@ -51,7 +50,8 @@ class Config(object):
         command_pairs = (
             (Command.update,
              "Update all subscriptions. Will also download sub queues."),
-            (Command.list, "List current subscriptions and their status."),
+            (Command.list,
+             "List current subscriptions and their status."),
             (Command.details,
              "Provide details on one subscription's entries and queue status."),
             (Command.enqueue,
@@ -60,7 +60,7 @@ class Config(object):
             (Command.mark,
              "Mark a subscription entry as downloaded."),
             (Command.unmark,
-             "Mark a subscription entry as not downloaded."),
+             "Mark a subscription entry as not downloaded. Will not queue for download."),
             (Command.download_queue, "Download a subscription's full queue. Files with the same " +
              "name as a to-be-downloaded entry will be overridden."))
 
@@ -107,186 +107,181 @@ class Config(object):
 
             self.subscriptions = subs
 
-        # Validate state after load (sanity checks, basically).
-        if len(self.subscriptions) < 0:
-            msg = "Something awful has happened, we have negative subscriptions"
-            LOG.error(msg)
-            return (False, msg)
-
-        else:
-            msg = "Successful load."
-            LOG.info(msg)
-            self.state_loaded = True
-            return (True, msg)
+        LOG.debug("Successful load.")
+        self.state_loaded = True
 
     def get_subs(self):
         """Provie list of subscription names. Load state if we haven't."""
-        if _ensure_loaded(self):
-            subs = []
-            for sub in self.subscriptions:
-                subs.append(sub.name)
+        _ensure_loaded(self)
+        subs = []
+        for sub in self.subscriptions:
+            subs.append(sub.name)
 
-            return subs
-
-        else:
-            msg = "Could not load, can't provide subs."
-            LOG.error(msg)
-            return (False, msg)
+        return subs
 
     def update(self):
         """Update all subscriptions once. Return True if we successfully updated."""
-        if _ensure_loaded(self):
-            num_subs = len(self.subscriptions)
-            for i, sub in enumerate(self.subscriptions):
-                msg = "Working on sub number {}/{} - '{}'".format(i+1, num_subs, sub.name)
-                LOG.info(msg)
-                print(msg)
-                update_successful = sub.attempt_update()
+        _ensure_loaded(self)
 
-                if not update_successful:
-                    msg = "Unsuccessful update for {}!".format(sub.name)
-                    LOG.info(msg)
-                    print(msg)
+        num_subs = len(self.subscriptions)
+        for i, sub in enumerate(self.subscriptions):
+            LOG.info("Working on sub number %s/%s - '%s'", i + 1, num_subs, sub.name)
+            update_successful = sub.attempt_update()
 
-                self.subscriptions[i] = sub
-                self.save_cache()
+            if not update_successful:
+                LOG.info("Unsuccessful update for sub '%s'.", sub.name)
+            else:
+                LOG.info("Updated sub '%s' successfully.", sub.name)
 
-            return (True, "Update completed.")
-
-        else:
-            return (False, "Load unsuccessful, cannot update!")
+            self.subscriptions[i] = sub
+            self.save_cache()
 
     def list(self):
         """Load state and list subscriptions. Return if loading succeeded."""
-        if _ensure_loaded(self):
-            num_subs = len(self.subscriptions)
-            print("{} subscriptions loaded.".format(num_subs))
-            for i, sub in enumerate(self.subscriptions):
-                print(sub.get_status(i, num_subs))
+        _ensure_loaded(self)
 
-            msg = "Load + list completed, no issues."
-            LOG.info(msg)
-            return (True, msg)
+        num_subs = len(self.subscriptions)
+        LOG.info("%s subscriptions loaded.", num_subs)
+        for i, sub in enumerate(self.subscriptions):
+            LOG.info(sub.get_status(i, num_subs))
 
-        else:
-            msg = "Load unsuccessful, cannot list subs."
-            LOG.debug(msg)
-            return (False, msg)
+        LOG.debug("Load + list completed, no issues.")
 
     def details(self, sub_index):
         """Get details on one sub, including last update date and what entries we have."""
-        if _ensure_loaded(self):
-            num_subs = len(self.subscriptions)
-            sub = self.subscriptions[sub_index]
-            print(sub.get_details(sub_index, num_subs))
+        try:
+            self._validate_command(sub_index)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
-            msg = "Load + detail completed, no issues."
-            LOG.info(msg)
-            return (True, msg)
+        num_subs = len(self.subscriptions)
+        sub = self.subscriptions[sub_index]
+        sub.get_details(sub_index, num_subs)
 
-        else:
-            msg = "Load unsuccessful, cannot provide details."
-            LOG.debug(msg)
-            return (False, msg)
+        LOG.debug("Load + detail completed, no issues.")
 
     def enqueue(self, sub_index, nums):
         """Add item(s) to a sub's download queue."""
-        if _ensure_loaded(self):
-            sub = self.subscriptions[sub_index]
-            enqueued_nums = sub.enqueue(nums)
+        try:
+            self._validate_list_command(sub_index, nums)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
-            msg = "Added items {} to queue successfully.".format(enqueued_nums)
-            LOG.info(msg)
-            self.save_cache()
-            return (True, msg)
+        sub = self.subscriptions[sub_index]
+        # Implicitly mark subs we're manually adding to the queue as undownloaded. User shouldn't
+        # have to manually do that.
+        sub.unmark(nums)
+        enqueued_nums = sub.enqueue(nums)
 
-        else:
-            msg = "Load unsuccessful, cannot enqueue items."
-            LOG.debug(msg)
-            return (False, msg)
+        LOG.info("Added items %s to queue successfully.", enqueued_nums)
+        self.save_cache()
 
     def mark(self, sub_index, nums):
         """Mark items as downloaded by a subscription."""
-        if _ensure_loaded(self):
-            sub = self.subscriptions[sub_index]
-            marked_nums = sub.mark(nums)
+        try:
+            self._validate_list_command(sub_index, nums)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
-            msg = "Marked items {} as downloaded successfully.".format(marked_nums)
-            LOG.info(msg)
-            self.save_cache()
-            return (True, msg)
+        sub = self.subscriptions[sub_index]
+        marked_nums = sub.mark(nums)
 
-        else:
-            msg = "Load unsuccessful, cannot mark items."
-            LOG.debug(msg)
-            return (False, msg)
+        LOG.info("Marked items %s as downloaded successfully.", marked_nums)
+        self.save_cache()
 
     def unmark(self, sub_index, nums):
         """Unmark items as downloaded by a subscription."""
-        if _ensure_loaded(self):
-            sub = self.subscriptions[sub_index]
-            unmarked_nums = sub.unmark(nums)
+        try:
+            self._validate_list_command(sub_index, nums)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
-            msg = "Unmarked items {} successfully.".format(unmarked_nums)
-            LOG.info(msg)
-            self.save_cache()
-            return (True, msg)
+        sub = self.subscriptions[sub_index]
+        unmarked_nums = sub.unmark(nums)
 
-        else:
-            msg = "Load unsuccessful, cannot unmark items."
-            LOG.debug(msg)
-            return (False, msg)
+        LOG.info("Unmarked items %s successfully.", unmarked_nums)
+        self.save_cache()
 
     def download_queue(self, sub_index):
         """Download one sub's download queue."""
-        if _ensure_loaded(self):
-            sub = self.subscriptions[sub_index]
-            sub.download_queue()
+        # TODO I don't like this pattern - handle the error higher up or something.
+        try:
+            self._validate_command(sub_index)
+        except Error.BadCommandError as exception:
+            LOG.error(exception)
+            return
 
-            msg = "Queue downloading complete, no issues."
-            LOG.info(msg)
-            self.save_cache()
-            return (True, msg)
+        sub = self.subscriptions[sub_index]
+        sub.download_queue()
 
-        else:
-            msg = "Load unsuccessful, cannot download queue."
-            LOG.debug(msg)
-            return (False, msg)
+        LOG.info("Queue downloading complete, no issues.")
+        self.save_cache()
 
     def save_cache(self):
         """Write current in-memory config to cache file."""
         LOG.info("Writing settings to cache file '%s'.", self.cache_file)
         with open(self.cache_file, "wb") as stream:
-            dicts = [S.Subscription.encode_subscription(sub) for sub in self.subscriptions]
+            dicts = [Subscription.Subscription.encode_subscription(s) for s in self.subscriptions]
             packed = umsgpack.packb(dicts)
             stream.write(packed)
 
     # "Private" functions (messy internals).
+    def _validate_list_command(self, sub_index, nums):
+        if nums is None or len(nums) <= 0:
+            raise Error.BadCommandError("Invalid list of nums {}.".format(nums))
+
+        self._validate_command(sub_index)
+
+    def _validate_command(self, sub_index):
+        if sub_index < 0 or sub_index > len(self.subscriptions):
+            raise Error.BadCommandError("Invalid sub index {}.".format(sub_index))
+
+        _ensure_loaded(self)
+
     def _load_cache_settings(self):
         """Load settings from cache to self.cached_settings."""
 
-        _ensure_file(self.cache_file)
-        self.cached_subscriptions = []
+        successful = _ensure_file(self.cache_file)
+
+        if not successful:
+            LOG.debug("Unable to load cache.")
+            return
 
         with open(self.cache_file, "rb") as stream:
-            LOG.info("Opening subscription cache to retrieve subscriptions.")
+            LOG.debug("Opening subscription cache to retrieve subscriptions.")
             data = stream.read()
 
         if data == b"":
-            return
+            LOG.debug("Received empty string from cache.")
+            return False
 
         for encoded_sub in umsgpack.unpackb(data):
-            decoded_sub = S.Subscription.decode_subscription(encoded_sub)
+            try:
+                decoded_sub = Subscription.Subscription.decode_subscription(encoded_sub)
 
-            if decoded_sub is not None:
-                self.cached_subscriptions.append(decoded_sub)
+            except Error.MalformedSubscriptionError as exception:
+                LOG.debug("Encountered error in subscription decoding:")
+                LOG.debug(exception)
+                LOG.debug("Skipping this sub.")
+                continue
 
-                self.cache_map["by_name"][decoded_sub.name] = decoded_sub
-                self.cache_map["by_url"][decoded_sub.original_url] = decoded_sub
+            self.cache_map["by_name"][decoded_sub.name] = decoded_sub
+            self.cache_map["by_url"][decoded_sub.original_url] = decoded_sub
+
+        return True
 
     def _load_user_settings(self):
         """Load user settings from config file."""
-        _ensure_file(self.config_file)
+        successful = _ensure_file(self.config_file)
+
+        if not successful:
+            LOG.error("Unable to load user config file.")
+            return
+
         self.subscriptions = []
 
         # Python 2/PyPy shim, per
@@ -299,7 +294,7 @@ class Config(object):
         SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", construct_yaml_str)
 
         with open(self.config_file, "r") as stream:
-            LOG.info("Opening config file to retrieve settings.")
+            LOG.debug("Opening config file to retrieve settings.")
             yaml_settings = yaml.safe_load(stream)
 
         pretty_settings = yaml.dump(yaml_settings, width=1, indent=4)
@@ -312,47 +307,50 @@ class Config(object):
                 if name == "subscriptions":
                     pass
                 elif name not in self.settings:
-                    LOG.warning("Setting %s is not a valid setting, ignoring.", name)
+                    LOG.debug("Setting %s is not a valid setting, ignoring.", name)
                 else:
                     self.settings[name] = value
 
-            for yaml_sub in yaml_settings.get("subscriptions", []):
-                sub = S.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
+            fail_count = 0
+            for i, yaml_sub in enumerate(yaml_settings.get("subscriptions", [])):
+                sub = Subscription.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
+
+                if sub is None:
+                    LOG.debug("Unable to parse user YAML for sub # %s - something is wrong.",
+                              i + 1)
+                    fail_count += 1
+                    continue
+
                 self.subscriptions.append(sub)
 
-def _ensure_loaded(self):
-    if not self.state_loaded:
-        msg = "Subscription state not loaded from cache - loading!"
-        print(msg)
-        LOG.info(msg)
-        (res, _) = self.load_state()
-        return res
+            if fail_count > 0:
+                LOG.error("Some subscriptions from config file couldn't be parsed - check logs.")
 
-    else:
         return True
 
+def _ensure_loaded(config):
+    if not config.state_loaded:
+        LOG.debug("State not loaded from config file and cache - loading!")
+        config.load_state()
 
 def _ensure_file(file_path):
     if os.path.exists(file_path) and not os.path.isfile(file_path):
-        msg = "Given file exists but isn't a file!"
-        LOG.error(msg)
-        raise E.InvalidConfigError(msg)
+        LOG.debug("Given file exists but isn't a file!")
+        return False
 
     elif not os.path.isfile(file_path):
         LOG.debug("Creating empty file at '%s'.", file_path)
         open(file_path, "a").close()
 
+    return True
 
 def _validate_dirs(config_dir, cache_dir, data_dir):
     for directory in [config_dir, cache_dir, data_dir]:
         if os.path.isfile(directory):
-            msg = "Provided directory '{}' is a file!".format(directory)
-            LOG.error(msg)
-            raise E.InvalidConfigError(msg)
+            msg = "Provided directory '{}' is actually a file!".format(directory)
+            raise Error.MalformedConfigError(msg)
 
-        if not os.path.isdir(directory):
-            LOG.info("Creating nonexistent '%s'.", directory)
-            os.makedirs(directory)
+        Util.ensure_dir(directory)
 
 
 class Command(Enum):
