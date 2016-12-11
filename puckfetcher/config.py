@@ -14,9 +14,11 @@ import yaml
 # Python 2/PyPy shim - unicode_literals breaks yaml loading for some reason on those versions.
 from yaml import SafeLoader
 
-import puckfetcher.error as Error
-import puckfetcher.subscription as Subscription
-import puckfetcher.util as Util
+import puckfetcher.error as error
+import puckfetcher.subscription as subscription
+import puckfetcher.util as util
+
+SUMMARY_LIMIT = 4
 
 LOG = logging.getLogger("root")
 
@@ -37,7 +39,7 @@ class Config(object):
         self.settings = {
             "directory": data_dir,
             "backlog_limit": 1,
-            "use_title_as_filename": False
+            "use_title_as_filename": False,
         }
 
         self.state_loaded = False
@@ -62,7 +64,10 @@ class Config(object):
             (Command.unmark,
              "Mark a subscription entry as not downloaded. Will not queue for download."),
             (Command.download_queue, "Download a subscription's full queue. Files with the same " +
-             "name as a to-be-downloaded entry will be overridden."))
+             "name as a to-be-downloaded entry will be overridden."),
+            (Command.summarize, "Summarize subscription entries downloaded in this session."),
+            (Command.summarize_sub, "Summarize recent entries downloaded for a specific sub."),
+        )
 
         self.commands = collections.OrderedDict(command_pairs)
 
@@ -111,7 +116,7 @@ class Config(object):
         self.state_loaded = True
 
     def get_subs(self):
-        """Provie list of subscription names. Load state if we haven't."""
+        """Provide list of subscription names. Load state if we haven't."""
         _ensure_loaded(self)
         subs = []
         for sub in self.subscriptions:
@@ -151,7 +156,7 @@ class Config(object):
         """Get details on one sub, including last update date and what entries we have."""
         try:
             self._validate_command(sub_index)
-        except Error.BadCommandError as exception:
+        except error.BadCommandError as exception:
             LOG.error(exception)
             return
 
@@ -165,7 +170,7 @@ class Config(object):
         """Add item(s) to a sub's download queue."""
         try:
             self._validate_list_command(sub_index, nums)
-        except Error.BadCommandError as exception:
+        except error.BadCommandError as exception:
             LOG.error(exception)
             return
 
@@ -182,7 +187,7 @@ class Config(object):
         """Mark items as downloaded by a subscription."""
         try:
             self._validate_list_command(sub_index, nums)
-        except Error.BadCommandError as exception:
+        except error.BadCommandError as exception:
             LOG.error(exception)
             return
 
@@ -196,7 +201,7 @@ class Config(object):
         """Unmark items as downloaded by a subscription."""
         try:
             self._validate_list_command(sub_index, nums)
-        except Error.BadCommandError as exception:
+        except error.BadCommandError as exception:
             LOG.error(exception)
             return
 
@@ -206,12 +211,60 @@ class Config(object):
         LOG.info("Unmarked items %s successfully.", unmarked_nums)
         self.save_cache()
 
+    def summarize(self):
+        """
+        Provide summary of recently downloaded entries. Show only items downloaded in this session.
+        """
+        lines = []
+
+        lines.append("Items downloaded in this session:")
+        if len(self.subscriptions) == 0:
+            lines.append("No items downloaded in this session.")
+            lines.append("")
+
+        # Skip subs we haven't downloaded anything for in this session.
+        for sub in self.subscriptions:
+            summary_list = list(sub.session_summary())[0:SUMMARY_LIMIT]
+            if len(summary_list) > 0:
+                lines.append(sub.name)
+
+                for item in summary_list:
+                    lines.append("    {}".format(item))
+
+                lines.append("")
+
+        LOG.info("\n".join(lines))
+
+    def summarize_sub(self, sub_index):
+        """Provide summary of recently downloaded entries for a single subscription."""
+        try:
+            self._validate_command(sub_index)
+        except error.BadCommandError as exception:
+            LOG.error(exception)
+            return
+        sub = self.subscriptions[sub_index]
+
+        lines = []
+
+        lines.append("Items recently downloaded for {}:".format(sub.name))
+
+        summary_list = sub.full_summary()
+        if len(summary_list) == 0:
+            lines.append("    No items downloaded.")
+
+        for item in summary_list:
+            lines.append("    {}".format(item))
+
+        lines.append("")
+
+        LOG.info("\n".join(lines))
+
     def download_queue(self, sub_index):
         """Download one sub's download queue."""
         # TODO I don't like this pattern - handle the error higher up or something.
         try:
             self._validate_command(sub_index)
-        except Error.BadCommandError as exception:
+        except error.BadCommandError as exception:
             LOG.error(exception)
             return
 
@@ -225,20 +278,20 @@ class Config(object):
         """Write current in-memory config to cache file."""
         LOG.info("Writing settings to cache file '%s'.", self.cache_file)
         with open(self.cache_file, "wb") as stream:
-            dicts = [Subscription.Subscription.encode_subscription(s) for s in self.subscriptions]
+            dicts = [subscription.Subscription.encode_subscription(s) for s in self.subscriptions]
             packed = umsgpack.packb(dicts)
             stream.write(packed)
 
     # "Private" functions (messy internals).
     def _validate_list_command(self, sub_index, nums):
         if nums is None or len(nums) <= 0:
-            raise Error.BadCommandError("Invalid list of nums {}.".format(nums))
+            raise error.BadCommandError("Invalid list of nums {}.".format(nums))
 
         self._validate_command(sub_index)
 
     def _validate_command(self, sub_index):
         if sub_index < 0 or sub_index > len(self.subscriptions):
-            raise Error.BadCommandError("Invalid sub index {}.".format(sub_index))
+            raise error.BadCommandError("Invalid sub index {}.".format(sub_index))
 
         _ensure_loaded(self)
 
@@ -261,9 +314,9 @@ class Config(object):
 
         for encoded_sub in umsgpack.unpackb(data):
             try:
-                decoded_sub = Subscription.Subscription.decode_subscription(encoded_sub)
+                decoded_sub = subscription.Subscription.decode_subscription(encoded_sub)
 
-            except Error.MalformedSubscriptionError as exception:
+            except error.MalformedSubscriptionError as exception:
                 LOG.debug("Encountered error in subscription decoding:")
                 LOG.debug(exception)
                 LOG.debug("Skipping this sub.")
@@ -313,7 +366,7 @@ class Config(object):
 
             fail_count = 0
             for i, yaml_sub in enumerate(yaml_settings.get("subscriptions", [])):
-                sub = Subscription.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
+                sub = subscription.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
 
                 if sub is None:
                     LOG.debug("Unable to parse user YAML for sub # %s - something is wrong.",
@@ -348,17 +401,19 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
     for directory in [config_dir, cache_dir, data_dir]:
         if os.path.isfile(directory):
             msg = "Provided directory '{}' is actually a file!".format(directory)
-            raise Error.MalformedConfigError(msg)
+            raise error.MalformedConfigError(msg)
 
-        Util.ensure_dir(directory)
+        util.ensure_dir(directory)
 
 
 class Command(Enum):
     """Commands a Config can perform."""
     update = 100
-    list = 400
-    details = 500
+    list = 200
+    details = 300
+    summarize_sub = 400
+    summarize = 500
     enqueue = 600
     mark = 700
-    unmark = 750
-    download_queue = 800
+    unmark = 800
+    download_queue = 900

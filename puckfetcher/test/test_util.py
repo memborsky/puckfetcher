@@ -11,6 +11,7 @@ import puckfetcher.util as Util
 
 TEST_URL = "https://raw.githubusercontent.com/andrewmichaud/puckfetcher/master/LICENSE"
 
+
 def test_parse_int_string():
     """Test int string parser."""
     doc_example = "1 23 4-8 32 1"
@@ -25,6 +26,7 @@ def test_parse_int_string():
     res = Util.parse_int_string(ranges)
     assert sorted(res) == [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12]
 
+
 def test_rate_limiting():
     """Test rate limiting (with a short limit, to not make tests drag on)."""
 
@@ -35,4 +37,4 @@ def test_rate_limiting():
     _test_helper()
 
     res = timeit.timeit(_test_helper, number=4)
-    assert abs(res - 4) < 0.5
+    assert abs(res - 4) < 1.0
