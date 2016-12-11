@@ -1,17 +1,10 @@
-# -*- coding: utf-8 -*-
 """Tests for the subscription module."""
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
-
 import os
-
-# pylint: disable=redefined-builtin
-from builtins import range
 
 import pytest
 
-import puckfetcher.error as Error
-import puckfetcher.subscription as SUB
+import puckfetcher.error as error
+import puckfetcher.subscription as subscription
 
 RSS_ADDRESS = "valid"
 PERM_REDIRECT = "301"
@@ -26,8 +19,8 @@ def test_empty_url_cons(strdir):
     """
     Constructing a subscription with an empty URL should return a None object.
     """
-    with pytest.raises(Error.MalformedSubscriptionError) as exception:
-        SUB.Subscription(url="", name="emptyConstruction", directory=strdir)
+    with pytest.raises(error.MalformedSubscriptionError) as exception:
+        subscription.Subscription(url="", name="emptyConstruction", directory=strdir)
 
     assert exception.value.desc == "URL is None or empty - can't create subscription."
 
@@ -35,8 +28,8 @@ def test_none_url_cons(strdir):
     """
     Constructing a subscription with a URL that is None should throw a MalformedSubscriptionError.
     """
-    with pytest.raises(Error.MalformedSubscriptionError) as exception:
-        SUB.Subscription(name="noneConstruction", directory=strdir)
+    with pytest.raises(error.MalformedSubscriptionError) as exception:
+        subscription.Subscription(name="noneConstruction", directory=strdir)
 
     assert exception.value.desc == "URL is None or empty - can't create subscription."
 
@@ -44,8 +37,8 @@ def test_empty_name_cons(strdir):
     """
     Constructing a subscription with an empty name should throw a MalformedSubscriptionError.
     """
-    with pytest.raises(Error.MalformedSubscriptionError) as exception:
-        SUB.Subscription(url="foo", name="", directory=strdir)
+    with pytest.raises(error.MalformedSubscriptionError) as exception:
+        subscription.Subscription(url="foo", name="", directory=strdir)
 
     assert exception.value.desc == "Name is None or empty - can't create subscription."
 
@@ -53,16 +46,17 @@ def test_none_name_cons(strdir):
     """
     Constructing a subscription with a name that is None should throw a MalformedSubscriptionError.
     """
-    with pytest.raises(Error.MalformedSubscriptionError) as exception:
-        SUB.Subscription(url="foo", name=None, directory=strdir)
+    with pytest.raises(error.MalformedSubscriptionError) as exception:
+        subscription.Subscription(url="foo", name=None, directory=strdir)
 
     assert exception.value.desc == "Name is None or empty - can't create subscription."
 
 def test_get_feed_max(strdir):
     """ If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
-    test_sub = SUB.Subscription(url=PERM_REDIRECT, name="tooManyAttemptsTest", directory=strdir)
+    test_sub = subscription.Subscription(url=PERM_REDIRECT, name="tooManyAttemptsTest",
+                                         directory=strdir)
 
-    test_sub.get_feed(attempt_count=SUB.MAX_RECURSIVE_ATTEMPTS + 1)
+    test_sub.get_feed(attempt_count=subscription.MAX_RECURSIVE_ATTEMPTS + 1)
 
     assert test_sub.feed_state.feed == {}
     assert test_sub.feed_state.entries == []
@@ -87,8 +81,7 @@ def test_not_found_fails(strdir):
 
 def test_gone_fails(strdir):
     """If the URL is Gone, the current url should be set to None, and we should return None."""
-
-    test_sub = SUB.Subscription(url=GONE, name="410Test", directory=strdir)
+    test_sub = subscription.Subscription(url=GONE, name="410Test", directory=strdir)
 
     test_sub.use_backlog = True
     test_sub.backlog_limit = 1
@@ -105,7 +98,7 @@ def test_gone_fails(strdir):
 def test_new_attempt_update(strdir):
     """Attempting update on a new subscription (no backlog) should download nothing."""
     test_dir = strdir
-    test_sub = SUB.Subscription(url="foo", name="foo", directory=test_dir)
+    test_sub = subscription.Subscription(url="foo", name="foo", directory=test_dir)
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
 
@@ -115,7 +108,7 @@ def test_new_attempt_update(strdir):
 def test_attempt_update_new_entry(strdir):
     """Attempting update on a podcast with a new entry should download the new entry only."""
     test_dir = strdir
-    test_sub = SUB.Subscription(url=RSS_ADDRESS, name="bar", directory=test_dir)
+    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="bar", directory=test_dir)
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
 
@@ -130,7 +123,7 @@ def test_attempt_update_new_entry(strdir):
 
 def test_attempt_download_backlog(strdir):
     """Should download full backlog if backlog limit set to None."""
-    test_sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
 
@@ -147,7 +140,8 @@ def test_attempt_download_backlog(strdir):
 
 def test_attempt_download_partial_backlog(strdir):
     """Should download partial backlog if limit is specified."""
-    test_sub = SUB.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5, directory=strdir)
+    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5,
+                                         directory=strdir)
 
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
@@ -209,7 +203,7 @@ def test_unmark(sub_with_entries):
 
 def test_url_with_qparams():
     """Test that the _get_dest helper handles query parameters properly."""
-    test_sub = SUB.Subscription(url="test", name="test", directory="test")
+    test_sub = subscription.Subscription(url="test", name="test", directory="test")
 
     test_sub.use_title_as_filename = True
 
@@ -228,7 +222,7 @@ def test_url_sanitize():
     Test that the _get_dest helper sanitizes correctly on non-Windows. Only / should need to be
     replaced
     """
-    test_sub = SUB.Subscription(url="test", name="test", directory="test")
+    test_sub = subscription.Subscription(url="test", name="test", directory="test")
 
     test_sub.use_title_as_filename = True
 
@@ -250,7 +244,7 @@ def test_url_sanitize():
 
 # Helpers.
 def _test_url_helper(strdir, given, name, expected_current, expected_original):
-    test_sub = SUB.Subscription(url=given, name=name, directory=strdir)
+    test_sub = subscription.Subscription(url=given, name=name, directory=strdir)
 
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
@@ -262,7 +256,7 @@ def _test_url_helper(strdir, given, name, expected_current, expected_original):
 
 def _check_hi_contents(filename_num, directory):
     file_path = os.path.join(directory, "hi0{}.txt".format(filename_num))
-    with open(file_path, "r") as enclosure:
+    with open(file_path, "r", encoding="UTF-8") as enclosure:
         data = enclosure.read().replace('\n', '')
         assert data == "hi"
 
@@ -272,9 +266,9 @@ def generate_fake_downloader():
     def _downloader(url=None, dest=None):
         contents = "hi"
 
-        open(dest, "a").close()
+        open(dest, "a", encoding="UTF-8").close()
         # per http://stackoverflow.com/a/20943461
-        with open(dest, "w") as stream:
+        with open(dest, "w", encoding="UTF-8") as stream:
             stream.write(contents)
             stream.flush()
 
@@ -292,7 +286,6 @@ def generate_feedparser():
         for i in range(0, 10):
             entry = {}
             entry["title"] = "hi"
-
             entry["enclosures"] = [{"href": "hi0{}.txt".format(i)}]
 
             entries.append(entry)
@@ -324,7 +317,7 @@ def strdir(tmpdir):
 @pytest.fixture(scope="function")
 def sub(strdir):
     """Create a test subscription."""
-    test_sub = SUB.Subscription(url="test", name="test", directory=strdir)
+    test_sub = subscription.Subscription(url="test", name="test", directory=strdir)
 
     return test_sub
 

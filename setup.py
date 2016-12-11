@@ -1,37 +1,28 @@
-# -*- coding: utf-8 -*-
 """setuptools-based setup module for puckfetcher."""
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
-
-# Modeled on Python sample project setup.py - https://github.com/pypa/sampleproject
-import sys
-
-# pylint: disable=redefined-builtin
-from io import open
 from os import path
 # Prefer setuptools over distutils.
 from setuptools import setup, find_packages
 
 HERE = path.abspath(path.dirname(__file__))
 
-with open(path.join(HERE, "README.rst"), encoding="utf-8") as f:
-    LONG_DESCRIPTION = f.read()
+with open(path.join(HERE, "README.rst"), encoding="UTF-8") as f:
+    LONG_DESCRIPTION = f.read().strip()
 
-with open(path.join(HERE, "VERSION"), encoding="utf-8") as f:
-    VERSION = f.read()
+with open(path.join(HERE, "VERSION"), encoding="UTF-8") as f:
+    VERSION = f.read().strip()
 
-INSTALL_REQUIRES = ["appdirs", "clint", "feedparser", "future", "pyyaml", "requests",
-                    "u-msgpack-python"]
+# TODO figure out how to pin to major versions properly.
+INSTALL_REQUIRES = ["appdirs>=1.4.0",
+                    "clint>=0.5.1",
+                    "feedparser>=5.2.1",
+                    "pyyaml>=3.12",
+                    "requests>=2.12.3",
+                    "u-msgpack-python>=2.3.0",
+                    ]
 
-# Use enum34 to allow enums in Python 3.3 and 2.7.
-# NOTE Python 2.7/Python 3.3 shim.
-INSTALL_REQUIRES += ["enum34"]
-
-TEST_REQUIRES = ["coveralls", "pytest"]
-
-# Use mock to allow mock in Python 2.7.
-# NOTE - Python 2.7/PyPy 2 shim.
-TEST_REQUIRES += ["mock"]
+TEST_REQUIRES = ["coveralls>=1.1",
+                 "pytest",
+                 ]
 
 setup(author="Andrew Michaud",
       author_email="puckfetcher@mail.andrewmichaud.com",
@@ -43,15 +34,13 @@ setup(author="Andrew Michaud",
                    "Natural Language :: English",
                    "Operating System :: MacOS :: MacOS X",
                    "Operating System :: POSIX :: Linux",
-                   "Programming Language :: Python :: 2.7",
-                   "Programming Language :: Python :: 3.3",
                    "Programming Language :: Python :: 3.4",
                    "Programming Language :: Python :: 3.5",
                    "Programming Language :: Python :: Implementation :: CPython",
-                   "Programming Language :: Python :: Implementation :: PyPy",
                    "Topic :: Multimedia :: Sound/Audio",
                    "Topic :: Internet :: WWW/HTTP",
-                   "Topic :: Utilities"],
+                   "Topic :: Utilities",
+                   ],
 
       description="A simple command-line podcatcher.",
 

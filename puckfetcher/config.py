@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
-
 import collections
 import logging
 import os
@@ -11,9 +7,8 @@ from enum import Enum
 
 import umsgpack
 import yaml
-# Python 2/PyPy shim - unicode_literals breaks yaml loading for some reason on those versions.
-from yaml import SafeLoader
 
+import puckfetcher.constants as constants
 import puckfetcher.error as error
 import puckfetcher.subscription as subscription
 import puckfetcher.util as util
@@ -175,6 +170,7 @@ class Config(object):
             return
 
         sub = self.subscriptions[sub_index]
+
         # Implicitly mark subs we're manually adding to the queue as undownloaded. User shouldn't
         # have to manually do that.
         sub.unmark(nums)
@@ -242,6 +238,7 @@ class Config(object):
         except error.BadCommandError as exception:
             LOG.error(exception)
             return
+
         sub = self.subscriptions[sub_index]
 
         lines = []
@@ -337,16 +334,7 @@ class Config(object):
 
         self.subscriptions = []
 
-        # Python 2/PyPy shim, per
-        # https://stackoverflow.com/questions/2890146/how-to-force-pyyaml-to-load-strings-as-unicode-objects
-        # Override the default string handling function to always return unicode objects.
-        def construct_yaml_str(self, node):
-            """Override to force PyYAML to handle unicode on Python 2."""
-            return self.construct_scalar(node)
-
-        SafeLoader.add_constructor("tag:yaml.org,2002:python/unicode", construct_yaml_str)
-
-        with open(self.config_file, "r") as stream:
+        with open(self.config_file, "r", encoding=constants.ENCODING) as stream:
             LOG.debug("Opening config file to retrieve settings.")
             yaml_settings = yaml.safe_load(stream)
 
@@ -393,7 +381,7 @@ def _ensure_file(file_path):
 
     elif not os.path.isfile(file_path):
         LOG.debug("Creating empty file at '%s'.", file_path)
-        open(file_path, "a").close()
+        open(file_path, "a", encoding=constants.ENCODING).close()
 
     return True
 
