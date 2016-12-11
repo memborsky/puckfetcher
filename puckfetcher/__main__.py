@@ -18,9 +18,9 @@ from builtins import input
 from clint.textui import prompt
 
 import puckfetcher.constants as CONSTANTS
-import puckfetcher.config as Config
-import puckfetcher.error as Error
-import puckfetcher.util as Util
+import puckfetcher.config as config
+import puckfetcher.error as error
+import puckfetcher.util as util
 
 def main():
     """Run puckfetcher on the command line."""
@@ -34,8 +34,8 @@ def main():
     LOG = _setup_logging(log_dir)
 
     try:
-        config = Config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
-    except Error.MalformedConfigError as exception:
+        conf = config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
+    except error.MalformedConfigError as exception:
         LOG.error("Unable to start puckfetcher - config error.")
         LOG.error(exception)
         parser.exit()
@@ -44,9 +44,9 @@ def main():
     command_options = [{"selector": str(index), "prompt": "Exit.", "return": "exit"}]
 
     index += 1
-    config_commands = config.get_commands()
+    config_commands = conf.get_commands()
     for key in config_commands:
-        value = config.commands[key]
+        value = conf.commands[key]
         command_options.append({"selector": str(index), "prompt": value, "return": key.name})
         index += 1
 
@@ -61,7 +61,7 @@ def main():
             pass
 
         else:
-            _handle_command(command, config, command_options, LOG)
+            _handle_command(command, conf, command_options, LOG)
             parser.exit()
 
     LOG.info("%s %s started!", __package__, CONSTANTS.VERSION)
@@ -73,7 +73,7 @@ def main():
             if command == "exit":
                 parser.exit()
 
-            _handle_command(command, config, command_options, LOG)
+            _handle_command(command, conf, command_options, LOG)
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
@@ -88,34 +88,43 @@ def main():
     parser.exit()
 
 # TODO find a way to simplify and/or push logic into Config.
-def _handle_command(command, config, command_options, log):
-    if command == Config.Command.update.name:
-        config.update()
+def _handle_command(command, conf, command_options, log):
+    if command == config.Command.update.name:
+        conf.update()
 
-    elif command == Config.Command.list.name:
-        config.list()
+    elif command == config.Command.list.name:
+        conf.list()
 
-    elif command == Config.Command.details.name:
-        sub_index = _choose_sub(config)
-        config.details(sub_index)
+    elif command == config.Command.summarize.name:
+        conf.summarize()
         input("Press enter when done.")
 
-    elif command == Config.Command.download_queue.name:
-        sub_index = _choose_sub(config)
-        config.download_queue(sub_index)
+    elif command == config.Command.details.name:
+        sub_index = _choose_sub(conf)
+        conf.details(sub_index)
+        input("Press enter when done.")
+
+    elif command == config.Command.download_queue.name:
+        sub_index = _choose_sub(conf)
+        conf.download_queue(sub_index)
+
+    elif command == config.Command.summarize_sub.name:
+        sub_index = _choose_sub(conf)
+        conf.summarize_sub(sub_index)
+        input("Press enter when done.")
 
     # TODO this needs work.
-    elif command == Config.Command.enqueue.name:
-        (sub_index, entry_nums) = _sub_list_command_wrapper(config, command, log)
-        config.enqueue(sub_index, entry_nums)
+    elif command == config.Command.enqueue.name:
+        (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+        conf.enqueue(sub_index, entry_nums)
 
-    elif command == Config.Command.mark.name:
-        (sub_index, entry_nums) = _sub_list_command_wrapper(config, command, log)
-        config.mark(sub_index, entry_nums)
+    elif command == config.Command.mark.name:
+        (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+        conf.mark(sub_index, entry_nums)
 
-    elif command == Config.Command.unmark.name:
-        (sub_index, entry_nums) = _sub_list_command_wrapper(config, command, log)
-        config.unmark(sub_index, entry_nums)
+    elif command == config.Command.unmark.name:
+        (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+        conf.unmark(sub_index, entry_nums)
 
     else:
         log.error("Unknown command. Allowed commands are:")
@@ -123,14 +132,14 @@ def _handle_command(command, config, command_options, log):
             log.error("    {}: {}".format(command["return"], command["prompt"]))
         return
 
-def _sub_list_command_wrapper(config, command, log):
-    sub_index = _choose_sub(config)
-    config.details(sub_index)
+def _sub_list_command_wrapper(conf, command, log):
+    sub_index = _choose_sub(conf)
+    conf.details(sub_index)
     log.info("COMMAND - {}".format(command))
     return (sub_index, _choose_entries())
 
-def _choose_sub(config):
-    sub_names = config.get_subs()
+def _choose_sub(conf):
+    sub_names = conf.get_subs()
     if sub_names is None:
         return
 
@@ -157,7 +166,7 @@ def _choose_entries():
             num_list = None
             break
 
-        num_list = Util.parse_int_string(num_string)
+        num_list = util.parse_int_string(num_string)
 
         while True:
             answer = input(textwrap.dedent(
@@ -219,6 +228,8 @@ def _setup_program_arguments():
                             mark           - mark entry downloaded for subcription
                             unmark         - mark entry as not downloaded for a subscription
                             download_queue - cause subscription to download full queue
+                            summarize      - summarize entries downloaded this session
+                            summarize_sub  - summarize recent entries for a particular sub
                             menu           - provide these options in a menu\
                             """))
 

@@ -24,12 +24,13 @@ import feedparser
 import requests
 
 import puckfetcher.constants as CONSTANTS
-import puckfetcher.error as Error
-import puckfetcher.util as Util
+import puckfetcher.error as error
+import puckfetcher.util as util
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
 HEADERS = {"User-Agent": CONSTANTS.USER_AGENT}
 MAX_RECURSIVE_ATTEMPTS = 10
+SUMMARY_LIMIT = 15
 
 LOG = logging.getLogger("root")
 
@@ -44,12 +45,12 @@ class Subscription(object):
         # redirects.
         if url is None or url == "":
             msg = "URL is None or empty - can't create subscription."
-            raise Error.MalformedSubscriptionError(msg)
+            raise error.MalformedSubscriptionError(msg)
 
         # Maintain name of podcast.
         if name is None or name == "":
             msg = "Name is None or empty - can't create subscription."
-            raise Error.MalformedSubscriptionError(msg)
+            raise error.MalformedSubscriptionError(msg)
 
         # Temporary storage for swapping around urls.
         self.temp_url = None
@@ -62,7 +63,7 @@ class Subscription(object):
         self.name = name
 
         # Our file downloader.
-        self.downloader = Util.generate_downloader(HEADERS, self.name)
+        self.downloader = util.generate_downloader(HEADERS, self.name)
 
         # Our wrapper around feedparser's parse for rate limiting.
         self.parser = _generate_feedparser(self.name)
@@ -84,12 +85,12 @@ class Subscription(object):
         url = sub_dictionary.get("url", None)
         if url is None:
             msg = "URL in subscription to decode is null. Cannot decode."
-            raise Error.MalformedSubscriptionError(msg)
+            raise error.MalformedSubscriptionError(msg)
 
         name = sub_dictionary.get("name", None)
         if name is None:
             msg = "Name in subscription to decode is null. Cannot decode."
-            raise Error.MalformedSubscriptionError(msg)
+            raise error.MalformedSubscriptionError(msg)
 
         original_url = sub_dictionary.get("original_url", None)
         directory = sub_dictionary.get("directory", None)
@@ -104,7 +105,7 @@ class Subscription(object):
         sub.feed_state = feed_state
 
         # Generate data members that shouldn't/won't be cached.
-        sub.downloader = Util.generate_downloader(HEADERS, sub.name)
+        sub.downloader = util.generate_downloader(HEADERS, sub.name)
 
         return sub
 
@@ -132,11 +133,11 @@ class Subscription(object):
 
         if "name" not in sub_yaml:
             msg = "No name provided in config file. Cannot create subscription."
-            raise Error.MalformedSubscriptionError(msg)
+            raise error.MalformedSubscriptionError(msg)
 
         if "url" not in sub_yaml:
             msg = "No URL provided in config file. Cannot create subscription."
-            raise Error.MalformedSubscriptionError(msg)
+            raise error.MalformedSubscriptionError(msg)
 
         name = sub_yaml["name"]
         url = sub_yaml["url"]
@@ -181,7 +182,7 @@ class Subscription(object):
 
             elif self.backlog_limit > 0:
                 LOG.info("Backlog limit provided as '%s'", self.backlog_limit)
-                self.backlog_limit = Util.max_clamp(self.backlog_limit, number_feeds)
+                self.backlog_limit = util.max_clamp(self.backlog_limit, number_feeds)
                 LOG.info("Backlog limit clamped to '%s'", self.backlog_limit)
                 self.feed_state.latest_entry_number = number_feeds - self.backlog_limit
 
@@ -288,7 +289,12 @@ class Subscription(object):
                         LOG.info("Have downloaded %s entries for sub %s.",
                                  self.feed_state.latest_entry_number, self.name)
 
+                    # Update various things now that we've downloaded a new entry.
                     self.feed_state.entries_state_dict[entry_num] = True
+                    self.feed_state.summary_queue.append({"number": one_indexed_entry_num,
+                                                          "name": entry["title"],
+                                                          "is_this_session": True,
+                                                          })
 
         except KeyboardInterrupt:
             self.feed_state.queue.appendleft(entry_num)
@@ -339,7 +345,7 @@ class Subscription(object):
             return
 
         if directory is not None:
-            directory = Util.expand(directory)
+            directory = util.expand(directory)
 
             if self.directory != directory:
                 if os.path.isabs(directory):
@@ -348,7 +354,7 @@ class Subscription(object):
                 else:
                     self.directory = os.path.join(config_dir, directory)
 
-                Util.ensure_dir(self.directory)
+                util.ensure_dir(self.directory)
 
         if url is not None:
             self.url = url
@@ -373,7 +379,7 @@ class Subscription(object):
         if not hasattr(self, "feed_state") or self.feed_state is None:
             self.feed_state = _FeedState()
 
-        self.downloader = Util.generate_downloader(HEADERS, self.name)
+        self.downloader = util.generate_downloader(HEADERS, self.name)
         self.parser = _generate_feedparser(self.name)
 
     def get_status(self, index, total_subs):
@@ -453,6 +459,17 @@ class Subscription(object):
             self.feed_state.load_rss_info(parsed)
 
         return code
+
+    def session_summary(self):
+        """Provide items downloaded in this session in convenient form."""
+        return ["{} (#{})".format(item["name"], item["number"])
+                for item in self.feed_state.summary_queue
+                if item["is_this_session"]]
+
+    def full_summary(self):
+        """Provide items downloaded recently in convenient form."""
+        return ["{} (#{})".format(item["name"], item["number"])
+                for item in self.feed_state.summary_queue]
 
     def as_config_yaml(self):
         """Return self as config file YAML."""
@@ -607,7 +624,7 @@ class Subscription(object):
             filename = "{}.{}".format(title, ext)  # It's an owl!
 
         # Remove characters we can't allow in filenames.
-        filename = Util.sanitize(filename)
+        filename = util.sanitize(filename)
 
         return os.path.join(directory, filename)
 
@@ -631,6 +648,16 @@ class _FeedState(object):
             self.entries_state_dict = feedstate_dict.get("entries_state_dict", {})
             self.queue = deque(feedstate_dict.get("queue", []))
 
+            # Store the most recent SUMMARY_LIMIT items we've downloaded.
+            temp_list = feedstate_dict.get("summary_queue", [])
+            self.summary_queue = deque([], SUMMARY_LIMIT)
+
+            # When we load from the cache file, mark all of the items in the summary queue as not
+            # being from the current session.
+            for elem in temp_list:
+                elem["is_this_session"] = False
+                self.summary_queue.append(elem)
+
             last_modified = feedstate_dict.get("last_modified", None)
             self.store_last_modified(last_modified)
 
@@ -645,6 +672,7 @@ class _FeedState(object):
             self.entries = []
             self.entries_state_dict = {}
             self.queue = deque([])
+            self.summary_queue = deque([], SUMMARY_LIMIT)
             self.last_modified = None
             self.etag = None
             self.latest_entry_number = None
@@ -669,8 +697,10 @@ class _FeedState(object):
                 "entries_state_dict": self.entries_state_dict,
                 "queue": list(self.queue),
                 "latest_entry_number": self.latest_entry_number,
+                "summary_queue": list(self.summary_queue),
                 "last_modified": None,
-                "etag": self.etag}
+                "etag": self.etag,
+                }
 
     def store_last_modified(self, last_modified):
         """Store last_modified as a datetime, regardless of form it's provided in."""
@@ -685,14 +715,14 @@ class _FeedState(object):
 # "Private" file functions (messy internals).
 def _process_directory(directory):
     """Assign directory if none was given, and create directory if necessary."""
-    directory = Util.expand(directory)
+    directory = util.expand(directory)
     if directory is None:
         LOG.debug("No directory provided, defaulting to %s.", directory)
-        return Util.expand(CONSTANTS.APPDIRS.user_data_dir)
+        return util.expand(CONSTANTS.APPDIRS.user_data_dir)
 
     LOG.debug("Provided directory %s.", directory)
 
-    Util.ensure_dir(directory)
+    util.ensure_dir(directory)
 
     return directory
 
@@ -704,7 +734,7 @@ def _filter_nums(nums, min_lim, max_lim):
 def _generate_feedparser(name):
     """Perform rate-limited parse with feedparser."""
 
-    @Util.rate_limited(120, name)
+    @util.rate_limited(120, name)
     def _rate_limited_parser(url, etag, last_modified):
         # pylint: disable=no-member
         return feedparser.parse(url, etag=etag, modified=last_modified)
