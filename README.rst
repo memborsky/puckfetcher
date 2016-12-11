@@ -13,8 +13,7 @@ puckfetcher
 
 A simple command-line podcatcher.
 
-TSupports Python 2.7, 3.3, 3.4, and 3.5, and Python 2.7 on PyPy. Feel free to report
-any issues here, and I’ll investigate when/if I can.
+Supports Python 3.4+. Feel free to report any issues here, and I’ll investigate when/if I can.
 
 | You’ll need setuptools (https://pypi.python.org/pypi/setuptools) to
   run this in its current state. Go get it, clone this repo, and you
@@ -54,20 +53,15 @@ Complete
 -  PyPI release!
 -  Text-based progress for podcast downloads (via Clint).
 -  Clean up subscriptions code and get Pylint to like it.
+-  Provide summary of downloaded podcasts per-session.
+-  Provide summary of recently-downloaded podcast episodes.
 
-Current Tasks
--------------
--  Local file support for rss feeds.
--  lower code climate issues
 
 Future releases
 ---------------
 -  Text-based progress for other time-consuming actions.
--  Clean up at least filenames based on feed title.
 -  Add MP3 tag support to clean up tags based on feed information if
    it’s messy.
--  Cut out more errors in favor of verbose logging, unless we absolutely can't keep running.
--  ncurses support/gui of some kind
 -  Attempt to support Jython/PyPy/IronPython/3.4/3.3
 -  Investigate Python static typing with
    https://docs.python.org/dev/library/typing.html#module-typing and mypy.
