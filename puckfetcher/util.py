@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
 """Utility methods for Python packages (written with puckfetcher in mind)."""
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
-
 import logging
 import os
 import time
@@ -10,6 +6,8 @@ import time
 import requests
 
 from clint.textui import progress
+
+import puckfetcher.constants as constants
 
 LOG = logging.getLogger("root")
 
@@ -47,7 +45,7 @@ def generate_downloader(headers, args):
             expected_size = (total_length / 1024) + 1
             chunks = response.iter_content(chunk_size=1024)
 
-            open(dest, "a").close()
+            open(dest, "a", encoding=constants.ENCODING).close()
             # per http://stackoverflow.com/a/20943461
             with open(dest, "wb") as stream:
                 for chunk in progress.bar(chunks, expected_size=expected_size):

@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
 """Constants used for the puckfetcher application."""
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
-
 import pkg_resources
 
 from appdirs import AppDirs
@@ -16,3 +12,5 @@ VERSION = pkg_resources.require(__package__)[0].version
 USER_AGENT = __package__ + "/" + VERSION + " +" + URL
 
 VERBOSITY = 0
+
+ENCODING = "UTF-8"

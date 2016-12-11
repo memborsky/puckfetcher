@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 Module for a subscription object, which manages a podcast URL, name, and information about how
 many episodes of the podcast we have.
 """
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
 
 import logging
 import os
@@ -13,9 +10,6 @@ import textwrap
 import time
 from time import mktime
 
-# NOTE - Python 2 shim.
-# pylint: disable=redefined-builtin
-from builtins import range
 from collections import deque
 from datetime import datetime
 from enum import Enum
@@ -23,12 +17,12 @@ from enum import Enum
 import feedparser
 import requests
 
-import puckfetcher.constants as CONSTANTS
+import puckfetcher.constants as constants
 import puckfetcher.error as error
 import puckfetcher.util as util
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
-HEADERS = {"User-Agent": CONSTANTS.USER_AGENT}
+HEADERS = {"User-Agent": constants.USER_AGENT}
 MAX_RECURSIVE_ATTEMPTS = 10
 SUMMARY_LIMIT = 15
 
@@ -77,7 +71,7 @@ class Subscription(object):
 
         self.use_title_as_filename = None
 
-        feedparser.USER_AGENT = CONSTANTS.USER_AGENT
+        feedparser.USER_AGENT = constants.USER_AGENT
 
     @classmethod
     def decode_subscription(cls, sub_dictionary):
@@ -114,7 +108,7 @@ class Subscription(object):
         """Encode subscription to dictionary."""
 
         return {"__type__": "subscription",
-                "__version__": CONSTANTS.VERSION,
+                "__version__": constants.VERSION,
                 "url": sub.url,
                 "original_url": sub.original_url,
                 "directory": sub.directory,
@@ -212,9 +206,9 @@ class Subscription(object):
             number_to_download)
 
         # Queuing feeds in order of age makes the most sense for RSS feeds, so we do that.
-        age_range = range(self.feed_state.latest_entry_number, number_feeds)
-        for i in age_range:
+        for i in range(self.feed_state.latest_entry_number, number_feeds):
             self.feed_state.queue.append(i + 1)
+
         self.download_queue()
 
         return True
@@ -405,9 +399,11 @@ class Subscription(object):
         entry_indicators = []
         for entry in range(num_entries):
             if self.feed_state.entries_state_dict.get(entry, False):
-                entry_indicators.append("{}+".format(str(entry + 1).zfill(pad_num)))
+                indicator = "+"
             else:
-                entry_indicators.append("{}-".format(str(entry + 1).zfill(pad_num)))
+                indicator = "-"
+
+            entry_indicators.append("{}{}".format(str(entry + 1).zfill(pad_num), indicator))
 
         detail_lines.append(" ".join(entry_indicators))
         details = "\n".join(detail_lines)
@@ -718,7 +714,7 @@ def _process_directory(directory):
     directory = util.expand(directory)
     if directory is None:
         LOG.debug("No directory provided, defaulting to %s.", directory)
-        return util.expand(CONSTANTS.APPDIRS.user_data_dir)
+        return util.expand(constants.APPDIRS.user_data_dir)
 
     LOG.debug("Provided directory %s.", directory)
 

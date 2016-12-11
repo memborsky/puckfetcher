@@ -3,37 +3,17 @@ language: python
 os:
     - linux
 
+# TODO re-add PyPy when they get >=3.4 support.
 python:
-    - "2.7"
-    - "pypy"
-    - "nightly"
     - "3.5"
     - "3.4"
-    - "3.3"
+    - "nightly"
 
 matrix:
     allow_failures:
         - python: "nightly"
 
 install:
-    - |
-        if [ "$TRAVIS_PYTHON_VERSION" = "pypy" ]; then
-          export PYENV_ROOT="$HOME/.pyenv"
-          if [ -f "$PYENV_ROOT/bin/pyenv" ]; then
-            pushd "$PYENV_ROOT" && git pull && popd
-          else
-            rm -rf "$PYENV_ROOT" && git clone --depth 1 https://github.com/yyuu/pyenv.git "$PYENV_ROOT"
-          fi
-          export PYPY_VERSION="5.3.1"
-          "$PYENV_ROOT/bin/pyenv" install --skip-existing "pypy-$PYPY_VERSION"
-          virtualenv --python="$PYENV_ROOT/versions/pypy-$PYPY_VERSION/bin/python" "$HOME/virtualenvs/pypy-$PYPY_VERSION"
-          source "$HOME/virtualenvs/pypy-$PYPY_VERSION/bin/activate"
-          echo "Manually-installed PyPy version:"
-          python --version
-          pip install setuptools
-          # For some reason this fails with easy_install.
-          pip install mock
-        fi
     - python setup.py install
     - pip install coveralls
 

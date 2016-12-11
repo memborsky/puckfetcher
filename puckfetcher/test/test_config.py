@@ -1,24 +1,19 @@
-# -*- coding: utf-8 -*-
 """Tests for the config module."""
-# NOTE - Python 2 shim.
-from __future__ import unicode_literals
-
 import os
-
-# pylint: disable=redefined-builtin
-from builtins import range
 
 import pytest
 import umsgpack
 import yaml
 
-import puckfetcher.config as Config
-import puckfetcher.subscription as Subscription
+import puckfetcher.config as config
+import puckfetcher.subscription as subscription
+
 
 def test_default_config_construct(default_config, default_conf_file, default_cache_file):
     """Test config with no arguments assigns the right file vars."""
     assert default_config.config_file == default_conf_file
     assert default_config.cache_file == default_cache_file
+
 
 def test_load_only_cache(default_config, default_cache_file, subscriptions):
     """Subscriptions list should be empty if there are cached subs but no subs in settings."""
@@ -28,6 +23,7 @@ def test_load_only_cache(default_config, default_cache_file, subscriptions):
 
     assert default_config.subscriptions == []
 
+
 def test_load_only_user_settings(default_config, default_conf_file, subscriptions):
     """Test that settings can be loaded correctly from just the user settings."""
     write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
@@ -35,6 +31,7 @@ def test_load_only_user_settings(default_config, default_conf_file, subscription
     default_config.load_state()
 
     assert default_config.subscriptions == subscriptions
+
 
 def test_non_config_subs_ignore(default_config, default_conf_file, default_cache_file,
                                 subscriptions):
@@ -45,6 +42,7 @@ def test_non_config_subs_ignore(default_config, default_conf_file, default_cache
     default_config.load_state()
 
     assert default_config.subscriptions == subscriptions[0:1]
+
 
 def test_subscriptions_matching(default_config, default_conf_file, default_cache_file,
                                 subscriptions):
@@ -82,6 +80,7 @@ def test_subscriptions_matching(default_config, default_conf_file, default_cache
 
         assert sub.feed_state.latest_entry_number == test_nums[i]
 
+
 def test_save_works(default_config, default_cache_file, subscriptions):
     """Test that we can save subscriptions correctly."""
     default_config.subscriptions = subscriptions
@@ -91,7 +90,7 @@ def test_save_works(default_config, default_cache_file, subscriptions):
     with open(default_cache_file, "rb") as stream:
         contents = stream.read()
         unpacked_contents = umsgpack.unpackb(contents)
-        subs = [Subscription.Subscription.decode_subscription(sub) for sub in unpacked_contents]
+        subs = [subscription.Subscription.decode_subscription(sub) for sub in unpacked_contents]
 
     assert default_config.subscriptions == subs
 
@@ -101,7 +100,7 @@ def write_subs_to_file(subs, out_file, write_type):
     """Write subs to a file with the selected type."""
 
     if write_type == "cache":
-        encoded_subs = [Subscription.Subscription.encode_subscription(sub) for sub in subs]
+        encoded_subs = [subscription.Subscription.encode_subscription(sub) for sub in subs]
         data = umsgpack.packb(encoded_subs)
         with open(out_file, "wb") as stream:
             stream.write(data)
@@ -109,7 +108,7 @@ def write_subs_to_file(subs, out_file, write_type):
     elif write_type == "config":
         data = {}
         data["subscriptions"] = [sub.as_config_yaml() for sub in subs]
-        with open(out_file, "w") as stream:
+        with open(out_file, "w", encoding="UTF-8") as stream:
             yaml.dump(data, stream)
 
 
@@ -127,17 +126,20 @@ def config_dirs(tmpdir):
 
     return (config_dir, cache_dir, data_dir)
 
+
 @pytest.fixture(scope="function")
 def default_conf_file(config_dirs):
     """Provide name of default config file config object should use."""
     (config_dir, _, _) = config_dirs
     return os.path.join(config_dir, "config.yaml")
 
+
 @pytest.fixture(scope="function")
 def default_cache_file(config_dirs):
     """Provide name of default cache file config object should use."""
     (_, cache_dir, _) = config_dirs
     return os.path.join(cache_dir, "puckcache")
+
 
 @pytest.fixture(scope="function")
 def subscriptions(tmpdir):
@@ -150,7 +152,7 @@ def subscriptions(tmpdir):
         url = "testurl" + str(i)
         directory = os.path.join(sub_dir, "dir" + str(i))
 
-        sub = Subscription.Subscription(name=name, url=url, directory=directory)
+        sub = subscription.Subscription(name=name, url=url, directory=directory)
 
         sub.download_backlog = True
         sub.backlog_limit = 1
@@ -160,9 +162,10 @@ def subscriptions(tmpdir):
 
     return subs
 
+
 @pytest.fixture(scope="function")
 def default_config(config_dirs):
     """Create test config with temporary test dirs."""
     (config_dir, cache_dir, data_dir) = config_dirs
 
-    return Config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
+    return config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)

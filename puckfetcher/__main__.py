@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
-# NOTE - Python 2 shims.
-from __future__ import unicode_literals
 
 import argparse
 from argparse import RawTextHelpFormatter
@@ -11,13 +8,9 @@ import os
 import sys
 import textwrap
 
-# NOTE - Python 2 shim.
-# pylint: disable=redefined-builtin
-from builtins import input
-
 from clint.textui import prompt
 
-import puckfetcher.constants as CONSTANTS
+import puckfetcher.constants as constants
 import puckfetcher.config as config
 import puckfetcher.error as error
 import puckfetcher.util as util
@@ -64,7 +57,7 @@ def main():
             _handle_command(command, conf, command_options, LOG)
             parser.exit()
 
-    LOG.info("%s %s started!", __package__, CONSTANTS.VERSION)
+    LOG.info("%s %s started!", __package__, constants.VERSION)
 
     while True:
         try:
@@ -195,18 +188,18 @@ def _choose_entries():
 def _setup_directories(args):
     config_dir = vars(args)["config"]
     if not config_dir:
-        config_dir = CONSTANTS.APPDIRS.user_config_dir
+        config_dir = constants.APPDIRS.user_config_dir
 
     cache_dir = vars(args)["cache"]
     if not cache_dir:
-        cache_dir = CONSTANTS.APPDIRS.user_cache_dir
-        log_dir = CONSTANTS.APPDIRS.user_log_dir
+        cache_dir = constants.APPDIRS.user_cache_dir
+        log_dir = constants.APPDIRS.user_log_dir
     else:
         log_dir = os.path.join(cache_dir, "log")
 
     data_dir = vars(args)["data"]
     if not data_dir:
-        data_dir = CONSTANTS.APPDIRS.user_data_dir
+        data_dir = constants.APPDIRS.user_data_dir
 
     return (cache_dir, config_dir, data_dir, log_dir)
 
@@ -272,7 +265,7 @@ def _setup_program_arguments():
                             """))
 
     parser.add_argument("--version", "-V", action="version",
-                        version="%(prog)s {}".format(CONSTANTS.VERSION))
+                        version="%(prog)s {}".format(constants.VERSION))
 
     return parser
 
@@ -284,7 +277,7 @@ def _setup_logging(log_dir):
         os.makedirs(log_dir)
 
     if not os.path.isfile(log_filename):
-        open(log_filename, "a").close()
+        open(log_filename, "a", encoding=constants.ENCODING).close()
 
     logger = logging.getLogger("root")
     logger.setLevel(logging.DEBUG)
@@ -303,7 +296,7 @@ def _setup_logging(log_dir):
     stream_handler.setFormatter(simple_form)
 
     # If VERBOSITY is above zero, log to stream at DEBUG.
-    if CONSTANTS.VERBOSITY > 0:
+    if constants.VERBOSITY > 0:
         stream_handler.setLevel(logging.DEBUG)
 
     else:
