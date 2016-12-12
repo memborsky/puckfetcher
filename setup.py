@@ -27,7 +27,7 @@ TEST_REQUIRES = ["coveralls>=1.1",
 setup(author="Andrew Michaud",
       author_email="puckfetcher@mail.andrewmichaud.com",
 
-      classifiers=["Development Status :: 4 - Beta",
+      classifiers=["Development Status :: 5 - Production/Stable",
                    "Environment :: Console",
                    "Intended Audience :: End Users/Desktop",
                    "License :: OSI Approved :: BSD License",
