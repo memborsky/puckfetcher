@@ -1,3 +1,45 @@
+1.0.0 (2016-12-12):
+    * BREAKING:
+        * Cut Python 2.7, 3.3 support. This simplifies my code and lets me use neat new features.
+        * Drop porting logic - puckfetcher will not upgrade smoothly to 1.0.0, you'll have to
+          remove your cache file.
+        * Remove update_forever command. It's silly and unnecessary.
+        * Remove load command. All other commands run it automatically, there's no point in having
+          an explicit load command.
+
+    * NEW FEATURES:
+        * Command to summarize entries downloaded in current session.
+        * Command to summarize entries downloaded recently for a specific subscription.
+        * Command to mock an entry as downloaded already.
+        * Command to mock an entry as *not* downloaded already.
+        * Command to add an entry to the download queue, to be added on next update.
+
+    * BUGFIXES:
+        * Create directories for subscriptions, if needed. Formerly, we'd crash.
+        * Fix off-by-one error that could happen when enqueing subscriptions.
+        * Fix naming of commands in --help option.
+        * Rename "prompt" to "menu" in commands, because that's clearer.
+        * Make sure README uses accurate commands.
+        * Handle query params in podcast URLs properly - cut them out and don't save them to
+          filenames.
+        * Use UTF-8 consistently everywhere, to avoid encoding errors (formerly with a bunch of 2/3
+          struct code - free with Python 3 and specifying encoding on file open/close).
+
+    * DEV STUFF/CLEANUP:
+        * Add static typing hints to the codebase. This adds a layer of bug-checking on builds.
+        * Expand testing to be more thorough and include (some of) the new features.
+        * Lower bar a bit for Code Climate, to have less issues.
+        * A lot of shim code for Python 2/3 support, that got removed when I made this project
+          3-only.
+        * Added CONTRIBUTING.md - read if you want to contribute.
+        * Add CODE_OF_CONDUCT for potential future contributors to read and follow.
+        * Set up proper PRs with approvals. Use a bunch of Cool Phrases to approve PRs.
+        * Clean up logging setup - never use print, always log. Info and above go to stdout.
+        * Let errors inherit intelligently to cut duplicate code.
+        * Make a code cleanup pass - did lots of stuff. Make pylint happy in more cases.
+        * Specify when indexes are zero-based(code) and when they're one-based (UI) to (hopefully)
+          prevent future off-by-one errors.
+
 0.9.0 (2016-09-02):
     * Support PyPy, in theory.
     * Don't load cache multiple times.
