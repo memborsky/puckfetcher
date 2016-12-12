@@ -16,8 +16,17 @@ matrix:
 install:
     - python setup.py install
     - pip install coveralls
+    - pip install mypy-lang
 
 script:
+    - |
+      mypy --silent-imports \
+      puckfetcher/config.py puckfetcher/subscription.py puckfetcher/__main__.py \
+      puckfetcher/error.py puckfetcher/util.py \
+      puckfetcher/test/test_config.py puckfetcher/test/test_subscription.py \
+      puckfetcher/test/test_main.py puckfetcher/test/test_util.py \
+      --disallow-untyped-defs --incremental --warn-no-return --show-column-numbers
+
     - coverage run --source=puckfetcher setup.py test
     - coverage report -m
 

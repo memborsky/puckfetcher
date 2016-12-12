@@ -2,35 +2,36 @@
 import logging
 import os
 import time
+from typing import Any, Callable, Dict, List, Set
 
 import requests
 
-from clint.textui import progress
+import clint.textui as tui
 
 import puckfetcher.constants as constants
 
 LOG = logging.getLogger("root")
 
-LAST_CALLED = {}
+LAST_CALLED = {}  # type: Dict[str, float]
 
-def ensure_dir(directory):
+def ensure_dir(directory: str) -> None:
     """Create a directory if it doesn't exist."""
     if not os.path.isdir(directory):
         LOG.debug("Directory %s does not exist, creating it.", directory)
         os.makedirs(directory)
 
-def expand(directory):
+def expand(directory: str) -> str:
     """Apply expanduser and expandvars to directory to expand '~' and env vars."""
     temp1 = os.path.expanduser(directory)
     return os.path.expandvars(temp1)
 
-def generate_downloader(headers, args):
+def generate_downloader(headers: Dict[str, str], args: Any) -> Callable[..., None]:
     """Create function to download with rate limiting and text progress."""
 
-    def _downloader(url, dest):
+    def _downloader(url: str, dest: str) -> None:
 
         @rate_limited(30, args)
-        def _rate_limited_download():
+        def _rate_limited_download() -> None:
 
             # Create parent directory of file, and its parents, if they don't exist.
             parent = os.path.dirname(dest)
@@ -48,7 +49,7 @@ def generate_downloader(headers, args):
             open(dest, "a", encoding=constants.ENCODING).close()
             # per http://stackoverflow.com/a/20943461
             with open(dest, "wb") as stream:
-                for chunk in progress.bar(chunks, expected_size=expected_size):
+                for chunk in tui.progress.bar(chunks, expected_size=expected_size):
                     if not chunk:
                         return
                     stream.write(chunk)
@@ -58,11 +59,11 @@ def generate_downloader(headers, args):
 
     return _downloader
 
-def max_clamp(val, limit):
+def max_clamp(val: int, limit: int) -> int:
     """Clamp int to limit."""
     return min(val, limit)
 
-def parse_int_string(int_string):
+def parse_int_string(int_string: str) -> List[int]:
     """
     Given a string like "1 23 4-8 32 1", return a unique list of those integers in the string and
     the integers in the ranges in the string.
@@ -73,7 +74,7 @@ def parse_int_string(int_string):
     cleaned = cleaned.replace(",", " ")
 
     tokens = cleaned.split(" ")
-    indices = set()
+    indices = set()  # type: Set[int]
     for token in tokens:
         if "-" in token:
             endpoints = token.split("-")
@@ -95,11 +96,11 @@ def parse_int_string(int_string):
     return list(indices)
 
 # Modified from https://stackoverflow.com/a/667706
-def rate_limited(max_per_hour, *args):
+def rate_limited(max_per_hour: int, *args: Any) -> Callable[..., Any]:
     """Decorator to limit function to N calls/hour."""
     min_interval = 3600.0 / float(max_per_hour)
 
-    def _decorate(func):
+    def _decorate(func: Callable[..., Any]) -> Callable[..., Any]:
         things = [func.__name__]
         things.extend(args)
         key = "".join(things)
@@ -108,7 +109,7 @@ def rate_limited(max_per_hour, *args):
             LOG.debug("Initializing entry for %s.", key)
             LAST_CALLED[key] = 0.0
 
-        def _rate_limited_function(*args, **kargs):
+        def _rate_limited_function(*args: Any, **kargs: Any) -> Any:
             last_called = LAST_CALLED[key]
             now = time.time()
             elapsed = now - last_called
@@ -128,7 +129,7 @@ def rate_limited(max_per_hour, *args):
         return _rate_limited_function
     return _decorate
 
-def sanitize(filename):
+def sanitize(filename: str) -> str:
     """
     Remove disallowed characters from potential filename. Currently only guaranteed on Linux and
     OS X.

@@ -1,12 +1,11 @@
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
-
 import argparse
-from argparse import RawTextHelpFormatter
 import logging
-from logging.handlers import RotatingFileHandler
+import logging.handlers as lhandlers
 import os
 import sys
 import textwrap
+from typing import Any, Dict, List, Tuple
 
 from clint.textui import prompt
 
@@ -15,7 +14,7 @@ import puckfetcher.config as config
 import puckfetcher.error as error
 import puckfetcher.util as util
 
-def main():
+def main() -> None:
     """Run puckfetcher on the command line."""
 
     parser = _setup_program_arguments()
@@ -30,7 +29,7 @@ def main():
         conf = config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
     except error.MalformedConfigError as exception:
         LOG.error("Unable to start puckfetcher - config error.")
-        LOG.error(exception)
+        LOG.error(exception.desc)
         parser.exit()
 
     index = 1
@@ -81,60 +80,68 @@ def main():
     parser.exit()
 
 # TODO find a way to simplify and/or push logic into Config.
-def _handle_command(command, conf, command_options, log):
-    if command == config.Command.update.name:
-        conf.update()
+def _handle_command(command: str, conf: config.Config,
+                    command_options: List[Dict[str, Any]],
+                    log: logging.Logger,
+                    ) -> None:
+    try:
+        if command == config.Command.update.name:
+            conf.update()
 
-    elif command == config.Command.list.name:
-        conf.list()
+        elif command == config.Command.list.name:
+            conf.list()
 
-    elif command == config.Command.summarize.name:
-        conf.summarize()
-        input("Press enter when done.")
+        elif command == config.Command.summarize.name:
+            conf.summarize()
+            input("Press enter when done.")
 
-    elif command == config.Command.details.name:
-        sub_index = _choose_sub(conf)
-        conf.details(sub_index)
-        input("Press enter when done.")
+        elif command == config.Command.details.name:
+            sub_index = _choose_sub(conf)
+            conf.details(sub_index)
+            input("Press enter when done.")
 
-    elif command == config.Command.download_queue.name:
-        sub_index = _choose_sub(conf)
-        conf.download_queue(sub_index)
+        elif command == config.Command.download_queue.name:
+            sub_index = _choose_sub(conf)
+            conf.download_queue(sub_index)
 
-    elif command == config.Command.summarize_sub.name:
-        sub_index = _choose_sub(conf)
-        conf.summarize_sub(sub_index)
-        input("Press enter when done.")
+        elif command == config.Command.summarize_sub.name:
+            sub_index = _choose_sub(conf)
+            conf.summarize_sub(sub_index)
+            input("Press enter when done.")
 
-    # TODO this needs work.
-    elif command == config.Command.enqueue.name:
-        (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
-        conf.enqueue(sub_index, entry_nums)
+        # TODO this needs work.
+        elif command == config.Command.enqueue.name:
+            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+            conf.enqueue(sub_index, entry_nums)
 
-    elif command == config.Command.mark.name:
-        (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
-        conf.mark(sub_index, entry_nums)
+        elif command == config.Command.mark.name:
+            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+            conf.mark(sub_index, entry_nums)
 
-    elif command == config.Command.unmark.name:
-        (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
-        conf.unmark(sub_index, entry_nums)
+        elif command == config.Command.unmark.name:
+            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+            conf.unmark(sub_index, entry_nums)
 
-    else:
-        log.error("Unknown command. Allowed commands are:")
-        for command in command_options:
-            log.error("    {}: {}".format(command["return"], command["prompt"]))
-        return
+        else:
+            log.error("Unknown command. Allowed commands are:")
+            for item in command_options:
+                log.error("    {}: {}".format(item["return"], item["prompt"]))
+            return
 
-def _sub_list_command_wrapper(conf, command, log):
+    except error.PuckError as e:
+        log.error("Encountered error running command.")
+        log.error(e.desc)
+
+
+def _sub_list_command_wrapper(conf: config.Config, command: str, log: logging.Logger,
+                              ) -> Tuple[int, List[int]]:
     sub_index = _choose_sub(conf)
     conf.details(sub_index)
     log.info("COMMAND - {}".format(command))
     return (sub_index, _choose_entries())
 
-def _choose_sub(conf):
+def _choose_sub(conf: config.Config) -> int:
     sub_names = conf.get_subs()
-    if sub_names is None:
-        return
 
     subscription_options = []
     pad_num = len(str(len(sub_names)))
@@ -144,7 +151,7 @@ def _choose_sub(conf):
 
     return prompt.options("Choose a subscription:", subscription_options)
 
-def _choose_entries():
+def _choose_entries() -> List[int]:
     done = False
     while not done:
         num_string = input(textwrap.dedent(
@@ -185,7 +192,7 @@ def _choose_entries():
 
 
 # Helpers.
-def _setup_directories(args):
+def _setup_directories(args: argparse.Namespace) -> Tuple[str, str, str, str]:
     config_dir = vars(args)["config"]
     if not config_dir:
         config_dir = constants.APPDIRS.user_config_dir
@@ -204,9 +211,9 @@ def _setup_directories(args):
     return (cache_dir, config_dir, data_dir, log_dir)
 
 
-def _setup_program_arguments():
+def _setup_program_arguments() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Download RSS feeds based on a config.",
-                                     formatter_class=RawTextHelpFormatter)
+                                     formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument("command", metavar="command", type=str,
                         help=textwrap.dedent(
@@ -270,7 +277,7 @@ def _setup_program_arguments():
     return parser
 
 
-def _setup_logging(log_dir):
+def _setup_logging(log_dir: str) -> logging.Logger:
     log_filename = os.path.join(log_dir, "{}.log".format(__package__))
 
     if not os.path.isdir(log_dir):
@@ -283,7 +290,8 @@ def _setup_logging(log_dir):
     logger.setLevel(logging.DEBUG)
 
     # Provide a file handler that logs everything in a verbose format.
-    file_handler = RotatingFileHandler(filename=log_filename, maxBytes=1024000000, backupCount=10)
+    file_handler = lhandlers.RotatingFileHandler(filename=log_filename,
+                                                 maxBytes=1024000000, backupCount=10)
     verbose_form = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(module)s - %(message)s")
     file_handler.setFormatter(verbose_form)
     file_handler.setLevel(logging.DEBUG)

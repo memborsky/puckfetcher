@@ -4,9 +4,9 @@ from mock import MagicMock
 import puckfetcher.__main__ as main
 import puckfetcher.config as config
 
-def test_simple_commands():
+def test_simple_commands() -> None:
     """Test simple commands."""
-    conf = config.Config.__new__(config.Config)
+    conf = MagicMock()
 
     # Mock config commands.
     conf.update = MagicMock()
@@ -19,9 +19,9 @@ def test_simple_commands():
     conf.update.assert_called_once_with()
     conf.list.assert_called_once_with()
 
-def test_list_commands():
+def test_list_commands() -> None:
     """Test commands that need a sub chosen from a list."""
-    conf = config.Config.__new__(config.Config)
+    conf = MagicMock()
 
     conf.details = MagicMock()
     conf.download_queue = MagicMock()

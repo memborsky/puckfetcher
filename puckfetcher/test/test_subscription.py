@@ -1,5 +1,6 @@
 """Tests for the subscription module."""
 import os
+from typing import Any, Callable, Dict
 
 import pytest
 
@@ -15,7 +16,7 @@ GONE = "410"
 ERROR_CASES = [TEMP_REDIRECT, PERM_REDIRECT, NOT_FOUND, GONE]
 
 
-def test_empty_url_cons(strdir):
+def test_empty_url_cons(strdir: str) -> None:
     """
     Constructing a subscription with an empty URL should return a None object.
     """
@@ -24,7 +25,7 @@ def test_empty_url_cons(strdir):
 
     assert exception.value.desc == "URL is None or empty - can't create subscription."
 
-def test_none_url_cons(strdir):
+def test_none_url_cons(strdir: str) -> None:
     """
     Constructing a subscription with a URL that is None should throw a MalformedSubscriptionError.
     """
@@ -33,7 +34,7 @@ def test_none_url_cons(strdir):
 
     assert exception.value.desc == "URL is None or empty - can't create subscription."
 
-def test_empty_name_cons(strdir):
+def test_empty_name_cons(strdir: str) -> None:
     """
     Constructing a subscription with an empty name should throw a MalformedSubscriptionError.
     """
@@ -42,7 +43,7 @@ def test_empty_name_cons(strdir):
 
     assert exception.value.desc == "Name is None or empty - can't create subscription."
 
-def test_none_name_cons(strdir):
+def test_none_name_cons(strdir: str) -> None:
     """
     Constructing a subscription with a name that is None should throw a MalformedSubscriptionError.
     """
@@ -51,7 +52,7 @@ def test_none_name_cons(strdir):
 
     assert exception.value.desc == "Name is None or empty - can't create subscription."
 
-def test_get_feed_max(strdir):
+def test_get_feed_max(strdir: str) -> None:
     """ If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
     test_sub = subscription.Subscription(url=PERM_REDIRECT, name="tooManyAttemptsTest",
                                          directory=strdir)
@@ -61,29 +62,28 @@ def test_get_feed_max(strdir):
     assert test_sub.feed_state.feed == {}
     assert test_sub.feed_state.entries == []
 
-def test_temporary_redirect(strdir):
+def test_temporary_redirect(strdir: str) -> None:
     """
     If we are redirected temporarily to a valid RSS feed, we should successfully parse that
     feed and not change our url. The originally provided URL should be unchanged.
     """
     _test_url_helper(strdir, TEMP_REDIRECT, "302Test", TEMP_REDIRECT, TEMP_REDIRECT)
 
-def test_permanent_redirect(strdir):
+def test_permanent_redirect(strdir: str) -> None:
     """
     If we are redirected permanently to a valid RSS feed, we should successfully parse that
     feed and change our url. The originally provided URL should be unchanged.
     """
     _test_url_helper(strdir, PERM_REDIRECT, "301Test", RSS_ADDRESS, PERM_REDIRECT)
 
-def test_not_found_fails(strdir):
+def test_not_found_fails(strdir: str) -> None:
     """If the URL is Not Found, we should not change the saved URL."""
     _test_url_helper(strdir, NOT_FOUND, "404Test", NOT_FOUND, NOT_FOUND)
 
-def test_gone_fails(strdir):
+def test_gone_fails(strdir: str) -> None:
     """If the URL is Gone, the current url should be set to None, and we should return None."""
     test_sub = subscription.Subscription(url=GONE, name="410Test", directory=strdir)
 
-    test_sub.use_backlog = True
     test_sub.backlog_limit = 1
     test_sub.use_title_as_filename = False
 
@@ -95,7 +95,7 @@ def test_gone_fails(strdir):
     assert test_sub.url is None
     assert test_sub.original_url == GONE
 
-def test_new_attempt_update(strdir):
+def test_new_attempt_update(strdir: str) -> None:
     """Attempting update on a new subscription (no backlog) should download nothing."""
     test_dir = strdir
     test_sub = subscription.Subscription(url="foo", name="foo", directory=test_dir)
@@ -105,7 +105,7 @@ def test_new_attempt_update(strdir):
     test_sub.attempt_update()
     assert len(os.listdir(test_dir)) == 0
 
-def test_attempt_update_new_entry(strdir):
+def test_attempt_update_new_entry(strdir: str) -> None:
     """Attempting update on a podcast with a new entry should download the new entry only."""
     test_dir = strdir
     test_sub = subscription.Subscription(url=RSS_ADDRESS, name="bar", directory=test_dir)
@@ -121,13 +121,12 @@ def test_attempt_update_new_entry(strdir):
     assert len(os.listdir(test_dir)) == 1
     _check_hi_contents(0, test_dir)
 
-def test_attempt_download_backlog(strdir):
+def test_attempt_download_backlog(strdir: str) -> None:
     """Should download full backlog if backlog limit set to None."""
     test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
 
-    test_sub.use_backlog = True
     test_sub.backlog_limit = None
     test_sub.use_title_as_filename = False
 
@@ -138,7 +137,7 @@ def test_attempt_download_backlog(strdir):
     for i in range(1, 9):
         _check_hi_contents(i, test_sub.directory)
 
-def test_attempt_download_partial_backlog(strdir):
+def test_attempt_download_partial_backlog(strdir: str) -> None:
     """Should download partial backlog if limit is specified."""
     test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5,
                                          directory=strdir)
@@ -149,7 +148,6 @@ def test_attempt_download_partial_backlog(strdir):
     # TODO find a cleaner way to set these.
     # Maybe test_subscription should handle these attributes missing better?
     # Maybe have a cleaner way to hack them in in tests?
-    test_sub.use_backlog = True
     test_sub.backlog_limit = 4
     test_sub.use_title_as_filename = False
     test_sub.attempt_update()
@@ -157,7 +155,7 @@ def test_attempt_download_partial_backlog(strdir):
     for i in range(0, 4):
         _check_hi_contents(i, test_sub.directory)
 
-def test_mark(sub_with_entries):
+def test_mark(sub_with_entries: subscription.Subscription) -> None:
     """Should mark subscription entries correctly."""
     assert len(sub_with_entries.feed_state.entries) > 0
 
@@ -179,7 +177,7 @@ def test_mark(sub_with_entries):
     for bad_num in bad_nums:
         assert bad_num not in sub_with_entries.feed_state.entries_state_dict
 
-def test_unmark(sub_with_entries):
+def test_unmark(sub_with_entries: subscription.Subscription) -> None:
     """Should unmark subscription entries correctly."""
     assert len(sub_with_entries.feed_state.entries) > 0
 
@@ -201,7 +199,7 @@ def test_unmark(sub_with_entries):
     for bad_num in bad_nums:
         assert bad_num not in sub_with_entries.feed_state.entries_state_dict
 
-def test_url_with_qparams():
+def test_url_with_qparams() -> None:
     """Test that the _get_dest helper handles query parameters properly."""
     test_sub = subscription.Subscription(url="test", name="test", directory="test")
 
@@ -217,7 +215,7 @@ def test_url_with_qparams():
     filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "puck", "/test")
     assert filename == "/test/bar.mp3"
 
-def test_url_sanitize():
+def test_url_sanitize() -> None:
     """
     Test that the _get_dest helper sanitizes correctly on non-Windows. Only / should need to be
     replaced
@@ -243,7 +241,9 @@ def test_url_sanitize():
 
 
 # Helpers.
-def _test_url_helper(strdir, given, name, expected_current, expected_original):
+def _test_url_helper(strdir: str, given: str, name: str, expected_current: str,
+                     expected_original: str,
+                     ) -> None:
     test_sub = subscription.Subscription(url=given, name=name, directory=strdir)
 
     test_sub.downloader = generate_fake_downloader()
@@ -254,16 +254,16 @@ def _test_url_helper(strdir, given, name, expected_current, expected_original):
     assert test_sub.url == expected_current
     assert test_sub.original_url == expected_original
 
-def _check_hi_contents(filename_num, directory):
+def _check_hi_contents(filename_num: int, directory: str) -> None:
     file_path = os.path.join(directory, "hi0{}.txt".format(filename_num))
     with open(file_path, "r", encoding="UTF-8") as enclosure:
         data = enclosure.read().replace('\n', '')
         assert data == "hi"
 
-def generate_fake_downloader():
+def generate_fake_downloader() -> Callable[[str, str], None]:
     """Fake downloader for test purposes."""
 
-    def _downloader(url=None, dest=None):
+    def _downloader(url: str=None, dest: str=None) -> None:
         contents = "hi"
 
         open(dest, "a", encoding="UTF-8").close()
@@ -274,17 +274,17 @@ def generate_fake_downloader():
 
     return _downloader
 
-def generate_feedparser():
+def generate_feedparser() -> Callable[[str, Any, Any], Dict[str, Any]]:
     """Feedparser wrapper without rate_limiting, for testing."""
 
     # pylint: disable=unused-argument
-    def _fake_parser(url, etag, last_modified):
+    def _fake_parser(url: str, etag: Any, last_modified: Any) -> Dict[str, Any]:
 
-        fake_parsed = {}
+        fake_parsed = {}  # type: Dict[str, Any]
         entries = []
         href = ""
         for i in range(0, 10):
-            entry = {}
+            entry = {}  # type: Dict[str, Any]
             entry["title"] = "hi"
             entry["enclosures"] = [{"href": "hi0{}.txt".format(i)}]
 
@@ -310,19 +310,19 @@ def generate_feedparser():
 
 # Fixtures.
 @pytest.fixture(scope="function")
-def strdir(tmpdir):
+def strdir(tmpdir: Any) -> str:
     """Create temp directory, in string format."""
     return str(tmpdir.mkdir("foo"))
 
 @pytest.fixture(scope="function")
-def sub(strdir):
+def sub(strdir: str) -> subscription.Subscription:
     """Create a test subscription."""
     test_sub = subscription.Subscription(url="test", name="test", directory=strdir)
 
     return test_sub
 
 @pytest.fixture(scope="function")
-def sub_with_entries(sub):
+def sub_with_entries(sub: subscription.Subscription) -> subscription.Subscription:
     """Create a test subscription with faked entries."""
     sub.feed_state.entries = list(range(0, 20))
 

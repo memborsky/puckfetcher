@@ -1,9 +1,9 @@
 """Module describing a Config object, which controls how an instance of puckfetcher acts."""
 import collections
+import enum
 import logging
 import os
-
-from enum import Enum
+from typing import Any, List, Mapping
 
 import umsgpack
 import yaml
@@ -15,13 +15,14 @@ import puckfetcher.util as util
 
 SUMMARY_LIMIT = 4
 
+
 LOG = logging.getLogger("root")
 
 
 class Config(object):
     """Class holding config options."""
 
-    def __init__(self, config_dir, cache_dir, data_dir):
+    def __init__(self, config_dir: str, cache_dir: str, data_dir: str) -> None:
 
         _validate_dirs(config_dir, cache_dir, data_dir)
 
@@ -38,11 +39,14 @@ class Config(object):
         }
 
         self.state_loaded = False
-        self.subscriptions = []
+        self.subscriptions = []  # type: List[subscription.Subscription]
 
         # This map is used to match user subs to cache subs, in case names or URLs (but not both)
         # have changed.
-        self.cache_map = {"by_name": {}, "by_url": {}}
+        self.cache_map = {
+            "by_name": {},
+            "by_url": {},
+        }  # type: Dict[str, Dict[str, subscription.Subscription]]
 
         command_pairs = (
             (Command.update,
@@ -67,14 +71,23 @@ class Config(object):
         self.commands = collections.OrderedDict(command_pairs)
 
     # "Public" functions.
-    def get_commands(self):
+    def get_commands(self) -> Mapping[Any, str]:
         """Provide commands that can be used on this config."""
         return self.commands
 
-    def load_state(self):
+    def load_state(self) -> None:
         """Load config file, and load subscription cache if we haven't yet."""
-        self._load_user_settings()
-        self._load_cache_settings()
+        try:
+            self._load_user_settings()
+        except error.MalformedConfigError as e:
+            LOG.error("Error loading user settings.")
+            raise
+
+        try:
+            self._load_cache_settings()
+        except error.MalformedConfigError as e:
+            LOG.error("Error loading cache settings.")
+            raise
 
         if self.subscriptions != []:
             # Iterate through subscriptions to merge user settings and cache.
@@ -99,7 +112,8 @@ class Config(object):
                     sub = self.cache_map["by_url"][url]
 
                 sub.update(directory=directory, name=name, url=url, set_original=True,
-                           config_dir=self.settings["directory"])
+                           config_dir=self.settings["directory"],
+                           )
 
                 sub.default_missing_fields(self.settings)
 
@@ -110,7 +124,7 @@ class Config(object):
         LOG.debug("Successful load.")
         self.state_loaded = True
 
-    def get_subs(self):
+    def get_subs(self) -> List[str]:
         """Provide list of subscription names. Load state if we haven't."""
         _ensure_loaded(self)
         subs = []
@@ -119,8 +133,8 @@ class Config(object):
 
         return subs
 
-    def update(self):
-        """Update all subscriptions once. Return True if we successfully updated."""
+    def update(self) -> None:
+        """Update all subscriptions once."""
         _ensure_loaded(self)
 
         num_subs = len(self.subscriptions)
@@ -136,8 +150,8 @@ class Config(object):
             self.subscriptions[i] = sub
             self.save_cache()
 
-    def list(self):
-        """Load state and list subscriptions. Return if loading succeeded."""
+    def list(self) -> None:
+        """Load state and list subscriptions."""
         _ensure_loaded(self)
 
         num_subs = len(self.subscriptions)
@@ -147,13 +161,9 @@ class Config(object):
 
         LOG.debug("Load + list completed, no issues.")
 
-    def details(self, sub_index):
+    def details(self, sub_index: int) -> None:
         """Get details on one sub, including last update date and what entries we have."""
-        try:
-            self._validate_command(sub_index)
-        except error.BadCommandError as exception:
-            LOG.error(exception)
-            return
+        self._validate_command(sub_index)
 
         num_subs = len(self.subscriptions)
         sub = self.subscriptions[sub_index]
@@ -161,13 +171,9 @@ class Config(object):
 
         LOG.debug("Load + detail completed, no issues.")
 
-    def enqueue(self, sub_index, nums):
+    def enqueue(self, sub_index: int, nums: List[int]) -> None:
         """Add item(s) to a sub's download queue."""
-        try:
-            self._validate_list_command(sub_index, nums)
-        except error.BadCommandError as exception:
-            LOG.error(exception)
-            return
+        self._validate_list_command(sub_index, nums)
 
         sub = self.subscriptions[sub_index]
 
@@ -179,13 +185,9 @@ class Config(object):
         LOG.info("Added items %s to queue successfully.", enqueued_nums)
         self.save_cache()
 
-    def mark(self, sub_index, nums):
+    def mark(self, sub_index: int, nums: List[int]) -> None:
         """Mark items as downloaded by a subscription."""
-        try:
-            self._validate_list_command(sub_index, nums)
-        except error.BadCommandError as exception:
-            LOG.error(exception)
-            return
+        self._validate_list_command(sub_index, nums)
 
         sub = self.subscriptions[sub_index]
         marked_nums = sub.mark(nums)
@@ -193,13 +195,9 @@ class Config(object):
         LOG.info("Marked items %s as downloaded successfully.", marked_nums)
         self.save_cache()
 
-    def unmark(self, sub_index, nums):
+    def unmark(self, sub_index: int, nums: List[int]) -> None:
         """Unmark items as downloaded by a subscription."""
-        try:
-            self._validate_list_command(sub_index, nums)
-        except error.BadCommandError as exception:
-            LOG.error(exception)
-            return
+        self._validate_list_command(sub_index, nums)
 
         sub = self.subscriptions[sub_index]
         unmarked_nums = sub.unmark(nums)
@@ -207,7 +205,7 @@ class Config(object):
         LOG.info("Unmarked items %s successfully.", unmarked_nums)
         self.save_cache()
 
-    def summarize(self):
+    def summarize(self) -> None:
         """
         Provide summary of recently downloaded entries. Show only items downloaded in this session.
         """
@@ -231,13 +229,9 @@ class Config(object):
 
         LOG.info("\n".join(lines))
 
-    def summarize_sub(self, sub_index):
+    def summarize_sub(self, sub_index: int) -> None:
         """Provide summary of recently downloaded entries for a single subscription."""
-        try:
-            self._validate_command(sub_index)
-        except error.BadCommandError as exception:
-            LOG.error(exception)
-            return
+        self._validate_command(sub_index)
 
         sub = self.subscriptions[sub_index]
 
@@ -256,14 +250,9 @@ class Config(object):
 
         LOG.info("\n".join(lines))
 
-    def download_queue(self, sub_index):
+    def download_queue(self, sub_index: int) -> None:
         """Download one sub's download queue."""
-        # TODO I don't like this pattern - handle the error higher up or something.
-        try:
-            self._validate_command(sub_index)
-        except error.BadCommandError as exception:
-            LOG.error(exception)
-            return
+        self._validate_command(sub_index)
 
         sub = self.subscriptions[sub_index]
         sub.download_queue()
@@ -271,7 +260,7 @@ class Config(object):
         LOG.info("Queue downloading complete, no issues.")
         self.save_cache()
 
-    def save_cache(self):
+    def save_cache(self) -> None:
         """Write current in-memory config to cache file."""
         LOG.info("Writing settings to cache file '%s'.", self.cache_file)
         with open(self.cache_file, "wb") as stream:
@@ -280,26 +269,21 @@ class Config(object):
             stream.write(packed)
 
     # "Private" functions (messy internals).
-    def _validate_list_command(self, sub_index, nums):
+    def _validate_list_command(self, sub_index: int, nums: List[int]) -> None:
         if nums is None or len(nums) <= 0:
             raise error.BadCommandError("Invalid list of nums {}.".format(nums))
 
         self._validate_command(sub_index)
 
-    def _validate_command(self, sub_index):
+    def _validate_command(self, sub_index: int) -> None:
         if sub_index < 0 or sub_index > len(self.subscriptions):
             raise error.BadCommandError("Invalid sub index {}.".format(sub_index))
 
         _ensure_loaded(self)
 
-    def _load_cache_settings(self):
+    def _load_cache_settings(self) -> None:
         """Load settings from cache to self.cached_settings."""
-
-        successful = _ensure_file(self.cache_file)
-
-        if not successful:
-            LOG.debug("Unable to load cache.")
-            return
+        _ensure_file(self.cache_file)
 
         with open(self.cache_file, "rb") as stream:
             LOG.debug("Opening subscription cache to retrieve subscriptions.")
@@ -307,7 +291,7 @@ class Config(object):
 
         if data == b"":
             LOG.debug("Received empty string from cache.")
-            return False
+            return
 
         for encoded_sub in umsgpack.unpackb(data):
             try:
@@ -315,22 +299,16 @@ class Config(object):
 
             except error.MalformedSubscriptionError as exception:
                 LOG.debug("Encountered error in subscription decoding:")
-                LOG.debug(exception)
+                LOG.debug(exception.desc)
                 LOG.debug("Skipping this sub.")
                 continue
 
             self.cache_map["by_name"][decoded_sub.name] = decoded_sub
             self.cache_map["by_url"][decoded_sub.original_url] = decoded_sub
 
-        return True
-
-    def _load_user_settings(self):
+    def _load_user_settings(self) -> None:
         """Load user settings from config file."""
-        successful = _ensure_file(self.config_file)
-
-        if not successful:
-            LOG.error("Unable to load user config file.")
-            return
+        _ensure_file(self.config_file)
 
         self.subscriptions = []
 
@@ -342,8 +320,7 @@ class Config(object):
         LOG.debug("Settings retrieved from user config file: %s", pretty_settings)
 
         if yaml_settings is not None:
-
-            # Update self.settings, but only currently valid settings.
+            # Process valid settings. Ignore garbage if the user gave it to us.
             for name, value in yaml_settings.items():
                 if name == "subscriptions":
                     pass
@@ -367,25 +344,30 @@ class Config(object):
             if fail_count > 0:
                 LOG.error("Some subscriptions from config file couldn't be parsed - check logs.")
 
-        return True
-
-def _ensure_loaded(config):
+def _ensure_loaded(config: Config) -> None:
     if not config.state_loaded:
         LOG.debug("State not loaded from config file and cache - loading!")
         config.load_state()
 
-def _ensure_file(file_path):
+def _ensure_file(file_path: str) -> None:
     if os.path.exists(file_path) and not os.path.isfile(file_path):
         LOG.debug("Given file exists but isn't a file!")
-        return False
+        raise error.MalformedConfigError("Given file .".format(file_path))
 
     elif not os.path.isfile(file_path):
         LOG.debug("Creating empty file at '%s'.", file_path)
-        open(file_path, "a", encoding=constants.ENCODING).close()
 
-    return True
+        try:
+            open(file_path, "a", encoding=constants.ENCODING).close()
 
-def _validate_dirs(config_dir, cache_dir, data_dir):
+        except PermissionError as e:
+            raise error.MalformedConfigError("No permissions to access path {}.".format(file_path))
+
+        except FileNotFoundError as e:
+            raise error.MalformedConfigError("File path {} is invalid.".format(file_path))
+
+
+def _validate_dirs(config_dir: str, cache_dir: str, data_dir: str) -> None:
     for directory in [config_dir, cache_dir, data_dir]:
         if os.path.isfile(directory):
             msg = "Provided directory '{}' is actually a file!".format(directory)
@@ -394,7 +376,7 @@ def _validate_dirs(config_dir, cache_dir, data_dir):
         util.ensure_dir(directory)
 
 
-class Command(Enum):
+class Command(enum.Enum):
     """Commands a Config can perform."""
     update = 100
     list = 200
