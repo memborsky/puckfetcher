@@ -7,7 +7,7 @@ class PuckError(Exception):
     Attributes:
         desc    -- short message describing error
     """
-    def __init__(self, desc):
+    def __init__(self, desc: str) -> None:
         super(PuckError, self).__init__()
         self.desc = desc
 
@@ -17,7 +17,7 @@ class BadCommandError(PuckError):
     Attributes:
         desc -- short message describing error.
     """
-    def __init__(self, desc):
+    def __init__(self, desc: str) -> None:
         super(BadCommandError, self).__init__(desc)
 
 class MalformedConfigError(PuckError):
@@ -27,7 +27,7 @@ class MalformedConfigError(PuckError):
     Attributes:
         desc    -- short message describing error
     """
-    def __init__(self, desc):
+    def __init__(self, desc: str) -> None:
         super(MalformedConfigError, self).__init__(desc)
 
 class MalformedSubscriptionError(PuckError):
@@ -37,5 +37,5 @@ class MalformedSubscriptionError(PuckError):
     Attributes:
         desc -- short message describing error
     """
-    def __init__(self, desc):
+    def __init__(self, desc: str) -> None:
         super(MalformedSubscriptionError, self).__init__(desc)

@@ -2,17 +2,15 @@
 Module for a subscription object, which manages a podcast URL, name, and information about how
 many episodes of the podcast we have.
 """
-
+import collections
+import datetime
+import enum
 import logging
 import os
 import platform
 import textwrap
 import time
-from time import mktime
-
-from collections import deque
-from datetime import datetime
-from enum import Enum
+from typing import Any, Dict, MutableSequence, List, Mapping, Tuple
 
 import feedparser
 import requests
@@ -33,7 +31,8 @@ LOG = logging.getLogger("root")
 class Subscription(object):
     """Object describing a podcast subscription."""
 
-    def __init__(self, url=None, name=None, directory=None, backlog_limit=0):
+    def __init__(self, url: str=None, name: str=None, directory: str=None, backlog_limit: int=0,
+                 ) -> None:
 
         # Maintain separate data members for originally provided URL, and URL we may change due to
         # redirects.
@@ -47,7 +46,7 @@ class Subscription(object):
             raise error.MalformedSubscriptionError(msg)
 
         # Temporary storage for swapping around urls.
-        self.temp_url = None
+        self.temp_url = None  # type: str
 
         LOG.debug("Storing provided url '%s'.", url)
         self.url = url
@@ -69,12 +68,12 @@ class Subscription(object):
 
         self.backlog_limit = backlog_limit
 
-        self.use_title_as_filename = None
+        self.use_title_as_filename = None  # type: bool
 
         feedparser.USER_AGENT = constants.USER_AGENT
 
     @classmethod
-    def decode_subscription(cls, sub_dictionary):
+    def decode_subscription(cls, sub_dictionary: Mapping[str, Any]) -> "Subscription":
         """Decode subscription from dictionary."""
         url = sub_dictionary.get("url", None)
         if url is None:
@@ -104,7 +103,7 @@ class Subscription(object):
         return sub
 
     @classmethod
-    def encode_subscription(cls, sub):
+    def encode_subscription(cls, sub: "Subscription") -> Mapping[str, Any]:
         """Encode subscription to dictionary."""
 
         return {"__type__": "subscription",
@@ -118,7 +117,9 @@ class Subscription(object):
                 "name": sub.name}
 
     @staticmethod
-    def parse_from_user_yaml(sub_yaml, defaults):
+    def parse_from_user_yaml(sub_yaml: Mapping[str, Any],
+                             defaults: Mapping[str, Any],
+                             ) -> "Subscription":
         """
         Parse YAML user-provided subscription into a subscription object, using config-provided
         options as defaults.
@@ -147,13 +148,13 @@ class Subscription(object):
         return sub
 
     # "Public" functions.
-    def attempt_update(self):
+    def attempt_update(self) -> bool:
         """Attempt to download new entries for a subscription."""
 
         # Attempt to populate self.feed_state from subscription URL.
         feed_get_result = self.get_feed()
         if feed_get_result != UpdateResult.SUCCESS:
-            return feed_get_result
+            return False
 
         LOG.info("Subscription %s got updated feed.", self.name)
 
@@ -213,7 +214,7 @@ class Subscription(object):
 
         return True
 
-    def download_queue(self):
+    def download_queue(self) -> None:
         """
         Download feed enclosure(s) for all entries in the queue.
         Map from positive indexing we use in the queue to negative feed age indexing used in feed.
@@ -293,7 +294,7 @@ class Subscription(object):
         except KeyboardInterrupt:
             self.feed_state.queue.appendleft(entry_num)
 
-    def enqueue(self, nums):
+    def enqueue(self, nums: List[int]) -> List[int]:
         """Add entries to this subscription's download queue."""
         actual_nums = _filter_nums(nums, 0, len(self.feed_state.entries))
 
@@ -305,7 +306,7 @@ class Subscription(object):
 
         return actual_nums
 
-    def mark(self, nums):
+    def mark(self, nums: List[int]) -> List[int]:
         """
         Mark entries as downloaded for this subscription. Do not download or do anything else.
         """
@@ -318,7 +319,7 @@ class Subscription(object):
         LOG.info("Items marked as downloaded for %s: %s", self.name, actual_nums)
         return actual_nums
 
-    def unmark(self, nums):
+    def unmark(self, nums: List[int]) -> List[int]:
         """
         Mark entries as not downloaded for this subscription. Do not download or do anything else.
         """
@@ -331,7 +332,9 @@ class Subscription(object):
         LOG.info("Items marked as not downloaded for %s: %s", self.name, actual_nums)
         return actual_nums
 
-    def update(self, directory=None, config_dir=None, url=None, set_original=False, name=None):
+    def update(self, directory: str=None, config_dir: Any=None, url: str=None,
+               set_original: bool=False, name: str=None,
+               ) -> None:
         """Update values for this subscription."""
         if directory == "":
             LOG.debug("Provided invalid sub directory '%s' for '%s'- ignoring update.",
@@ -359,7 +362,7 @@ class Subscription(object):
         if name is not None:
             self.name = name
 
-    def default_missing_fields(self, settings):
+    def default_missing_fields(self, settings: Mapping[str, Any]) -> None:
         """Set default values for any fields that are None (ones that were never set)."""
 
         # NOTE - directory is set separately, because we'll want to create it.
@@ -376,14 +379,14 @@ class Subscription(object):
         self.downloader = util.generate_downloader(HEADERS, self.name)
         self.parser = _generate_feedparser(self.name)
 
-    def get_status(self, index, total_subs):
+    def get_status(self, index: int, total_subs: int) -> str:
         """Provide status of subscription."""
         pad_num = len(str(total_subs))
         padded_cur_num = str(index + 1).zfill(pad_num)
         return "{}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
                                           self.feed_state.latest_entry_number - 1)
 
-    def get_details(self, index, total_subs):
+    def get_details(self, index: int, total_subs: int) -> None:
         """Provide multiline summary of subscription state."""
         detail_lines = []
 
@@ -409,7 +412,7 @@ class Subscription(object):
         details = "\n".join(detail_lines)
         LOG.info(details)
 
-    def get_feed(self, attempt_count=0):
+    def get_feed(self, attempt_count: int=0) -> "UpdateResult":
         """Get RSS structure for this subscription. Return status code indicating result."""
         res = None
         if attempt_count > MAX_RECURSIVE_ATTEMPTS:
@@ -456,18 +459,18 @@ class Subscription(object):
 
         return code
 
-    def session_summary(self):
+    def session_summary(self) -> List[str]:
         """Provide items downloaded in this session in convenient form."""
         return ["{} (#{})".format(item["name"], item["number"])
                 for item in self.feed_state.summary_queue
                 if item["is_this_session"]]
 
-    def full_summary(self):
+    def full_summary(self) -> List[str]:
         """Provide items downloaded recently in convenient form."""
         return ["{} (#{})".format(item["name"], item["number"])
                 for item in self.feed_state.summary_queue]
 
-    def as_config_yaml(self):
+    def as_config_yaml(self) -> Mapping[str, Any]:
         """Return self as config file YAML."""
 
         return {"url": self.original_url,
@@ -476,7 +479,7 @@ class Subscription(object):
                 "directory": self.directory}
 
     # "Private" class functions (messy internals).
-    def _feedparser_parse_with_options(self):
+    def _feedparser_parse_with_options(self) -> Tuple[feedparser.FeedParserDict, "UpdateResult"]:
         """
         Perform a feedparser parse, providing arguments (like etag) we might want it to use.
         Don't provide etag/last_modified if the last get was unsuccessful.
@@ -516,7 +519,7 @@ class Subscription(object):
         else:
             return (parsed, UpdateResult.SUCCESS)
 
-    def _handle_http_codes(self, parsed):
+    def _handle_http_codes(self, parsed: feedparser.FeedParserDict) -> "UpdateResult":
         """
         Given feedparser parse result, determine if parse succeeded, and what to do about that.
         """
@@ -589,7 +592,7 @@ class Subscription(object):
 
         return result
 
-    def _get_dest(self, url, title, directory):
+    def _get_dest(self, url: str, title: str, directory: str) -> str:
 
         # URL example: "https://www.example.com/foo.mp3?test=1"
 
@@ -624,29 +627,30 @@ class Subscription(object):
 
         return os.path.join(directory, filename)
 
-    def __eq__(self, rhs):
+    def __eq__(self, rhs: Any) -> bool:
         return isinstance(rhs, Subscription) and repr(self) == repr(rhs)
 
-    def __ne__(self, rhs):
+    def __ne__(self, rhs: Any) -> bool:
         return not self.__eq__(rhs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(Subscription.encode_subscription(self))
 
 
 class _FeedState(object):
-    def __init__(self, feedstate_dict=None):
+    def __init__(self, feedstate_dict: Mapping[str, Any]=None) -> None:
         if feedstate_dict is not None:
             LOG.debug("Successfully loaded feed state dict.")
 
             self.feed = feedstate_dict.get("feed", {})
             self.entries = feedstate_dict.get("entries", [])
             self.entries_state_dict = feedstate_dict.get("entries_state_dict", {})
-            self.queue = deque(feedstate_dict.get("queue", []))
+            self.queue = collections.deque(feedstate_dict.get("queue", []))
 
             # Store the most recent SUMMARY_LIMIT items we've downloaded.
             temp_list = feedstate_dict.get("summary_queue", [])
-            self.summary_queue = deque([], SUMMARY_LIMIT)
+            self.summary_queue = collections.deque([], SUMMARY_LIMIT,
+                                                   )  # type: MutableSequence[Dict[str, Any]]
 
             # When we load from the cache file, mark all of the items in the summary queue as not
             # being from the current session.
@@ -667,13 +671,13 @@ class _FeedState(object):
             self.feed = {}
             self.entries = []
             self.entries_state_dict = {}
-            self.queue = deque([])
-            self.summary_queue = deque([], SUMMARY_LIMIT)
-            self.last_modified = None
-            self.etag = None
+            self.queue = collections.deque([])
+            self.summary_queue = collections.deque([], SUMMARY_LIMIT)
+            self.last_modified = None  # type: Any
+            self.etag = None  # type: str
             self.latest_entry_number = None
 
-    def load_rss_info(self, parsed):
+    def load_rss_info(self, parsed: feedparser.FeedParserDict) -> None:
         """Load some RSS subscription elements into this feed state."""
         self.entries = []
         for entry in parsed.get("entries"):
@@ -686,7 +690,7 @@ class _FeedState(object):
 
             self.entries.append(new_entry)
 
-    def as_dict(self):
+    def as_dict(self) -> Dict[str, Any]:
         """Return dictionary of this feed state object."""
 
         return {"entries": self.entries,
@@ -698,18 +702,18 @@ class _FeedState(object):
                 "etag": self.etag,
                 }
 
-    def store_last_modified(self, last_modified):
+    def store_last_modified(self, last_modified: Any) -> None:
         """Store last_modified as a datetime, regardless of form it's provided in."""
         if isinstance(last_modified, time.struct_time):
             LOG.info("Updated last_modified.")
-            self.last_modified = datetime.fromtimestamp(mktime(last_modified))
+            self.last_modified = datetime.datetime.fromtimestamp(time.mktime(last_modified))
         else:
             LOG.debug("Unhandled 'last_modified' type, ignoring.")
             self.last_modified = None
 
 
 # "Private" file functions (messy internals).
-def _process_directory(directory):
+def _process_directory(directory: str) -> str:
     """Assign directory if none was given, and create directory if necessary."""
     directory = util.expand(directory)
     if directory is None:
@@ -723,15 +727,15 @@ def _process_directory(directory):
     return directory
 
 
-def _filter_nums(nums, min_lim, max_lim):
+def _filter_nums(nums: List[int], min_lim: int, max_lim: int) -> List[int]:
     """Given two limits, remove elements from the list that aren't in that range."""
     return [num for num in nums if num > min_lim and num <= max_lim]
 
-def _generate_feedparser(name):
+def _generate_feedparser(name: str) -> Any:
     """Perform rate-limited parse with feedparser."""
 
     @util.rate_limited(120, name)
-    def _rate_limited_parser(url, etag, last_modified):
+    def _rate_limited_parser(url: str, etag: str, last_modified: Any) -> feedparser.FeedParserDict:
         # pylint: disable=no-member
         return feedparser.parse(url, etag=etag, modified=last_modified)
 
@@ -739,7 +743,7 @@ def _generate_feedparser(name):
 
 
 # pylint: disable=too-few-public-methods
-class UpdateResult(Enum):
+class UpdateResult(enum.Enum):
     """Enum describing possible results of trying to update a subscription."""
     SUCCESS = 0
     UNNEEDED = -1

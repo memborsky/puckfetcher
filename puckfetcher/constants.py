@@ -1,9 +1,8 @@
 """Constants used for the puckfetcher application."""
-import pkg_resources
+import appdirs
+import pkg_resources  # type: ignore
 
-from appdirs import AppDirs
-
-APPDIRS = AppDirs("puckfetcher")
+APPDIRS = appdirs.AppDirs("puckfetcher")
 
 URL = "https://github.com/andrewmichaud/puckfetcher"
 

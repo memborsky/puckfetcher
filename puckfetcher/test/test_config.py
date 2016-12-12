@@ -1,5 +1,6 @@
 """Tests for the config module."""
 import os
+from typing import Any, List, Tuple
 
 import pytest
 import umsgpack
@@ -9,13 +10,17 @@ import puckfetcher.config as config
 import puckfetcher.subscription as subscription
 
 
-def test_default_config_construct(default_config, default_conf_file, default_cache_file):
+def test_default_config_construct(default_config: config.Config, default_conf_file: str,
+                                  default_cache_file: str,
+                                  ) -> None:
     """Test config with no arguments assigns the right file vars."""
     assert default_config.config_file == default_conf_file
     assert default_config.cache_file == default_cache_file
 
 
-def test_load_only_cache(default_config, default_cache_file, subscriptions):
+def test_load_only_cache(default_config: config.Config, default_cache_file: str,
+                         subscriptions: List[subscription.Subscription],
+                         ) -> None:
     """Subscriptions list should be empty if there are cached subs but no subs in settings."""
     write_subs_to_file(subs=subscriptions, out_file=default_cache_file, write_type="cache")
 
@@ -24,7 +29,9 @@ def test_load_only_cache(default_config, default_cache_file, subscriptions):
     assert default_config.subscriptions == []
 
 
-def test_load_only_user_settings(default_config, default_conf_file, subscriptions):
+def test_load_only_user_settings(default_config: config.Config, default_conf_file: str,
+                                 subscriptions: List[subscription.Subscription],
+                                 ) -> None:
     """Test that settings can be loaded correctly from just the user settings."""
     write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
 
@@ -33,8 +40,10 @@ def test_load_only_user_settings(default_config, default_conf_file, subscription
     assert default_config.subscriptions == subscriptions
 
 
-def test_non_config_subs_ignore(default_config, default_conf_file, default_cache_file,
-                                subscriptions):
+def test_non_config_subs_ignore(default_config: config.Config, default_conf_file: str,
+                                default_cache_file: str,
+                                subscriptions: List[subscription.Subscription],
+                                ) -> None:
     """Subscriptions in cache but not config shouldn't be in subscriptions list."""
     write_subs_to_file(subs=subscriptions, out_file=default_cache_file, write_type="cache")
     write_subs_to_file(subs=subscriptions[0:1], out_file=default_conf_file, write_type="config")
@@ -44,8 +53,10 @@ def test_non_config_subs_ignore(default_config, default_conf_file, default_cache
     assert default_config.subscriptions == subscriptions[0:1]
 
 
-def test_subscriptions_matching(default_config, default_conf_file, default_cache_file,
-                                subscriptions):
+def test_subscriptions_matching(default_config: config.Config, default_conf_file: str,
+                                default_cache_file: str,
+                                subscriptions: List[subscription.Subscription],
+                                ) -> None:
     """Subscriptions in cache should be matched to subscriptions in config by name or url."""
     write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
 
@@ -81,7 +92,9 @@ def test_subscriptions_matching(default_config, default_conf_file, default_cache
         assert sub.feed_state.latest_entry_number == test_nums[i]
 
 
-def test_save_works(default_config, default_cache_file, subscriptions):
+def test_save_works(default_config: config.Config, default_cache_file: str,
+                    subscriptions: List[subscription.Subscription],
+                    ) -> None:
     """Test that we can save subscriptions correctly."""
     default_config.subscriptions = subscriptions
 
@@ -96,7 +109,8 @@ def test_save_works(default_config, default_cache_file, subscriptions):
 
 
 # Helpers.
-def write_subs_to_file(subs, out_file, write_type):
+def write_subs_to_file(subs: List[subscription.Subscription], out_file: str, write_type: str,
+                       ) -> None:
     """Write subs to a file with the selected type."""
 
     if write_type == "cache":
@@ -114,7 +128,7 @@ def write_subs_to_file(subs, out_file, write_type):
 
 # Fixtures.
 @pytest.fixture(scope="function")
-def config_dirs(tmpdir):
+def config_dirs(tmpdir: Any) -> Tuple[str, str, str]:
     """Generate XDG dirs and vars."""
     config_dir = str(tmpdir.mkdir("config"))
     cache_dir = str(tmpdir.mkdir("cache"))
@@ -128,21 +142,21 @@ def config_dirs(tmpdir):
 
 
 @pytest.fixture(scope="function")
-def default_conf_file(config_dirs):
+def default_conf_file(config_dirs: Tuple[str, str, str]) -> str:
     """Provide name of default config file config object should use."""
     (config_dir, _, _) = config_dirs
     return os.path.join(config_dir, "config.yaml")
 
 
 @pytest.fixture(scope="function")
-def default_cache_file(config_dirs):
+def default_cache_file(config_dirs: Tuple[str, str, str]) -> str:
     """Provide name of default cache file config object should use."""
     (_, cache_dir, _) = config_dirs
     return os.path.join(cache_dir, "puckcache")
 
 
 @pytest.fixture(scope="function")
-def subscriptions(tmpdir):
+def subscriptions(tmpdir: Any) -> List[subscription.Subscription]:
     """Generate subscriptions for config testing."""
     sub_dir = str(tmpdir.mkdir("foo"))
 
@@ -154,7 +168,6 @@ def subscriptions(tmpdir):
 
         sub = subscription.Subscription(name=name, url=url, directory=directory)
 
-        sub.download_backlog = True
         sub.backlog_limit = 1
         sub.use_title_as_filename = False
 
@@ -164,7 +177,7 @@ def subscriptions(tmpdir):
 
 
 @pytest.fixture(scope="function")
-def default_config(config_dirs):
+def default_config(config_dirs: Tuple[str, str, str]) -> config.Config:
     """Create test config with temporary test dirs."""
     (config_dir, cache_dir, data_dir) = config_dirs
 

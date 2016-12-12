@@ -1,1 +1,1 @@
-"""Init module for puckfetcher. Does nothing yet."""
+"""Init module for puckfetcher."""
