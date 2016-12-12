@@ -253,9 +253,7 @@ def _setup_program_arguments() -> argparse.ArgumentParser:
     parser.add_argument("--data", "-d", dest="data",
                         help=textwrap.dedent(
                             """\
-                            Data directory to use. The '{0}' directory will be created here. Put
-                            your 'config.yaml' file here to configure {0}. A default file will be
-                            created for you with default settings if you do not provide one.
+                            Data directory to use. Downloaded subscription entries will live here.
                             The 'directory' setting in the config file will also affect the data
                             directory, but this flag takes precedent.
                             '$XDG_DATA_HOME' will be used if nothing is provided.
