@@ -1,3 +1,6 @@
+1.0.1 (2016-11-12):
+    * Fix data flag message on command line.
+
 1.0.0 (2016-12-12):
     * BREAKING:
         * Cut Python 2.7, 3.3 support. This simplifies my code and lets me use neat new features.
