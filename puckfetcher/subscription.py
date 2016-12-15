@@ -153,7 +153,7 @@ class Subscription(object):
 
         # Attempt to populate self.feed_state from subscription URL.
         feed_get_result = self.get_feed()
-        if feed_get_result != UpdateResult.SUCCESS:
+        if feed_get_result not in (UpdateResult.SUCCESS, UpdateResult.UNNEEDED):
             return False
 
         LOG.info("Subscription %s got updated feed.", self.name)
@@ -383,8 +383,9 @@ class Subscription(object):
         """Provide status of subscription."""
         pad_num = len(str(total_subs))
         padded_cur_num = str(index + 1).zfill(pad_num)
+        one_indexed_entry_num = self.feed_state.latest_entry_number + 1
         return "{}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
-                                          self.feed_state.latest_entry_number - 1)
+                                          self.feed_state.latest_entry_number)
 
     def get_details(self, index: int, total_subs: int) -> None:
         """Provide multiline summary of subscription state."""
@@ -440,7 +441,7 @@ class Subscription(object):
             LOG.info("Feedparser parse failed (%s), aborting.", code)
             return code
 
-        LOG.info("Feedparser parse succeeded.")
+        LOG.debug("Feedparser parse succeeded.")
 
         # Detect some kinds of HTTP status codes signaling failure.
         code = self._handle_http_codes(parsed)
@@ -525,7 +526,7 @@ class Subscription(object):
         """
         # Feedparser gives no status if you feedparse a local file.
         if "status" not in parsed:
-            LOG.info("Saw status 200 - OK, all is well.")
+            LOG.debug("Saw status 200 - OK, all is well.")
             return UpdateResult.SUCCESS
 
         status = parsed.get("status", 200)
@@ -588,7 +589,7 @@ class Subscription(object):
             result = UpdateResult.ATTEMPT_AGAIN
 
         else:
-            LOG.info("Saw status 200. Success!")
+            LOG.debug("Saw status 200. Success!")
 
         return result
 
@@ -705,7 +706,7 @@ class _FeedState(object):
     def store_last_modified(self, last_modified: Any) -> None:
         """Store last_modified as a datetime, regardless of form it's provided in."""
         if isinstance(last_modified, time.struct_time):
-            LOG.info("Updated last_modified.")
+            LOG.debug("Updated last_modified.")
             self.last_modified = datetime.datetime.fromtimestamp(time.mktime(last_modified))
         else:
             LOG.debug("Unhandled 'last_modified' type, ignoring.")

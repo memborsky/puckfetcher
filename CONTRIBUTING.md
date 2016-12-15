@@ -15,7 +15,7 @@ Work on whatever you like.
 If you're writing code, follow PEP8 as a style guideline. Make sure you run the tests before opening a PR, to save time.
 
 ```
-python setup.py test
+python3 setup.py test
 ```
 
 Write good commit messages. Try to keep the first line under 50 characters, and make it a good summary. Skip the next line, and

@@ -143,9 +143,9 @@ class Config(object):
             update_successful = sub.attempt_update()
 
             if not update_successful:
-                LOG.info("Unsuccessful update for sub '%s'.", sub.name)
+                LOG.info("Unsuccessful update for sub '%s'.\n", sub.name)
             else:
-                LOG.info("Updated sub '%s' successfully.", sub.name)
+                LOG.info("Updated sub '%s' successfully.\n", sub.name)
 
             self.subscriptions[i] = sub
             self.save_cache()
@@ -262,7 +262,7 @@ class Config(object):
 
     def save_cache(self) -> None:
         """Write current in-memory config to cache file."""
-        LOG.info("Writing settings to cache file '%s'.", self.cache_file)
+        LOG.debug("Writing settings to cache file '%s'.", self.cache_file)
         with open(self.cache_file, "wb") as stream:
             dicts = [subscription.Subscription.encode_subscription(s) for s in self.subscriptions]
             packed = umsgpack.packb(dicts)
@@ -344,10 +344,12 @@ class Config(object):
             if fail_count > 0:
                 LOG.error("Some subscriptions from config file couldn't be parsed - check logs.")
 
+
 def _ensure_loaded(config: Config) -> None:
     if not config.state_loaded:
         LOG.debug("State not loaded from config file and cache - loading!")
         config.load_state()
+
 
 def _ensure_file(file_path: str) -> None:
     if os.path.exists(file_path) and not os.path.isfile(file_path):

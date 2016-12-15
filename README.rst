@@ -30,31 +30,24 @@ Build + Install:
 
 ::
 
-    python setup.py install
+    python3 setup.py install
 
 Test:
 
 ::
 
-    python setup.py test
+    python3setup.py test
 
-Complete
+Features
 --------
--  Retrieve podcast feed.
--  Get podcast file URL from feed.
--  Download podcast file.
--  Download a set number of podcasts from a feed’s backlog.
--  Load settings from a file to determine which podcasts to download.
--  Save settings to a cache to restore on application load.
--  Intelligently merge user settings and application cache.
--  Add script entry point to repeatedly update subscriptions.
--  Use etags/last-modified header to skip downloading feeds if we
-   already have the latest feed, to not waste bandwidth.
--  PyPI release!
--  Text-based progress for podcast downloads (via Clint).
--  Clean up subscriptions code and get Pylint to like it.
--  Provide summary of downloaded podcasts per-session.
--  Provide summary of recently-downloaded podcast episodes.
+-  Download any podcast with an RSS URL.
+-  Download newest episodes on demand.
+-  Download any episode from a podcast's backlog.
+-  Respects podcast authors' websites - rate limits, checks when feed was last updated when trying
+   to refresh.
+-  Provides progress on downloads.
+-  Provides summary of recently-downloaded podcasts per-session, as well as summary of
+   recently-downloaded episodes per-podcast.
 
 
 Future releases
@@ -62,7 +55,7 @@ Future releases
 -  Text-based progress for other time-consuming actions.
 -  Add MP3 tag support to clean up tags based on feed information if
    it’s messy.
--  Attempt to support Jython/PyPy/IronPython/3.4/3.3
+-  Support PyPy (when it supports 3.4+).
 -  Allow parallel downloading.
 
 .. |BSD3 License| image:: http://img.shields.io/badge/license-BSD3-brightgreen.svg
