@@ -5,6 +5,7 @@ os:
 
 # TODO re-add PyPy when they get >=3.4 support.
 python:
+    - "3.6"
     - "3.5"
     - "3.4"
     - "nightly"
