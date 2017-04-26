@@ -13,7 +13,7 @@ puckfetcher
 
 A simple command-line podcatcher.
 
-Supports Python 3.4+. Feel free to report any issues here, and I’ll investigate when/if I can.
+Supports Python 3.5+. Feel free to report any issues here, and I’ll investigate when/if I can.
 
 | You’ll need setuptools (https://pypi.python.org/pypi/setuptools) to
   run this in its current state. Go get it, clone this repo, and you
@@ -55,7 +55,7 @@ Future releases
 -  Text-based progress for other time-consuming actions.
 -  Add MP3 tag support to clean up tags based on feed information if
    it’s messy.
--  Support PyPy (when it supports 3.4+).
+-  Support PyPy (when it supports 3.5+).
 -  Allow parallel downloading.
 
 .. |BSD3 License| image:: http://img.shields.io/badge/license-BSD3-brightgreen.svg
