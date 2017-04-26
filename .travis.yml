@@ -3,11 +3,10 @@ language: python
 os:
     - linux
 
-# TODO re-add PyPy when they get >=3.4 support.
+# TODO re-add PyPy when they get >=3.5 support.
 python:
     - "3.6"
     - "3.5"
-    - "3.4"
     - "nightly"
 
 matrix:
