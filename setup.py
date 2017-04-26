@@ -12,16 +12,16 @@ with open(path.join(HERE, "VERSION"), encoding="UTF-8") as f:
     VERSION = f.read().strip()
 
 # TODO figure out how to pin to major versions properly.
-INSTALL_REQUIRES = ["appdirs>=1.4.0",
-                    "clint>=0.5.1",
-                    "feedparser>=5.2.1",
-                    "pyyaml>=3.12",
-                    "requests>=2.12.3",
-                    "u-msgpack-python>=2.3.0",
+INSTALL_REQUIRES = ["appdirs>=1.4.0, <2.0.0",
+                    "clint>=0.5.1, <0.6.0",
+                    "feedparser>=5.2.1, <6.0.0",
+                    "pyyaml>=3.12, <4.0.0",
+                    "requests>=2.13.0, <3.0.0",
+                    "u-msgpack-python>=2.4.1, <3.0.0",
                     ]
 
 TEST_REQUIRES = ["coveralls>=1.1",
-                 "pytest",
+                 "pytest>=3.0.7, <4.0.0",
                  ]
 
 setup(author="Andrew Michaud",
@@ -34,8 +34,8 @@ setup(author="Andrew Michaud",
                    "Natural Language :: English",
                    "Operating System :: MacOS :: MacOS X",
                    "Operating System :: POSIX :: Linux",
-                   "Programming Language :: Python :: 3.4",
                    "Programming Language :: Python :: 3.5",
+                   "Programming Language :: Python :: 3.6",
                    "Programming Language :: Python :: Implementation :: CPython",
                    "Topic :: Multimedia :: Sound/Audio",
                    "Topic :: Internet :: WWW/HTTP",
