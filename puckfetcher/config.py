@@ -39,14 +39,14 @@ class Config(object):
         }
 
         self.state_loaded = False
-        self.subscriptions = []  # type: List[subscription.Subscription]
+        self.subscriptions: List[subscription.Subscription] = []
 
         # This map is used to match user subs to cache subs, in case names or URLs (but not both)
         # have changed.
-        self.cache_map = {
+        self.cache_map: Dict[str, Dict[str, subscription.Subscription]] = {
             "by_name": {},
             "by_url": {},
-        }  # type: Dict[str, Dict[str, subscription.Subscription]]
+        }
 
     # "Public" functions.
     def load_state(self) -> None:

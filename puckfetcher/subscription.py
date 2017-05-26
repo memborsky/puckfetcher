@@ -46,7 +46,7 @@ class Subscription(object):
             raise error.MalformedSubscriptionError(msg)
 
         # Temporary storage for swapping around urls.
-        self.temp_url = None  # type: str
+        self.temp_url: str = None
 
         LOG.debug(f"Storing provided url '{url}'.")
         self.url = url
@@ -68,7 +68,7 @@ class Subscription(object):
 
         self.backlog_limit = backlog_limit
 
-        self.use_title_as_filename = None  # type: bool
+        self.use_title_as_filename: bool = None
 
         feedparser.USER_AGENT = constants.USER_AGENT
 
@@ -543,7 +543,6 @@ class Subscription(object):
                     and checked again on next attempt.\
                     """))
 
-            # pylint: disable=redefined-variable-type
             result = UpdateResult.FAILURE
 
         elif status in [requests.codes["UNAUTHORIZED"], requests.codes["GONE"]]:
@@ -651,8 +650,10 @@ class _FeedState(object):
 
             # Store the most recent SUMMARY_LIMIT items we've downloaded.
             temp_list = feedstate_dict.get("summary_queue", [])
-            self.summary_queue = collections.deque([], SUMMARY_LIMIT,
-                                                   )  # type: MutableSequence[Dict[str, Any]]
+            self.summary_queue: MutableSequence[Dict[str, Any]] = collections.deque(
+                [],
+                SUMMARY_LIMIT,
+            )
 
             # When we load from the cache file, mark all of the items in the summary queue as not
             # being from the current session.
@@ -675,8 +676,8 @@ class _FeedState(object):
             self.entries_state_dict = {}
             self.queue = collections.deque([])
             self.summary_queue = collections.deque([], SUMMARY_LIMIT)
-            self.last_modified = None  # type: Any
-            self.etag = None  # type: str
+            self.last_modified: Any = None
+            self.etag: str = None
             self.latest_entry_number = None
 
     def load_rss_info(self, parsed: feedparser.FeedParserDict) -> None:

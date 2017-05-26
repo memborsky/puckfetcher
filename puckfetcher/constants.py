@@ -1,6 +1,6 @@
 """Constants used for the puckfetcher application."""
 import appdirs
-import pkg_resources  # type: ignore
+import pkg_resources
 
 APPDIRS = appdirs.AppDirs("puckfetcher")
 
