@@ -14,16 +14,18 @@ import puckfetcher.config as config
 import puckfetcher.error as error
 import puckfetcher.util as util
 
+LOG = None
+
 def main() -> None:
     """Run puckfetcher on the command line."""
+
+    global LOG
+    LOG = _setup_logging()
 
     parser = _setup_program_arguments()
     args = parser.parse_args()
 
-    (cache_dir, config_dir, data_dir, log_dir) = _setup_directories(args)
-
-    # pylint: disable=invalid-name
-    LOG = _setup_logging(log_dir)
+    (cache_dir, config_dir, data_dir) = _setup_directories(args)
 
     try:
         conf = config.Config(config_dir=config_dir, cache_dir=cache_dir, data_dir=data_dir)
@@ -32,15 +34,13 @@ def main() -> None:
         LOG.error(exception.desc)
         parser.exit()
 
-    index = 1
-    command_options = [{"selector": str(index), "prompt": "Exit.", "return": "exit"}]
+    args = parser.parse_args()
 
-    index += 1
-    config_commands = conf.get_commands()
-    for key in config_commands:
-        value = conf.commands[key]
-        command_options.append({"selector": str(index), "prompt": value, "return": key.name})
-        index += 1
+    command_options = []
+    config_commands = config.get_commands()
+    for i, key in enumerate(config_commands):
+        value = config_commands[key]
+        command_options.append({"selector": str(i + 1), "prompt": value, "return": key.name})
 
     # See if we got a command-line command.
     config_dir = vars(args)["config"]
@@ -53,10 +53,10 @@ def main() -> None:
             pass
 
         else:
-            _handle_command(command, conf, command_options, LOG)
+            _handle_command(command, conf, command_options)
             parser.exit()
 
-    LOG.info("%s %s started!", __package__, constants.VERSION)
+    LOG.info(f"{__package__} {constants.VERSION} started!")
 
     while True:
         try:
@@ -65,7 +65,7 @@ def main() -> None:
             if command == "exit":
                 parser.exit()
 
-            _handle_command(command, conf, command_options, LOG)
+            _handle_command(command, conf, command_options)
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
@@ -82,7 +82,6 @@ def main() -> None:
 # TODO find a way to simplify and/or push logic into Config.
 def _handle_command(command: str, conf: config.Config,
                     command_options: List[Dict[str, Any]],
-                    log: logging.Logger,
                     ) -> None:
     try:
         if command == config.Command.update.name:
@@ -100,44 +99,42 @@ def _handle_command(command: str, conf: config.Config,
             conf.details(sub_index)
             input("Press enter when done.")
 
-        elif command == config.Command.download_queue.name:
-            sub_index = _choose_sub(conf)
-            conf.download_queue(sub_index)
-
         elif command == config.Command.summarize_sub.name:
             sub_index = _choose_sub(conf)
             conf.summarize_sub(sub_index)
             input("Press enter when done.")
 
+        elif command == config.Command.download_queue.name:
+            sub_index = _choose_sub(conf)
+            conf.download_queue(sub_index)
+
         # TODO this needs work.
         elif command == config.Command.enqueue.name:
-            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command)
             conf.enqueue(sub_index, entry_nums)
 
         elif command == config.Command.mark.name:
-            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command)
             conf.mark(sub_index, entry_nums)
 
         elif command == config.Command.unmark.name:
-            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command, log)
+            (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command)
             conf.unmark(sub_index, entry_nums)
 
         else:
-            log.error("Unknown command. Allowed commands are:")
-            for item in command_options:
-                log.error("    {}: {}".format(item["return"], item["prompt"]))
+            LOG.error("Unknown command. Allowed commands are:")
+            LOG.error(config.get_command_help())
             return
 
     except error.PuckError as e:
-        log.error("Encountered error running command.")
-        log.error(e.desc)
+        LOG.error("Encountered error running command.")
+        LOG.error(e.desc)
 
 
-def _sub_list_command_wrapper(conf: config.Config, command: str, log: logging.Logger,
-                              ) -> Tuple[int, List[int]]:
+def _sub_list_command_wrapper(conf: config.Config, command: str) -> Tuple[int, List[int]]:
     sub_index = _choose_sub(conf)
     conf.details(sub_index)
-    log.info("COMMAND - {}".format(command))
+    LOG.info(f"COMMAND - {command}")
     return (sub_index, _choose_entries())
 
 def _choose_sub(conf: config.Config) -> int:
@@ -169,13 +166,14 @@ def _choose_entries() -> List[int]:
         num_list = util.parse_int_string(num_string)
 
         while True:
+            # TODO show ranges in what's shown here, for convenience. Still deduplicate.
             answer = input(textwrap.dedent(
-                """\
-                Happy with {}?
+                f"""\
+                Happy with {num_list}?
                 (If indices are too big/small, they'll be pulled out later.)
                 (No will let you try again)
                 [Yes/yes/y or No/no/n]
-                """.format(num_list)))
+                """))
 
             if len(answer) < 1:
                 continue
@@ -192,7 +190,7 @@ def _choose_entries() -> List[int]:
 
 
 # Helpers.
-def _setup_directories(args: argparse.Namespace) -> Tuple[str, str, str, str]:
+def _setup_directories(args: argparse.Namespace) -> Tuple[str, str, str]:
     config_dir = vars(args)["config"]
     if not config_dir:
         config_dir = constants.APPDIRS.user_config_dir
@@ -200,55 +198,43 @@ def _setup_directories(args: argparse.Namespace) -> Tuple[str, str, str, str]:
     cache_dir = vars(args)["cache"]
     if not cache_dir:
         cache_dir = constants.APPDIRS.user_cache_dir
-        log_dir = constants.APPDIRS.user_log_dir
-    else:
-        log_dir = os.path.join(cache_dir, "log")
 
     data_dir = vars(args)["data"]
     if not data_dir:
         data_dir = constants.APPDIRS.user_data_dir
 
-    return (cache_dir, config_dir, data_dir, log_dir)
+    return (cache_dir, config_dir, data_dir)
 
 
 def _setup_program_arguments() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Download RSS feeds based on a config.",
                                      formatter_class=argparse.RawTextHelpFormatter)
+    a = config.get_command_help()
 
-    parser.add_argument("command", metavar="command", type=str,
+    parser.add_argument("command",
                         help=textwrap.dedent(
-                            """\
+                            f"""\
                             Command to run, one of:
-                            exit           - exit
-                            update         - update all subscriptions to get newest entries list,
-                                             and force queue download
-                            list           - list current subscriptions
-                            details        - provide details on entries for a subscription
-                            enqueue        - add to download queue for subscription
-                            mark           - mark entry downloaded for subcription
-                            unmark         - mark entry as not downloaded for a subscription
-                            download_queue - cause subscription to download full queue
-                            summarize      - summarize entries downloaded this session
-                            summarize_sub  - summarize recent entries for a particular sub
-                            menu           - provide these options in a menu\
+                            {a:<14}\
                             """))
 
     parser.add_argument("--cache", "-a", dest="cache",
                         help=textwrap.dedent(
-                            """\
-                            Cache directory to use. The '{0}' directory will be created here, and
-                            the 'puckcache' and '{0}.log' files will be stored there.
-                            '$XDG_CACHE_HOME' will be used if nothing is provided.\
-                            """.format(__package__)))
+                            f"""\
+                            Cache directory to use. The '{__package__}' directory will be
+                            created here, and the 'puckcache' and '{__package__}.log' files will be
+                            stored there.  '$XDG_CACHE_HOME' will be used if nothing is provided.\
+                            """))
 
     parser.add_argument("--config", "-c", dest="config",
                         help=textwrap.dedent(
-                            """\
-                            Config directory to use. The '{0}' directory will be created here. Put
-                            your 'config.yaml' file here to configure {0}. A default file will be
-                            created for you with default settings if you do not provide one.
-                            '$XDG_CONFIG_HOME' will be used if nothing is provided.\
-                            """.format(__package__)))
+                            f"""\
+                            Config directory to use. The '{__package__}' directory will be created
+                            here. Put your 'config.yaml' file here to configure {__package__}. A
+                            default file will be created for you with default settings if you do
+                            not provide one.  '$XDG_CONFIG_HOME' will be used if nothing is
+                            provided.\
+                            """))
 
     parser.add_argument("--data", "-d", dest="data",
                         help=textwrap.dedent(
@@ -256,8 +242,8 @@ def _setup_program_arguments() -> argparse.ArgumentParser:
                             Data directory to use. Downloaded subscription entries will live here.
                             The 'directory' setting in the config file will also affect the data
                             directory, but this flag takes precedent.
-                            '$XDG_DATA_HOME' will be used if nothing is provided.
-                            """.format(__package__)))
+                            '$XDG_DATA_HOME' will be used if nothing is provided.\
+                            """))
 
     parser.add_argument("--verbose", "-v", action="count",
                         help=textwrap.dedent(
@@ -266,8 +252,9 @@ def _setup_program_arguments() -> argparse.ArgumentParser:
                             be logged. If there is one v, DEBUG output will be logged, and logging
                             will happen both to the log file and to stdout. If there is more than
                             one v, more debug output will happen. Some things will never be logged
-                            no matter how much you vvvvvvvvvv.
+                            no matter how much you vvvvvvvvvv.\
                             """))
+
 
     parser.add_argument("--version", "-V", action="version",
                         version="%(prog)s {}".format(constants.VERSION))
@@ -275,7 +262,8 @@ def _setup_program_arguments() -> argparse.ArgumentParser:
     return parser
 
 
-def _setup_logging(log_dir: str) -> logging.Logger:
+def _setup_logging() -> logging.Logger:
+    log_dir = constants.APPDIRS.user_log_dir
     log_filename = os.path.join(log_dir, "{}.log".format(__package__))
 
     if not os.path.isdir(log_dir):

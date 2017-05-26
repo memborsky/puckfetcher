@@ -3,7 +3,7 @@ import collections
 import enum
 import logging
 import os
-from typing import Any, List, Mapping
+from typing import Any, List, Mapping, Dict
 
 import umsgpack
 import yaml
@@ -48,33 +48,7 @@ class Config(object):
             "by_url": {},
         }  # type: Dict[str, Dict[str, subscription.Subscription]]
 
-        command_pairs = (
-            (Command.update,
-             "Update all subscriptions. Will also download sub queues."),
-            (Command.list,
-             "List current subscriptions and their status."),
-            (Command.details,
-             "Provide details on one subscription's entries and queue status."),
-            (Command.enqueue,
-             "Add to a sub's download queue. Items will be skipped if already in queue, or " +
-             "invalid."),
-            (Command.mark,
-             "Mark a subscription entry as downloaded."),
-            (Command.unmark,
-             "Mark a subscription entry as not downloaded. Will not queue for download."),
-            (Command.download_queue, "Download a subscription's full queue. Files with the same " +
-             "name as a to-be-downloaded entry will be overridden."),
-            (Command.summarize, "Summarize subscription entries downloaded in this session."),
-            (Command.summarize_sub, "Summarize recent entries downloaded for a specific sub."),
-        )
-
-        self.commands = collections.OrderedDict(command_pairs)
-
     # "Public" functions.
-    def get_commands(self) -> Mapping[Any, str]:
-        """Provide commands that can be used on this config."""
-        return self.commands
-
     def load_state(self) -> None:
         """Load config file, and load subscription cache if we haven't yet."""
         try:
@@ -97,7 +71,7 @@ class Config(object):
                 # Pull out settings we need for merging metadata, or to preserve over the cache.
                 name = sub.name
                 url = sub.url
-                directory = sub.directory
+                dir = sub.directory
 
                 # Match cached sub to current sub and take its settings.
                 # If the user has changed either we can still match the sub and update settings
@@ -111,7 +85,7 @@ class Config(object):
                     LOG.debug("Found sub with url %s in cached subscriptions, merging.", url)
                     sub = self.cache_map["by_url"][url]
 
-                sub.update(directory=directory, name=name, url=url, set_original=True,
+                sub.update(dir=dir, name=name, url=url, set_original=True,
                            config_dir=self.settings["directory"],
                            )
 
@@ -344,6 +318,39 @@ class Config(object):
             if fail_count > 0:
                 LOG.error("Some subscriptions from config file couldn't be parsed - check logs.")
 
+def get_commands() -> Mapping[Any, str]:
+    """Provide commands that can be used on a config."""
+    command_pairs = (
+        (Command.exit,
+         "Exit application."),
+        (Command.update,
+         "Update all subscriptions. Will also download sub queues."),
+        (Command.list,
+         "List current subscriptions and their status."),
+        (Command.details,
+         "Provide details on one subscription's entries and queue status."),
+        (Command.enqueue,
+         "Add to a sub's download queue. Items will be skipped if already in queue, or " +
+         "invalid."),
+        (Command.mark,
+         "Mark a subscription entry as downloaded."),
+        (Command.unmark,
+         "Mark a subscription entry as not downloaded. Will not queue for download."),
+        (Command.download_queue, "Download a subscription's full queue. Files with the same " +
+         "name as a to-be-downloaded entry will be overridden."),
+        (Command.summarize, "Summarize subscription entries downloaded in this session."),
+        (Command.summarize_sub, "Summarize recent entries downloaded for a specific sub."),
+    )
+    return collections.OrderedDict(command_pairs)
+
+def get_command_help() -> str:
+    """Get name and summary for all available commands."""
+    command_help_list = []
+    for command, help in get_commands().items():
+        command_help_list.append(f"{command.name:<14} - {help}")
+
+    return "\n".join(command_help_list)
+
 
 def _ensure_loaded(config: Config) -> None:
     if not config.state_loaded:
@@ -353,33 +360,34 @@ def _ensure_loaded(config: Config) -> None:
 
 def _ensure_file(file_path: str) -> None:
     if os.path.exists(file_path) and not os.path.isfile(file_path):
-        LOG.debug("Given file exists but isn't a file!")
-        raise error.MalformedConfigError("Given file .".format(file_path))
+        msg = f"Given file {file_path} exists but isn't a file."
+        LOG.debug(msg)
+        raise error.MalformedConfigError(msg)
 
     elif not os.path.isfile(file_path):
-        LOG.debug("Creating empty file at '%s'.", file_path)
+        LOG.debug(f"Creating empty file at '{file_path}'.")
 
         try:
             open(file_path, "a", encoding=constants.ENCODING).close()
 
         except PermissionError as e:
-            raise error.MalformedConfigError("No permissions to access path {}.".format(file_path))
+            raise error.MalformedConfigError(f"No permissions to access path {file_path}.")
 
         except FileNotFoundError as e:
-            raise error.MalformedConfigError("File path {} is invalid.".format(file_path))
+            raise error.MalformedConfigError(f"File path {file_path} is invalid.")
 
 
 def _validate_dirs(config_dir: str, cache_dir: str, data_dir: str) -> None:
-    for directory in [config_dir, cache_dir, data_dir]:
-        if os.path.isfile(directory):
-            msg = "Provided directory '{}' is actually a file!".format(directory)
-            raise error.MalformedConfigError(msg)
+    for dir in [config_dir, cache_dir, data_dir]:
+        if os.path.isfile(dir):
+            raise error.MalformedConfigError(f"Provided directory '{dir}' is actually a file!")
 
-        util.ensure_dir(directory)
+        util.ensure_dir(dir)
 
 
 class Command(enum.Enum):
     """Commands a Config can perform."""
+    exit = 50
     update = 100
     list = 200
     details = 300

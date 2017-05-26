@@ -17,7 +17,7 @@ LAST_CALLED = {}  # type: Dict[str, float]
 def ensure_dir(directory: str) -> None:
     """Create a directory if it doesn't exist."""
     if not os.path.isdir(directory):
-        LOG.debug("Directory %s does not exist, creating it.", directory)
+        LOG.debug(f"Directory {directory} does not exist, creating it.")
         os.makedirs(directory)
 
 def expand(directory: str) -> str:
@@ -39,8 +39,8 @@ def generate_downloader(headers: Dict[str, str], args: Any) -> Callable[..., Non
                 os.makedirs(parent)
 
             response = requests.get(url, headers=headers, stream=True)
-            LOG.info("Downloading from '%s'.", url)
-            LOG.info("Trying to save to '%s'.", dest)
+            LOG.info(f"Downloading from '{url}'.")
+            LOG.info(f"Trying to save to '{dest}'.")
 
             total_length = int(response.headers.get("content-length"))
             expected_size = (total_length / 1024) + 1
@@ -79,7 +79,7 @@ def parse_int_string(int_string: str) -> List[int]:
         if "-" in token:
             endpoints = token.split("-")
             if len(endpoints) != 2:
-                LOG.info("Dropping token %s as invalid - weird range.", token)
+                LOG.info(f"Dropping '{token}' as invalid - weird range.")
                 continue
 
             start = int(endpoints[0])
@@ -91,7 +91,7 @@ def parse_int_string(int_string: str) -> List[int]:
             try:
                 indices.add(int(token))
             except ValueError:
-                LOG.info("Dropping token %s as invalid - not an int.", token)
+                LOG.info(f"Dropping '{token}' as invalid - not an int.")
 
     return list(indices)
 
@@ -104,9 +104,9 @@ def rate_limited(max_per_hour: int, *args: Any) -> Callable[..., Any]:
         things = [func.__name__]
         things.extend(args)
         key = "".join(things)
-        LOG.debug("Rate limiter called for %s.", key)
+        LOG.debug(f"Rate limiter called for '{key}'.")
         if key not in LAST_CALLED:
-            LOG.debug("Initializing entry for %s.", key)
+            LOG.debug(f"Initializing entry for '{key}'.")
             LAST_CALLED[key] = 0.0
 
         def _rate_limited_function(*args: Any, **kargs: Any) -> Any:
@@ -114,16 +114,16 @@ def rate_limited(max_per_hour: int, *args: Any) -> Callable[..., Any]:
             now = time.time()
             elapsed = now - last_called
             remaining = min_interval - elapsed
-            LOG.debug("Rate limiter last called for '%s' at %s.", key, last_called)
-            LOG.debug("Remaining cooldown time for '%s' is %s.", key, remaining)
+            LOG.debug(f"Rate limiter last called for '{key}' at {last_called}.")
+            LOG.debug(f"Remaining cooldown time for '{key}' is remaining.")
 
             if remaining > 0 and last_called > 0.0:
-                LOG.info("Self-enforced rate limit hit, sleeping %s seconds.", remaining)
+                LOG.info(f"Self-enforced rate limit hit, sleeping {remaining} seconds.")
                 time.sleep(remaining)
 
             LAST_CALLED[key] = time.time()
             ret = func(*args, **kargs)
-            LOG.debug("Updating rate limiter last called for %s to %s.", key, now)
+            LOG.debug(f"Updating rate limiter last called for '{key}' to {now}.")
             return ret
 
         return _rate_limited_function
