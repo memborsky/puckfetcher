@@ -10,7 +10,7 @@ import os
 import platform
 import textwrap
 import time
-from typing import Any, Dict, MutableSequence, List, Mapping, Tuple
+from typing import Any, Dict, List, Mapping, Tuple, MutableSequence
 
 import feedparser
 import requests
@@ -37,22 +37,22 @@ class Subscription(object):
         # Maintain separate data members for originally provided URL, and URL we may change due to
         # redirects.
         if url is None or url == "":
-            msg = "URL is None or empty - can't create subscription."
+            msg = f"URL '{url}' is None or empty - can't create subscription."
             raise error.MalformedSubscriptionError(msg)
 
         # Maintain name of podcast.
         if name is None or name == "":
-            msg = "Name is None or empty - can't create subscription."
+            msg = f"Name '{name}' is None or empty - can't create subscription."
             raise error.MalformedSubscriptionError(msg)
 
         # Temporary storage for swapping around urls.
         self.temp_url = None  # type: str
 
-        LOG.debug("Storing provided url '%s'.", url)
+        LOG.debug(f"Storing provided url '{url}'.")
         self.url = url
         self.original_url = url
 
-        LOG.debug("Provided name '%s'.", name)
+        LOG.debug(f"Provided name '{name}'.")
         self.name = name
 
         # Our file downloader.
@@ -148,6 +148,10 @@ class Subscription(object):
         return sub
 
     # "Public" functions.
+    def latest(self) -> int:
+        """Return latest entry number."""
+        return self.feed_state.latest_entry_number
+
     def attempt_update(self) -> bool:
         """Attempt to download new entries for a subscription."""
 
@@ -156,58 +160,59 @@ class Subscription(object):
         if feed_get_result not in (UpdateResult.SUCCESS, UpdateResult.UNNEEDED):
             return False
 
-        LOG.info("Subscription %s got updated feed.", self.name)
+        LOG.info(f"Subscription {self.name} got updated feed.")
 
         # Only consider backlog if we don't have a latest entry number already.
         number_feeds = len(self.feed_state.entries)
-        if self.feed_state.latest_entry_number is None:
+        if self.latest() is None:
             if self.backlog_limit is None:
                 self.feed_state.latest_entry_number = 0
                 LOG.info(
                     textwrap.dedent(
-                        """\
+                        f"""\
                         Interpreting 'None' backlog limit as "No Limit" and downloading full
-                        backlog (%s entries).\
-                        """),
-                    number_feeds)
+                        backlog ({number_feeds} entries).\
+                        """))
 
             elif self.backlog_limit < 0:
-                LOG.error("Invalid backlog limit %s, downloading nothing.", self.backlog_limit)
+                LOG.error(f"Invalid backlog limit {self.backlog_limit}, downloading nothing.")
                 return False
 
             elif self.backlog_limit > 0:
-                LOG.info("Backlog limit provided as '%s'", self.backlog_limit)
+                LOG.info(f"Backlog limit provided as '{self.backlog_limit}'")
                 self.backlog_limit = util.max_clamp(self.backlog_limit, number_feeds)
-                LOG.info("Backlog limit clamped to '%s'", self.backlog_limit)
+                LOG.info(f"Backlog limit clamped to '{self.backlog_limit}'")
                 self.feed_state.latest_entry_number = number_feeds - self.backlog_limit
 
             else:
                 self.feed_state.latest_entry_number = number_feeds
                 LOG.info(
                     textwrap.dedent(
-                        """\
-                        Download backlog for %s is zero.
-                        Not downloading backlog but setting number downloaded to %s.\
-                        """),
-                    self.name, self.feed_state.latest_entry_number)
+                        f"""\
+                        Download backlog for {self.name} is zero.
+                        Not downloading backlog but setting number downloaded to {self.latest()}.\
+                        """))
 
-        if self.feed_state.latest_entry_number >= number_feeds:
-            LOG.info("Number downloaded for %s matches feed entry count %s. Nothing to do.",
-                     self.name, number_feeds)
+        if self.latest() >= number_feeds:
+            LOG.info(
+                textwrap.dedent(
+                    f"""\
+                    Number downloaded for {self.name} matches feed entry count {number_feeds}.
+                    Nothing to do.\
+                    """))
             return True
 
-        number_to_download = number_feeds - self.feed_state.latest_entry_number
+        number_to_download = number_feeds - self.latest()
         LOG.info(
             textwrap.dedent(
-                """\
-                Number of downloaded feeds for %s is %s, %s less than feed entry count %s.
-                Downloading %s entries.\
-                """),
-            self.name, self.feed_state.latest_entry_number, number_to_download, number_feeds,
-            number_to_download)
+                f"""\
+                Number of downloaded feeds for {self.name} is {self.latest()},
+                {number_to_download} less than feed entry count {number_feeds}.
+                Downloading {number_to_download} entries.\
+                """))
 
         # Queuing feeds in order of age makes the most sense for RSS feeds, so we do that.
-        for i in range(self.feed_state.latest_entry_number, number_feeds):
+        for i in range(self.latest(), number_feeds):
             self.feed_state.queue.append(i + 1)
 
         self.download_queue()
@@ -220,7 +225,7 @@ class Subscription(object):
         Map from positive indexing we use in the queue to negative feed age indexing used in feed.
         """
 
-        LOG.info("Queue for sub %s has %s entries.", self.name, len(self.feed_state.queue))
+        LOG.info(f"Queue for sub {self.name} has {len(self.feed_state.queue)} entries.")
 
         try:
             while self.feed_state.queue:
@@ -234,7 +239,7 @@ class Subscription(object):
 
                 # Do a bounds check in case we accidentally let something bad into the queue.
                 if entry_num < 0 or entry_num >= num_entries:
-                    LOG.debug("Invalid num %s in queue - skipping.", one_indexed_entry_num)
+                    LOG.debug(f"Invalid num {one_indexed_entry_num} in queue - skipping.")
                     continue
 
                 entry_age = num_entries - (one_indexed_entry_num)
@@ -245,11 +250,10 @@ class Subscription(object):
                 if self.feed_state.entries_state_dict.get(entry_num, False):
                     LOG.info(
                         textwrap.dedent(
-                            """\
-                            SKIPPING entry number %s (age %s) for '%s' - it's recorded as
-                            downloaded.\
-                            """),
-                        one_indexed_entry_num, entry_age, self.name)
+                            f"""\
+                            SKIPPING entry number {one_indexed_entry_num} (age {entry_age})
+                            for '{self.name}' - it's recorded as downloaded.\
+                            """))
 
                 else:
                     urls = entry["urls"]
@@ -257,23 +261,23 @@ class Subscription(object):
 
                     LOG.info(
                         textwrap.dedent(
-                            """\
-                            Trying to download entry number %s (age %s) for '%s'.\
-                            """),
-                        one_indexed_entry_num, entry_age, self.name)
+                            f"""\
+                            Trying to download entry number {one_indexed_entry_num}
+                            (age {entry_age}) for '{self.name}'.\
+                            """))
 
                     # Create directory just for enclosures for this entry if there are many.
                     directory = self.directory
                     if num_entry_files > 1:
                         directory = os.path.join(directory, entry["title"])
-                        LOG.debug("Creating directory to store %s enclosures.", num_entry_files)
-                        LOG.info("There are %s enclosures for this feed entry.", num_entry_files)
+                        msg = f"Creating directory to store {num_entry_files} enclosures."
+                        LOG.info(msg)
 
                     for i, url in enumerate(urls):
                         if num_entry_files > 1:
-                            LOG.info("Downloading enclosure %s of %s.", i + 1, num_entry_files)
+                            LOG.info(f"Downloading enclosure {i+1} of {num_entry_files}.")
 
-                        LOG.debug("Extracted url %s from enclosure.", url)
+                        LOG.debug(f"Extracted url {url} from enclosure.")
 
                         # TODO catch errors? What if we try to save to a nonsense file?
                         dest = self._get_dest(url, entry["title"], directory)
@@ -281,8 +285,7 @@ class Subscription(object):
 
                     if one_indexed_entry_num > self.feed_state.latest_entry_number:
                         self.feed_state.latest_entry_number = one_indexed_entry_num
-                        LOG.info("Have downloaded %s entries for sub %s.",
-                                 self.feed_state.latest_entry_number, self.name)
+                        LOG.info(f"Have {one_indexed_entry_num} entries for {self.name}.")
 
                     # Update various things now that we've downloaded a new entry.
                     self.feed_state.entries_state_dict[entry_num] = True
@@ -302,7 +305,7 @@ class Subscription(object):
             if one_indexed_num not in self.feed_state.queue:
                 self.feed_state.queue.append(one_indexed_num)
 
-        LOG.info("New queue for %s: %s", self.name, list(self.feed_state.queue))
+        LOG.info(f"New queue for {self.name}: {list(self.feed_state.queue)}")
 
         return actual_nums
 
@@ -316,7 +319,7 @@ class Subscription(object):
             num = one_indexed_num - 1
             self.feed_state.entries_state_dict[num] = True
 
-        LOG.info("Items marked as downloaded for %s: %s", self.name, actual_nums)
+        LOG.info(f"Items marked as downloaded for {self.name}: {actual_nums}.")
         return actual_nums
 
     def unmark(self, nums: List[int]) -> List[int]:
@@ -329,27 +332,26 @@ class Subscription(object):
             num = one_indexed_num - 1
             self.feed_state.entries_state_dict[num] = False
 
-        LOG.info("Items marked as not downloaded for %s: %s", self.name, actual_nums)
+        LOG.info(f"Items marked as not downloaded for {self.name}: {actual_nums}.")
         return actual_nums
 
-    def update(self, directory: str=None, config_dir: Any=None, url: str=None,
+    def update(self, dir: str=None, config_dir: Any=None, url: str=None,
                set_original: bool=False, name: str=None,
                ) -> None:
         """Update values for this subscription."""
-        if directory == "":
-            LOG.debug("Provided invalid sub directory '%s' for '%s'- ignoring update.",
-                      directory, self.name)
+        if dir == "":
+            LOG.debug(f"Provided invalid directory '{dir}' for '{self.name}'- ignoring update.")
             return
 
-        if directory is not None:
-            directory = util.expand(directory)
+        if dir is not None:
+            dir = util.expand(dir)
 
-            if self.directory != directory:
-                if os.path.isabs(directory):
-                    self.directory = directory
+            if self.directory != dir:
+                if os.path.isabs(dir):
+                    self.directory = dir
 
                 else:
-                    self.directory = os.path.join(config_dir, directory)
+                    self.directory = os.path.join(config_dir, dir)
 
                 util.ensure_dir(self.directory)
 
@@ -384,8 +386,7 @@ class Subscription(object):
         pad_num = len(str(total_subs))
         padded_cur_num = str(index + 1).zfill(pad_num)
         one_indexed_entry_num = self.feed_state.latest_entry_number + 1
-        return "{}/{} - '{}' |{}|".format(padded_cur_num, total_subs, self.name,
-                                          self.feed_state.latest_entry_number)
+        return f"{padded_cur_num}/{total_subs} - '{self.name}' |{self.latest()}|"
 
     def get_details(self, index: int, total_subs: int) -> None:
         """Provide multiline summary of subscription state."""
@@ -396,7 +397,7 @@ class Subscription(object):
         num_entries = len(self.feed_state.entries)
         pad_num = len(str(num_entries))
         detail_lines.append("Status of podcast queue:")
-        detail_lines.append("{}".format(list(self.feed_state.queue)))
+        detail_lines.append(f"{repr(self.feed_state.queue)}")
         detail_lines.append("")
         detail_lines.append("Status of podcast entries:")
 
@@ -407,7 +408,7 @@ class Subscription(object):
             else:
                 indicator = "-"
 
-            entry_indicators.append("{}{}".format(str(entry + 1).zfill(pad_num), indicator))
+            entry_indicators.append(f"{str(entry+1).zfill(pad_num)}{indicator}")
 
         detail_lines.append(" ".join(entry_indicators))
         details = "\n".join(detail_lines)
@@ -417,20 +418,23 @@ class Subscription(object):
         """Get RSS structure for this subscription. Return status code indicating result."""
         res = None
         if attempt_count > MAX_RECURSIVE_ATTEMPTS:
-            LOG.debug("Too many recursive attempts (%s) to get feed for sub %s, canceling.",
-                      attempt_count, self.name)
+            LOG.debug(
+                textwrap.dedent(
+                    f"""\
+                    Too many recursive attempts ({attempt_count}) to get feed for sub
+                    {self.name}, canceling.\
+                    """))
             res = UpdateResult.FAILURE
 
         elif self.url is None or self.url == "":
-            LOG.debug("URL is empty , cannot get feed for sub %s.", self.name)
+            LOG.debug(f"URL {self.url} is empty , cannot get feed for sub {self.name}.")
             res = UpdateResult.FAILURE
 
         if res is not None:
             return res
 
         else:
-            LOG.info("Getting entries (attempt %s) for subscription %s with URL %s.",
-                     attempt_count, self.name, self.url)
+            LOG.info(f"Getting entries (attempt {attempt_count}) for {self.name} from {self.url}.")
 
         (parsed, code) = self._feedparser_parse_with_options()
         if code == UpdateResult.UNNEEDED:
@@ -438,7 +442,7 @@ class Subscription(object):
             return code
 
         elif code != UpdateResult.SUCCESS:
-            LOG.info("Feedparser parse failed (%s), aborting.", code)
+            LOG.info(f"Feedparser parse failed ({code}), aborting.")
             return code
 
         LOG.debug("Feedparser parse succeeded.")
@@ -453,7 +457,7 @@ class Subscription(object):
                 self.url = temp
 
         elif code != UpdateResult.SUCCESS:
-            LOG.debug("Ran into HTTP error (%s), aborting.", code)
+            LOG.debug(f"Ran into HTTP error ({code}), aborting.")
 
         else:
             self.feed_state.load_rss_info(parsed)
@@ -462,14 +466,13 @@ class Subscription(object):
 
     def session_summary(self) -> List[str]:
         """Provide items downloaded in this session in convenient form."""
-        return ["{} (#{})".format(item["name"], item["number"])
+        return [f"{item['name']} (#{item['number']})"
                 for item in self.feed_state.summary_queue
                 if item["is_this_session"]]
 
     def full_summary(self) -> List[str]:
         """Provide items downloaded recently in convenient form."""
-        return ["{} (#{})".format(item["name"], item["number"])
-                for item in self.feed_state.summary_queue]
+        return [f"{item['name']} (#{item['number']})" for item in self.feed_state.summary_queue]
 
     def as_config_yaml(self) -> Mapping[str, Any]:
         """Return self as config file YAML."""
@@ -509,8 +512,8 @@ class Subscription(object):
             else:
                 msg = repr(parsed.bozo_exception)
 
-            LOG.info("Unable to retrieve feed with URL %s for %s.", self.url, self.name)
-            LOG.debug("Update failed because bozo exception %s occurred.", msg)
+            LOG.info(f"Unable to retrieve feed for {self.name} from {self.url}.")
+            LOG.debug(f"Update failed because bozo exception {msg} occurred.")
             return (None, UpdateResult.FAILURE)
 
         elif parsed.get("status") == requests.codes["NOT_MODIFIED"]:
@@ -534,11 +537,11 @@ class Subscription(object):
         if status == requests.codes["NOT_FOUND"]:
             LOG.error(
                 textwrap.dedent(
-                    """\
-                    Saw status %s, unable to retrieve feed text for %s.
-                    Stored URL %s for %s will be preserved and checked again on next attempt.\
-                    """),
-                status, self.name, self.url, self.name)
+                    f"""\
+                    Saw status {status}, unable to retrieve feed text for {self.name}.
+                    Stored URL {self.url} for {self.name} will be preserved
+                    and checked again on next attempt.\
+                    """))
 
             # pylint: disable=redefined-variable-type
             result = UpdateResult.FAILURE
@@ -546,12 +549,11 @@ class Subscription(object):
         elif status in [requests.codes["UNAUTHORIZED"], requests.codes["GONE"]]:
             LOG.error(
                 textwrap.dedent(
-                    """\
-                    Saw status %s, unable to retrieve feed text for %s.
-                    Clearing stored URL %s for %s.
-                    Please provide new URL and authorization for subscription %s.\
-                    """),
-                status, self.name, self.url, self.name, self.name)
+                    f"""\
+                    Saw status {status}, unable to retrieve feed text for {self.name}.
+                    Clearing stored URL {self.url} for {self.name}.
+                    Please provide new URL and authorization for subscription {self.name}.\
+                    """))
 
             self.url = None
             result = UpdateResult.FAILURE
@@ -560,11 +562,11 @@ class Subscription(object):
         elif status in [requests.codes["MOVED_PERMANENTLY"], requests.codes["PERMANENT_REDIRECT"]]:
             LOG.warning(
                 textwrap.dedent(
-                    """\
-                    Saw status %s indicating permanent URL change.
-                    Changing stored URL %s for %s to %s and attempting get with new URL.\
-                    """),
-                status, self.url, self.name, parsed.get("href"))
+                    f"""\
+                    Saw status {status} indicating permanent URL change.
+                    Changing stored URL {self.url} for {self.name} to {parsed.get('href')}
+                    and attempting get with new URL.\
+                    """))
 
             self.url = parsed.get("href")
             result = UpdateResult.ATTEMPT_AGAIN
@@ -573,19 +575,18 @@ class Subscription(object):
                         requests.codes["TEMPORARY_REDIRECT"]]:
             LOG.warning(
                 textwrap.dedent(
-                    """\
-                    Saw status %s indicating temporary URL change.
-                    Attempting with new URL %s. Stored URL %s for %s will be unchanged.\
-                    """),
-                status, parsed.get("href"), self.url, self.name)
+                    f"""\
+                    Saw status {status} indicating temporary URL change.
+                    Attempting with new URL {parsed.get('href')}.
+                    Stored URL {self.url} for {self.name} will be unchanged.\
+                    """))
 
             self.temp_url = self.url
             self.url = parsed.get("href")
             result = UpdateResult.ATTEMPT_AGAIN
 
         elif status != 200:
-            LOG.warning("Saw status %s. Attempting retrieve with URL %s for %s again.",
-                        status, self.url, self.name)
+            LOG.warning(f"Saw '{status}'. Retrying retrieve for {self.name} at {self.url}.")
             result = UpdateResult.ATTEMPT_AGAIN
 
         else:
@@ -621,7 +622,7 @@ class Subscription(object):
 
         elif self.use_title_as_filename:
             ext = os.path.splitext(url_filename)[1][1:]
-            filename = "{}.{}".format(title, ext)  # It's an owl!
+            filename = f"{title}.{ext}"  # RIP owl
 
         # Remove characters we can't allow in filenames.
         filename = util.sanitize(filename)
@@ -718,10 +719,10 @@ def _process_directory(directory: str) -> str:
     """Assign directory if none was given, and create directory if necessary."""
     directory = util.expand(directory)
     if directory is None:
-        LOG.debug("No directory provided, defaulting to %s.", directory)
+        LOG.debug(f"No directory provided, defaulting to {directory}.")
         return util.expand(constants.APPDIRS.user_data_dir)
 
-    LOG.debug("Provided directory %s.", directory)
+    LOG.debug(f"Using directory {directory}.")
 
     util.ensure_dir(directory)
 

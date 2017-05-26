@@ -23,7 +23,7 @@ def test_empty_url_cons(strdir: str) -> None:
     with pytest.raises(error.MalformedSubscriptionError) as exception:
         subscription.Subscription(url="", name="emptyConstruction", directory=strdir)
 
-    assert exception.value.desc == "URL is None or empty - can't create subscription."
+    assert exception.value.desc == "URL '' is None or empty - can't create subscription."
 
 def test_none_url_cons(strdir: str) -> None:
     """
@@ -32,7 +32,7 @@ def test_none_url_cons(strdir: str) -> None:
     with pytest.raises(error.MalformedSubscriptionError) as exception:
         subscription.Subscription(name="noneConstruction", directory=strdir)
 
-    assert exception.value.desc == "URL is None or empty - can't create subscription."
+    assert exception.value.desc == "URL 'None' is None or empty - can't create subscription."
 
 def test_empty_name_cons(strdir: str) -> None:
     """
@@ -41,7 +41,7 @@ def test_empty_name_cons(strdir: str) -> None:
     with pytest.raises(error.MalformedSubscriptionError) as exception:
         subscription.Subscription(url="foo", name="", directory=strdir)
 
-    assert exception.value.desc == "Name is None or empty - can't create subscription."
+    assert exception.value.desc == "Name '' is None or empty - can't create subscription."
 
 def test_none_name_cons(strdir: str) -> None:
     """
@@ -50,7 +50,7 @@ def test_none_name_cons(strdir: str) -> None:
     with pytest.raises(error.MalformedSubscriptionError) as exception:
         subscription.Subscription(url="foo", name=None, directory=strdir)
 
-    assert exception.value.desc == "Name is None or empty - can't create subscription."
+    assert exception.value.desc == "Name 'None' is None or empty - can't create subscription."
 
 def test_get_feed_max(strdir: str) -> None:
     """ If we try more than MAX_RECURSIVE_ATTEMPTS to retrieve a URL, we should fail."""
@@ -255,7 +255,7 @@ def _test_url_helper(strdir: str, given: str, name: str, expected_current: str,
     assert test_sub.original_url == expected_original
 
 def _check_hi_contents(filename_num: int, directory: str) -> None:
-    file_path = os.path.join(directory, "hi0{}.txt".format(filename_num))
+    file_path = os.path.join(directory, f"hi0{filename_num}.txt")
     with open(file_path, "r", encoding="UTF-8") as enclosure:
         data = enclosure.read().replace('\n', '')
         assert data == "hi"
@@ -286,7 +286,7 @@ def generate_feedparser() -> Callable[[str, Any, Any], Dict[str, Any]]:
         for i in range(0, 10):
             entry = {}  # type: Dict[str, Any]
             entry["title"] = "hi"
-            entry["enclosures"] = [{"href": "hi0{}.txt".format(i)}]
+            entry["enclosures"] = [{"href": f"hi0{i}.txt"}]
 
             entries.append(entry)
 
