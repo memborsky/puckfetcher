@@ -12,7 +12,7 @@ import puckfetcher.constants as constants
 
 LOG = logging.getLogger("root")
 
-LAST_CALLED = {}  # type: Dict[str, float]
+LAST_CALLED: Dict[str, float] = {}
 
 def ensure_dir(directory: str) -> None:
     """Create a directory if it doesn't exist."""
@@ -74,7 +74,7 @@ def parse_int_string(int_string: str) -> List[int]:
     cleaned = cleaned.replace(",", " ")
 
     tokens = cleaned.split(" ")
-    indices = set()  # type: Set[int]
+    indices: Set[int] = set()
     for token in tokens:
         if "-" in token:
             endpoints = token.split("-")

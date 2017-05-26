@@ -280,11 +280,11 @@ def generate_feedparser() -> Callable[[str, Any, Any], Dict[str, Any]]:
     # pylint: disable=unused-argument
     def _fake_parser(url: str, etag: Any, last_modified: Any) -> Dict[str, Any]:
 
-        fake_parsed = {}  # type: Dict[str, Any]
+        fake_parsed: Dict[str, Any] = {}
         entries = []
         href = ""
         for i in range(0, 10):
-            entry = {}  # type: Dict[str, Any]
+            entry: Dict[str, Any] = {}
             entry["title"] = "hi"
             entry["enclosures"] = [{"href": f"hi0{i}.txt"}]
 
