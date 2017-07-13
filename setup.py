@@ -4,10 +4,10 @@ from setuptools import setup, find_packages
 
 HERE = path.abspath(path.dirname(__file__))
 
-with open(path.join(HERE, "README.rst"), encoding="UTF-8") as f:
+with open(path.join(HERE, "README.rst")) as f:
     LONG_DESCRIPTION = f.read().strip()
 
-with open(path.join(HERE, "VERSION"), encoding="UTF-8") as f:
+with open(path.join(HERE, "VERSION")) as f:
     VERSION = f.read().strip()
 
 INSTALL_REQUIRES = ["appdirs>=1.4.3, <2.0.0",
