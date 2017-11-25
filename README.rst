@@ -18,13 +18,14 @@ puckfetcher
 
 A simple command-line podcatcher.
 
-Supports Python 3.6+. Feel free to report any issues here, and I’ll investigate when/if I can.
+GitHub Project: (https://github.com/andrewmichaud/puckfetcher)
 
-| You’ll need setuptools (https://pypi.python.org/pypi/setuptools) to
-  run this in its current state. Go get it, clone this repo, and you
-| can run the below commands. Should work on OSX and Linux, from the
-  command line. You’ll want a default config file, name it config.yaml
-| and look at example\_config.yaml to see how it should be structured.
+Supports Python 3.6+. Please report any issues on the GitHub project or reach out over email.
+
+| You’ll need setuptools (https://pypi.python.org/pypi/setuptools) to run this in its current
+| state. Go get it, clone this repo, and you can run the below commands. Should work on OSX and
+| Linux, from the command line. You’ll want a default config file, name it config.yaml and look at
+| example\_config.yaml to see how it should be structured.
 
 Directory for config file:
 
@@ -41,7 +42,7 @@ Test:
 
 ::
 
-    python3setup.py test
+    python3 setup.py test
 
 Features
 --------
@@ -56,7 +57,7 @@ Features
 -  Add MP3 tag support to clean up tags based on feed information if
    it’s messy.
 
-Future releases
+Ideas for Future Releases
 ---------------
 -  Text-based progress for other time-consuming actions.
 -  Support PyPy (when it supports 3.6+).
