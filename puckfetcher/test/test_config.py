@@ -73,7 +73,7 @@ def test_subscriptions_matching(default_config: config.Config, default_conf_file
             sub.original_url = test_urls[i]
             sub.url = test_urls[i]
         else:
-            sub.name = test_names[i]
+            sub.metadata["name"] = test_names[i]
 
         subscriptions[i] = sub
 
@@ -87,7 +87,7 @@ def test_subscriptions_matching(default_config: config.Config, default_conf_file
             assert sub.original_url != test_urls[i]
             assert sub.url != test_urls[i]
         else:
-            assert sub.name != test_names[i]
+            assert sub.metadata["name"] != test_names[i]
 
         assert sub.feed_state.latest_entry_number == test_nums[i]
 
@@ -110,7 +110,7 @@ def test_save_works(default_config: config.Config, default_cache_file: str,
 
 # Helpers.
 def write_subs_to_file(subs: List[subscription.Subscription], out_file: str, write_type: str,
-                       ) -> None:
+                      ) -> None:
     """Write subs to a file with the selected type."""
 
     if write_type == "cache":
@@ -122,8 +122,8 @@ def write_subs_to_file(subs: List[subscription.Subscription], out_file: str, wri
     elif write_type == "config":
         data = {}
         data["subscriptions"] = [sub.as_config_yaml() for sub in subs]
-        with open(out_file, "w", encoding="UTF-8") as stream:
-            yaml.dump(data, stream)
+        with open(out_file, "w", encoding="UTF-8") as stream2:
+            yaml.dump(data, stream2)
 
 
 # Fixtures.
@@ -168,8 +168,8 @@ def subscriptions(tmpdir: Any) -> List[subscription.Subscription]:
 
         sub = subscription.Subscription(name=name, url=url, directory=directory)
 
-        sub.backlog_limit = 1
-        sub.use_title_as_filename = False
+        sub.settings["backlog_limit"] = 1
+        sub.settings["use_title_as_filename"] = False
 
         subs.append(sub)
 
