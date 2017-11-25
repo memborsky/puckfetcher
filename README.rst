@@ -2,8 +2,11 @@ puckfetcher
 ===========
 
 | |BSD3 License|
+
 | |Build Status|
+
 | |Coverage Status|
+
 | |Issue Count|
 .. image:: https://badge.fury.io/py/puckfetcher.svg
     :target: https://badge.fury.io/py/puckfetcher
