@@ -58,7 +58,7 @@ Features
    it’s messy.
 
 Ideas for Future Releases
----------------
+-------------------------
 -  Text-based progress for other time-consuming actions.
 -  Support PyPy (when it supports 3.6+).
 -  Allow parallel downloading.
