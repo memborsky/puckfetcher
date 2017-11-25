@@ -23,19 +23,19 @@ class Config(object):
     """Class holding config options."""
 
     def __init__(self, config_dir: str, cache_dir: str, data_dir: str) -> None:
-
         _validate_dirs(config_dir, cache_dir, data_dir)
 
         self.config_file = os.path.join(config_dir, "config.yaml")
-        LOG.debug("Using config file '%s'.", self.config_file)
+        LOG.debug(f"Using config file '{self.config_file}'.")
 
         self.cache_file = os.path.join(cache_dir, "puckcache")
-        LOG.debug("Using cache file '%s'.", self.cache_file)
+        LOG.debug(f"Using cache file '{self.cache_file}'.")
 
         self.settings = {
             "directory": data_dir,
             "backlog_limit": 1,
             "use_title_as_filename": False,
+            "set_tags": False,
         }
 
         self.state_loaded = False
@@ -54,13 +54,13 @@ class Config(object):
         try:
             self._load_user_settings()
         except error.MalformedConfigError as e:
-            LOG.error("Error loading user settings.")
+            LOG.error(f"Error loading user settings: {e}")
             raise
 
         try:
             self._load_cache_settings()
         except error.MalformedConfigError as e:
-            LOG.error("Error loading cache settings.")
+            LOG.error(f"Error loading cache settings: {e}")
             raise
 
         if self.subscriptions != []:
@@ -69,25 +69,25 @@ class Config(object):
             for sub in self.subscriptions:
 
                 # Pull out settings we need for merging metadata, or to preserve over the cache.
-                name = sub.name
+                name = sub.metadata["name"]
                 url = sub.url
-                dir = sub.directory
+                directory = sub.directory
 
                 # Match cached sub to current sub and take its settings.
                 # If the user has changed either we can still match the sub and update settings
                 # correctly.
                 # If they update neither, there's nothing we can do.
                 if name in self.cache_map["by_name"]:
-                    LOG.debug("Found sub with name %s in cached subscriptions, merging.", name)
+                    LOG.debug(f"Found sub with name '{name}' in cached subscriptions, merging.")
                     sub = self.cache_map["by_name"][name]
 
                 elif url in self.cache_map["by_url"]:
-                    LOG.debug("Found sub with url %s in cached subscriptions, merging.", url)
+                    LOG.debug(f"Found sub with url '{url}' in cached subscriptions, merging.")
                     sub = self.cache_map["by_url"][url]
 
-                sub.update(dir=dir, name=name, url=url, set_original=True,
+                sub.update(directory=directory, name=name, url=url, set_original=True,
                            config_dir=self.settings["directory"],
-                           )
+                          )
 
                 sub.default_missing_fields(self.settings)
 
@@ -103,7 +103,7 @@ class Config(object):
         _ensure_loaded(self)
         subs = []
         for sub in self.subscriptions:
-            subs.append(sub.name)
+            subs.append(sub.metadata["name"])
 
         return subs
 
@@ -113,13 +113,13 @@ class Config(object):
 
         num_subs = len(self.subscriptions)
         for i, sub in enumerate(self.subscriptions):
-            LOG.info("Working on sub number %s/%s - '%s'", i + 1, num_subs, sub.name)
+            LOG.info(f"Working on sub number {i+1}/{num_subs} - '{sub.metadata['name']}'")
             update_successful = sub.attempt_update()
 
             if not update_successful:
-                LOG.info("Unsuccessful update for sub '%s'.\n", sub.name)
+                LOG.info(f"Unsuccessful update for sub '{sub.metadata['name']}'.\n")
             else:
-                LOG.info("Updated sub '%s' successfully.\n", sub.name)
+                LOG.info(f"Updated sub '{sub.metadata['name']}' successfully.\n")
 
             self.subscriptions[i] = sub
             self.save_cache()
@@ -129,7 +129,7 @@ class Config(object):
         _ensure_loaded(self)
 
         num_subs = len(self.subscriptions)
-        LOG.info("%s subscriptions loaded.", num_subs)
+        LOG.info(f"{num_subs} subscriptions loaded.")
         for i, sub in enumerate(self.subscriptions):
             LOG.info(sub.get_status(i, num_subs))
 
@@ -156,7 +156,7 @@ class Config(object):
         sub.unmark(nums)
         enqueued_nums = sub.enqueue(nums)
 
-        LOG.info("Added items %s to queue successfully.", enqueued_nums)
+        LOG.info(f"Added items {enqueued_nums} to queue successfully.")
         self.save_cache()
 
     def mark(self, sub_index: int, nums: List[int]) -> None:
@@ -166,7 +166,7 @@ class Config(object):
         sub = self.subscriptions[sub_index]
         marked_nums = sub.mark(nums)
 
-        LOG.info("Marked items %s as downloaded successfully.", marked_nums)
+        LOG.info(f"Marked items {marked_nums} as downloaded successfully.")
         self.save_cache()
 
     def unmark(self, sub_index: int, nums: List[int]) -> None:
@@ -176,7 +176,7 @@ class Config(object):
         sub = self.subscriptions[sub_index]
         unmarked_nums = sub.unmark(nums)
 
-        LOG.info("Unmarked items %s successfully.", unmarked_nums)
+        LOG.info(f"Unmarked items {unmarked_nums} successfully.")
         self.save_cache()
 
     def summarize(self) -> None:
@@ -194,10 +194,10 @@ class Config(object):
         for sub in self.subscriptions:
             summary_list = list(sub.session_summary())[0:SUMMARY_LIMIT]
             if len(summary_list) > 0:
-                lines.append(sub.name)
+                lines.append(sub.metadata["name"])
 
                 for item in summary_list:
-                    lines.append("    {}".format(item))
+                    lines.append(f"    {item}")
 
                 lines.append("")
 
@@ -211,14 +211,14 @@ class Config(object):
 
         lines = []
 
-        lines.append("Items recently downloaded for {}:".format(sub.name))
+        lines.append(f"Items recently downloaded for {sub.metadata['name']}:")
 
         summary_list = sub.full_summary()
         if len(summary_list) == 0:
             lines.append("    No items downloaded.")
 
         for item in summary_list:
-            lines.append("    {}".format(item))
+            lines.append(f"    {item}")
 
         lines.append("")
 
@@ -236,7 +236,7 @@ class Config(object):
 
     def save_cache(self) -> None:
         """Write current in-memory config to cache file."""
-        LOG.debug("Writing settings to cache file '%s'.", self.cache_file)
+        LOG.debug(f"Writing settings to cache file '{self.cache_file}'.")
         with open(self.cache_file, "wb") as stream:
             dicts = [subscription.Subscription.encode_subscription(s) for s in self.subscriptions]
             packed = umsgpack.packb(dicts)
@@ -245,13 +245,13 @@ class Config(object):
     # "Private" functions (messy internals).
     def _validate_list_command(self, sub_index: int, nums: List[int]) -> None:
         if nums is None or len(nums) <= 0:
-            raise error.BadCommandError("Invalid list of nums {}.".format(nums))
+            raise error.BadCommandError(f"Invalid list of nums {nums}.")
 
         self._validate_command(sub_index)
 
     def _validate_command(self, sub_index: int) -> None:
         if sub_index < 0 or sub_index > len(self.subscriptions):
-            raise error.BadCommandError("Invalid sub index {}.".format(sub_index))
+            raise error.BadCommandError(f"Invalid sub index {sub_index}.")
 
         _ensure_loaded(self)
 
@@ -277,7 +277,7 @@ class Config(object):
                 LOG.debug("Skipping this sub.")
                 continue
 
-            self.cache_map["by_name"][decoded_sub.name] = decoded_sub
+            self.cache_map["by_name"][decoded_sub.metadata["name"]] = decoded_sub
             self.cache_map["by_url"][decoded_sub.original_url] = decoded_sub
 
     def _load_user_settings(self) -> None:
@@ -291,7 +291,7 @@ class Config(object):
             yaml_settings = yaml.safe_load(stream)
 
         pretty_settings = yaml.dump(yaml_settings, width=1, indent=4)
-        LOG.debug("Settings retrieved from user config file: %s", pretty_settings)
+        LOG.debug(f"Settings retrieved from user config file: {pretty_settings}")
 
         if yaml_settings is not None:
             # Process valid settings. Ignore garbage if the user gave it to us.
@@ -299,7 +299,7 @@ class Config(object):
                 if name == "subscriptions":
                     pass
                 elif name not in self.settings:
-                    LOG.debug("Setting %s is not a valid setting, ignoring.", name)
+                    LOG.debug(f"Setting {name} is not a valid setting, ignoring.")
                 else:
                     self.settings[name] = value
 
@@ -308,8 +308,7 @@ class Config(object):
                 sub = subscription.Subscription.parse_from_user_yaml(yaml_sub, self.settings)
 
                 if sub is None:
-                    LOG.debug("Unable to parse user YAML for sub # %s - something is wrong.",
-                              i + 1)
+                    LOG.debug(f"Unable to parse user YAML for sub #{i+1} - something is wrong.")
                     fail_count += 1
                     continue
 

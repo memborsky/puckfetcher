@@ -84,8 +84,8 @@ def test_gone_fails(strdir: str) -> None:
     """If the URL is Gone, the current url should be set to None, and we should return None."""
     test_sub = subscription.Subscription(url=GONE, name="410Test", directory=strdir)
 
-    test_sub.backlog_limit = 1
-    test_sub.use_title_as_filename = False
+    test_sub.settings["backlog_limit"] = 1
+    test_sub.settings["use_title_as_filename"] = False
 
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
@@ -127,8 +127,8 @@ def test_attempt_download_backlog(strdir: str) -> None:
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
 
-    test_sub.backlog_limit = None
-    test_sub.use_title_as_filename = False
+    test_sub.settings["backlog_limit"] = None
+    test_sub.settings["use_title_as_filename"] = False
 
     test_sub.attempt_update()
 
@@ -139,8 +139,9 @@ def test_attempt_download_backlog(strdir: str) -> None:
 
 def test_attempt_download_partial_backlog(strdir: str) -> None:
     """Should download partial backlog if limit is specified."""
-    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", backlog_limit=5,
-                                         directory=strdir)
+    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+
+    test_sub.settings["backlog_limit"] = 5
 
     test_sub.downloader = generate_fake_downloader()
     test_sub.parser = generate_feedparser()
@@ -148,8 +149,8 @@ def test_attempt_download_partial_backlog(strdir: str) -> None:
     # TODO find a cleaner way to set these.
     # Maybe test_subscription should handle these attributes missing better?
     # Maybe have a cleaner way to hack them in in tests?
-    test_sub.backlog_limit = 4
-    test_sub.use_title_as_filename = False
+    test_sub.settings["backlog_limit"] = 4
+    test_sub.settings["use_title_as_filename"] = False
     test_sub.attempt_update()
 
     for i in range(0, 4):
@@ -179,7 +180,7 @@ def test_mark(sub_with_entries: subscription.Subscription) -> None:
 
 def test_unmark(sub_with_entries: subscription.Subscription) -> None:
     """Should unmark subscription entries correctly."""
-    assert len(sub_with_entries.feed_state.entries) > 0
+    assert len(sub_with_entries.feed_state.entries)> 0
 
     test_nums = [2, 3, 4, 5]
     bad_nums = [-1, -12, 10000]
@@ -203,13 +204,13 @@ def test_url_with_qparams() -> None:
     """Test that the _get_dest helper handles query parameters properly."""
     test_sub = subscription.Subscription(url="test", name="test", directory="test")
 
-    test_sub.use_title_as_filename = True
+    test_sub.settings["use_title_as_filename"] = True
 
     # pylint: disable=protected-access
     filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "puck", "/test")
     assert filename == "/test/puck.mp3"
 
-    test_sub.use_title_as_filename = False
+    test_sub.settings["use_title_as_filename"] = False
 
     # pylint: disable=protected-access
     filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "puck", "/test")
@@ -222,7 +223,7 @@ def test_url_sanitize() -> None:
     """
     test_sub = subscription.Subscription(url="test", name="test", directory="test")
 
-    test_sub.use_title_as_filename = True
+    test_sub.settings["use_title_as_filename"] = True
 
     # pylint: disable=protected-access
     filename = test_sub._get_dest("https://www.example.com?foo=1/bar.mp3?baz=2", "p/////uck",

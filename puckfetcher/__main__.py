@@ -4,7 +4,6 @@ import logging
 import logging.handlers as lhandlers
 import os
 import sys
-import textwrap
 from typing import Any, Dict, List, Tuple
 
 from clint.textui import prompt
@@ -151,12 +150,9 @@ def _choose_sub(conf: config.Config) -> int:
 def _choose_entries() -> List[int]:
     done = False
     while not done:
-        num_string = input(textwrap.dedent(
-            """
-            Provide numbers of entries for this command.
-            Invalid numbers will be ignored.
-            Press enter with an empty line to go back to command menu.
-            """))
+        num_string = input("Provide numbers of entries for this command."
+                           "\nInvalid numbers will be ignored."
+                           "\nPress enter with an empty line to go back to command menu.")
 
         if len(num_string) == 0:
             done = True
@@ -167,13 +163,10 @@ def _choose_entries() -> List[int]:
 
         while True:
             # TODO show ranges in what's shown here, for convenience. Still deduplicate.
-            answer = input(textwrap.dedent(
-                f"""\
-                Happy with {num_list}?
-                (If indices are too big/small, they'll be pulled out later.)
-                (No will let you try again)
-                [Yes/yes/y or No/no/n]
-                """))
+            answer = input("Happy with {num_list}?"
+                           "\n(If indices are too big/small, they'll be pulled out later.)"
+                           "\n(No will let you try again)"
+                           "\n[Yes/yes/y or No/no/n]")
 
             if len(answer) < 1:
                 continue
@@ -212,59 +205,44 @@ def _setup_program_arguments() -> argparse.ArgumentParser:
     a = config.get_command_help()
 
     parser.add_argument("command",
-                        help=textwrap.dedent(
-                            f"""\
-                            Command to run, one of:
-                            {a:<14}\
-                            """))
+                        help=(f"Command to run, one of:"
+                              f"\n{a:<14}"))
 
     parser.add_argument("--cache", "-a", dest="cache",
-                        help=textwrap.dedent(
-                            f"""\
-                            Cache directory to use. The '{__package__}' directory will be
-                            created here, and the 'puckcache' and '{__package__}.log' files will be
-                            stored there.  '$XDG_CACHE_HOME' will be used if nothing is provided.\
-                            """))
+                        help=(f"Cache directory to use. The '{__package__}' directory will be "
+                              f"created here, and the 'puckcache' and '{__package__}.log' files "
+                              f"will be stored there. '$XDG_CACHE_HOME' will be used if nothing "
+                              f"is provided."))
 
     parser.add_argument("--config", "-c", dest="config",
-                        help=textwrap.dedent(
-                            f"""\
-                            Config directory to use. The '{__package__}' directory will be created
-                            here. Put your 'config.yaml' file here to configure {__package__}. A
-                            default file will be created for you with default settings if you do
-                            not provide one.  '$XDG_CONFIG_HOME' will be used if nothing is
-                            provided.\
-                            """))
+                        help=(f" Config directory to use. The '{__package__}' directory will be "
+                              f"created here. Put your 'config.yaml' file here to configure "
+                              f"{__package__}. A default file will be created for you with "
+                              f"default settings if you do not provide one. '$XDG_CONFIG_HOME' "
+                              f" will be used if nothing is provided."))
 
     parser.add_argument("--data", "-d", dest="data",
-                        help=textwrap.dedent(
-                            """\
-                            Data directory to use. Downloaded subscription entries will live here.
-                            The 'directory' setting in the config file will also affect the data
-                            directory, but this flag takes precedent.
-                            '$XDG_DATA_HOME' will be used if nothing is provided.\
-                            """))
+                        help=("Data directory to use. Downloaded subscription entries will live "
+                              "here. The 'directory' setting in the config file will also "
+                              "affect the data directory, but this flag takes precedent. "
+                              "'$XDG_DATA_HOME' will be used if nothing is provided."))
 
     parser.add_argument("--verbose", "-v", action="count",
-                        help=textwrap.dedent(
-                            """\
-                            How verbose to be. If this is unused, only normal program output will
-                            be logged. If there is one v, DEBUG output will be logged, and logging
-                            will happen both to the log file and to stdout. If there is more than
-                            one v, more debug output will happen. Some things will never be logged
-                            no matter how much you vvvvvvvvvv.\
-                            """))
-
+                        help=("How verbose to be. If this is unused, only normal program output "
+                              "will be logged. If there is one v, DEBUG output will be logged, "
+                              "and logging will happen both to the log file and to stdout. If "
+                              "there is more than one v, more debug output will happen. Some "
+                              "things will never be logged no matter how much you vvvvvvvvvv."))
 
     parser.add_argument("--version", "-V", action="version",
-                        version="%(prog)s {}".format(constants.VERSION))
+                        version=f"{sys.argv[0]} {constants.VERSION}")
 
     return parser
 
 
 def _setup_logging() -> logging.Logger:
     log_dir = constants.APPDIRS.user_log_dir
-    log_filename = os.path.join(log_dir, "{}.log".format(__package__))
+    log_filename = os.path.join(log_dir, f"{__package__}.log")
 
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)

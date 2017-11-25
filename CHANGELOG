@@ -1,3 +1,38 @@
+1.1.0 (2017-11-25):
+    * FEATURES:
+        * Fill in ID3v2 tags.
+        * Set "set_tags = true" in global config to enable.
+        * Please supply any/all of 'album', 'album_artist', and 'artist' in per-sub config.
+        * If you have a subscription where you want to overwrite the MP3 filename with the RSS
+        * title, set "overwrite_title" to true in the per-sub config.
+
+    * DEV
+        * Fix missed non-Python3.6 formatted strings instances.
+        * Get rid of textwrap.
+        * Update all dependencies to latest version, re-pin.
+
+1.0.4 (2017-09-08):
+    * BREAKING:
+        * Only Python 3.6+ are supported now.
+
+    * DEV:
+        * Use Python3.6 formatted strings and variable annotations.
+
+1.0.3 (2017-04-27):
+    * DEV:
+        * Pin to higher versions of all dependencies and set upper bounds.
+
+1.0.2 (2016-12-15):
+    * BUGFIXES:
+        * Specify in documentation Python 3 is needed.
+        * Fix off-by-one in list command.
+        * Demote a bunch of log statements to Debug to be less noisy.
+        * Space out podcast updating.
+        * Report feed update being unneeded correctly, as a success instead of a failure.
+
+    * OTHER:
+        * Clean up feature list in README - no need to report very early stages any more.
+
 1.0.1 (2016-11-12):
     * Fix data flag message on command line.
 

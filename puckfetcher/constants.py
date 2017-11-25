@@ -8,7 +8,6 @@ URL = "https://github.com/andrewmichaud/puckfetcher"
 
 VERSION = pkg_resources.require(__package__)[0].version
 
-USER_AGENT = __package__ + "/" + VERSION + " +" + URL
 USER_AGENT = f"{__package__}/{VERSION} +{URL}"
 
 VERBOSITY = 0
