@@ -1,3 +1,8 @@
+1.1.1-1.1.5 (2017-11-25 - 2017-11-26):
+    * DEV
+        * Several rebuilds to get builds to work again.
+        * Include drewtilities util library to share some stuff between projects.
+
 1.1.0 (2017-11-25):
     * FEATURES:
         * Fill in ID3v2 tags.
