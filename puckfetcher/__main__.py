@@ -1,17 +1,15 @@
 """Main entry point for puckfetcher, used to repeatedly download podcasts from the command line."""
 import argparse
-import logging
-import logging.handlers as lhandlers
 import os
 import sys
 from typing import Any, Dict, List, Tuple
 
+import drewtilities as util
 from clint.textui import prompt
 
 import puckfetcher.constants as constants
 import puckfetcher.config as config
 import puckfetcher.error as error
-import puckfetcher.util as util
 
 LOG = None
 
@@ -19,7 +17,9 @@ def main() -> None:
     """Run puckfetcher on the command line."""
 
     global LOG
-    LOG = _setup_logging()
+    log_dir = constants.APPDIRS.user_log_dir
+    log_filename = os.path.join(log_dir, f"{__package__}.log")
+    LOG = util.set_up_logging(log_filename=log_filename, verbosity=constants.VERBOSITY)
 
     parser = _setup_program_arguments()
     args = parser.parse_args()
@@ -238,45 +238,6 @@ def _setup_program_arguments() -> argparse.ArgumentParser:
                         version=f"{sys.argv[0]} {constants.VERSION}")
 
     return parser
-
-
-def _setup_logging() -> logging.Logger:
-    log_dir = constants.APPDIRS.user_log_dir
-    log_filename = os.path.join(log_dir, f"{__package__}.log")
-
-    if not os.path.isdir(log_dir):
-        os.makedirs(log_dir)
-
-    if not os.path.isfile(log_filename):
-        open(log_filename, "a", encoding=constants.ENCODING).close()
-
-    logger = logging.getLogger("root")
-    logger.setLevel(logging.DEBUG)
-
-    # Provide a file handler that logs everything in a verbose format.
-    file_handler = lhandlers.RotatingFileHandler(filename=log_filename,
-                                                 maxBytes=1024000000, backupCount=10)
-    verbose_form = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(module)s - %(message)s")
-    file_handler.setFormatter(verbose_form)
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
-
-    # Provide a stdout handler that only logs things the use (theoretically) cares about (INFO and
-    # above).
-    stream_handler = logging.StreamHandler(sys.stdout)
-    simple_form = logging.Formatter(fmt="%(message)s")
-    stream_handler.setFormatter(simple_form)
-
-    # If VERBOSITY is above zero, log to stream at DEBUG.
-    if constants.VERBOSITY > 0:
-        stream_handler.setLevel(logging.DEBUG)
-
-    else:
-        stream_handler.setLevel(logging.INFO)
-
-    logger.addHandler(stream_handler)
-
-    return logger
 
 if __name__ == "__main__":
     main()
