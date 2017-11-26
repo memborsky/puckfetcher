@@ -5,13 +5,13 @@ import logging
 import os
 from typing import Any, List, Mapping, Dict
 
+import drewtilities as util
 import umsgpack
 import yaml
 
 import puckfetcher.constants as constants
 import puckfetcher.error as error
 import puckfetcher.subscription as subscription
-import puckfetcher.util as util
 
 SUMMARY_LIMIT = 4
 

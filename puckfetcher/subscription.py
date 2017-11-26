@@ -11,6 +11,7 @@ import platform
 import time
 from typing import Any, Dict, List, Mapping, Tuple, MutableSequence
 
+import drewtilities as util
 import feedparser
 import requests
 import stagger
@@ -18,7 +19,6 @@ from stagger.id3 import *
 
 import puckfetcher.constants as constants
 import puckfetcher.error as error
-import puckfetcher.util as util
 
 DATE_FORMAT_STRING = "%Y%m%dT%H:%M:%S.%f"
 HEADERS = {"User-Agent": constants.USER_AGENT}
