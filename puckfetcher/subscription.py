@@ -349,7 +349,7 @@ class Subscription(object):
         return actual_nums
 
     def update(self, directory: str=None, config_dir: Any=None, url: str=None,
-               set_original: bool=False, name: str=None,
+               set_original: bool=False, name: str=None, settings: Mapping[str, str]={},
               ) -> None:
         """Update values for this subscription."""
         if dir == "":
@@ -377,6 +377,13 @@ class Subscription(object):
 
         if name is not None:
             self.metadata["name"] = name
+
+        self.settings = {
+            "use_title_as_filename": settings.get("use_title_as_filename", False),
+            "backlog_limit": settings.get("backlog_limit", 0),
+            "set_tags": settings.get("set_tags", False),
+            "overwrite_title": settings.get("overwrite_title", False),
+        }
 
     def default_missing_fields(self, settings: Mapping[str, Any]) -> None:
         """Set default values for any fields that are None (ones that were never set)."""
