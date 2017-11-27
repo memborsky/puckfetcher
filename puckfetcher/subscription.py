@@ -136,6 +136,7 @@ class Subscription(object):
                 "directory": sub.directory,
                 "settings": sub.settings,
                 "feed_state": sub.feed_state.as_dict(),
+                "metadata": sub.metadata,
                 "name": sub.metadata["name"],
                }
 
