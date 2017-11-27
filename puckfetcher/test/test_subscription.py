@@ -256,10 +256,12 @@ def _test_url_helper(strdir: str, given: str, name: str, expected_current: str,
     assert test_sub.original_url == expected_original
 
 def _check_hi_contents(filename_num: int, directory: str) -> None:
-    file_path = os.path.join(directory, f"hi0{filename_num}.txt")
+    file_path = os.path.join(directory, f"hi0{filename_num}.mp3")
     with open(file_path, "r", encoding="UTF-8") as enclosure:
         data = enclosure.read().replace('\n', '')
-        assert data == "hi"
+
+        # TODO find way to test ID3v2 tag.
+        assert data[-2:] == "hi"
 
 def generate_fake_downloader() -> Callable[[str, str], None]:
     """Fake downloader for test purposes."""
@@ -287,7 +289,7 @@ def generate_feedparser() -> Callable[[str, Any, Any], Dict[str, Any]]:
         for i in range(0, 10):
             entry: Dict[str, Any] = {}
             entry["title"] = "hi"
-            entry["enclosures"] = [{"href": f"hi0{i}.txt"}]
+            entry["enclosures"] = [{"href": f"hi0{i}.mp3"}]
 
             entries.append(entry)
 
