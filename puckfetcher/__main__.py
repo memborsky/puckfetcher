@@ -163,7 +163,7 @@ def _choose_entries() -> List[int]:
 
         while True:
             # TODO show ranges in what's shown here, for convenience. Still deduplicate.
-            answer = input("Happy with {num_list}?"
+            answer = input(f"Happy with {num_list}?"
                            "\n(If indices are too big/small, they'll be pulled out later.)"
                            "\n(No will let you try again)"
                            "\n[Yes/yes/y or No/no/n]")
