@@ -1,3 +1,15 @@
+1.2.3 (2017-11-27):
+    * BUGFIXES
+        * Prefer user settings per-sub over cache settings (expected but not actual behavior).
+
+1.2.1 (2017-11-27):
+    * BUGFIXES
+        * Fix string that should have been a format string in "add to queue" command.
+
+1.2.1 (2017-11-27):
+    * BUGFIXES
+        * Write metadata (entry and sub) to cache.
+
 1.2.0 (2017-11-27):
     * DEV
         * Pull ID3v2 tags into subscription metadata if there isn't already data there.
