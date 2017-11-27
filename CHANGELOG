@@ -1,3 +1,8 @@
+1.2.0 (2017-11-27):
+    * DEV
+        * Pull ID3v2 tags into subscription metadata if there isn't already data there.
+        * Pull tags into metatada on entries (and add that as a dict to the dict).
+
 1.1.1-1.1.5 (2017-11-25 - 2017-11-26):
     * DEV
         * Several rebuilds to get builds to work again.
