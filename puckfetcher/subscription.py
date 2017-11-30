@@ -169,6 +169,7 @@ class Subscription(object):
         sub.settings["set_tags"] = sub_yaml.get("set_tags", defaults["set_tags"])
         sub.settings["overwrite_title"] = sub_yaml.get("overwrite_title", False)
 
+        sub.metadata["name"] = name
         sub.metadata["artist"] = sub_yaml.get("artist", "")
         sub.metadata["album"] = sub_yaml.get("album", "")
         sub.metadata["album_artist"] = sub_yaml.get("album_artist", "")
@@ -349,7 +350,8 @@ class Subscription(object):
         return actual_nums
 
     def update(self, directory: str=None, config_dir: Any=None, url: str=None,
-               set_original: bool=False, name: str=None, settings: Mapping[str, str]={},
+               set_original: bool=False, name: str=None,
+               settings: Mapping[str, str]={}, metadata: Mapping[str, Any]={},
               ) -> None:
         """Update values for this subscription."""
         if dir == "":
@@ -375,14 +377,18 @@ class Subscription(object):
             if set_original:
                 self.original_url = url
 
-        if name is not None:
-            self.metadata["name"] = name
-
         self.settings = {
             "use_title_as_filename": settings.get("use_title_as_filename", False),
             "backlog_limit": settings.get("backlog_limit", 0),
             "set_tags": settings.get("set_tags", False),
             "overwrite_title": settings.get("overwrite_title", False),
+        }
+
+        self.metadata = {
+            "name": metadata.get("name", self.metadata["name"]),
+            "artist": metadata.get("artist", self.metadata["artist"]),
+            "album": metadata.get("album", self.metadata["album"]),
+            "album_artist": metadata.get("album_artist", self.metadata["album_artist"]),
         }
 
     def default_missing_fields(self, settings: Mapping[str, Any]) -> None:

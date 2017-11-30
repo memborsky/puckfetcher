@@ -75,6 +75,7 @@ class Config(object):
                 # Items where we want to favor user settings over cache settings.
                 directory = sub.directory
                 settings = sub.settings
+                metadata = sub.metadata
 
                 # Match cached sub to current sub and take its settings.
                 # If the user has changed either we can still match the sub and update settings
@@ -90,6 +91,7 @@ class Config(object):
 
                 sub.update(directory=directory, name=name, url=url, set_original=True,
                            config_dir=self.settings["directory"], settings=settings,
+                           metadata=metadata
                           )
 
                 sub.default_missing_fields(self.settings)
