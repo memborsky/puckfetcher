@@ -1,6 +1,12 @@
+1.2.4 (2017-11-30):
+    * BUGFIXES
+        * Prefer user metatdata per-sub over cache metadata per-sub (expected but not actual
+          behavior).
+
 1.2.3 (2017-11-27):
     * BUGFIXES
-        * Prefer user settings per-sub over cache settings (expected but not actual behavior).
+        * Prefer user settings per-sub over cache settings per-sub (expected but not actual
+          behavior).
 
 1.2.1 (2017-11-27):
     * BUGFIXES
