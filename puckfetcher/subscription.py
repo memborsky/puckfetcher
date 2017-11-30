@@ -171,7 +171,7 @@ class Subscription(object):
 
         sub.metadata["name"] = name
         sub.metadata["artist"] = sub_yaml.get("artist", "")
-        sub.metadata["album"] = sub_yaml.get("album", "")
+        sub.metadata["album"] = sub_yaml.get("album", name)
         sub.metadata["album_artist"] = sub_yaml.get("album_artist", "")
 
         return sub
