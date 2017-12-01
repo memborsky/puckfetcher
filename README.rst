@@ -53,7 +53,7 @@ Features
    to refresh.
 -  Provides progress on downloads.
 -  Provides summary of recently-downloaded podcasts per-session, as well as summary of
-  recently-downloaded episodes per-podcast.
+   recently-downloaded episodes per-podcast.
 -  Add MP3 tag support to clean up tags based on feed information if it’s messy.
 
 Ideas for Future Releases

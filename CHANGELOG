@@ -1,6 +1,10 @@
+1.2.6 (2017-11-30):
+    * OTHER
+        * Fix README.rst.
+
 1.2.5 (2017-11-30):
     * BUGFIXES
-        * If user doesn't supply "album" in metadata, use sub name (expected but etc.)
+        * If user doesn't supply "album" in metadata, use sub name (expected but etc.).
 
 1.2.4 (2017-11-30):
     * BUGFIXES
