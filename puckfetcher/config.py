@@ -247,6 +247,12 @@ class Config(object):
             packed = umsgpack.packb(dicts)
             stream.write(packed)
 
+    def reload_config(self) -> None:
+        """Reload config file."""
+        self.save_cache()
+        self.load_state()
+        LOG.info("Reloaded")
+
     # "Private" functions (messy internals).
     def _validate_list_command(self, sub_index: int, nums: List[int]) -> None:
         if nums is None or len(nums) <= 0:
@@ -324,7 +330,7 @@ class Config(object):
 
 def get_commands() -> Mapping[Any, str]:
     """Provide commands that can be used on a config."""
-    command_pairs = (
+    return collections.OrderedDict((
         (Command.exit,
          "Exit application."),
         (Command.update,
@@ -334,24 +340,27 @@ def get_commands() -> Mapping[Any, str]:
         (Command.details,
          "Provide details on one subscription's entries and queue status."),
         (Command.enqueue,
-         "Add to a sub's download queue. Items will be skipped if already in queue, or " +
-         "invalid."),
+         "Add to a sub's download queue. Items will be skipped if already in queue, or invalid."),
         (Command.mark,
          "Mark a subscription entry as downloaded."),
         (Command.unmark,
          "Mark a subscription entry as not downloaded. Will not queue for download."),
-        (Command.download_queue, "Download a subscription's full queue. Files with the same " +
-         "name as a to-be-downloaded entry will be overridden."),
-        (Command.summarize, "Summarize subscription entries downloaded in this session."),
-        (Command.summarize_sub, "Summarize recent entries downloaded for a specific sub."),
-    )
-    return collections.OrderedDict(command_pairs)
+        (Command.download_queue,
+         "Download a subscription's full queue. Files with the same name as a to-be-downloaded "
+         "entry will be overridden."),
+        (Command.summarize,
+         "Summarize subscription entries downloaded in this session."),
+        (Command.summarize_sub,
+         "Summarize recent entries downloaded for a specific sub."),
+        (Command.reload_config,
+         "Reload configuration file."),
+    ))
 
 def get_command_help() -> str:
     """Get name and summary for all available commands."""
     command_help_list = []
-    for command, help in get_commands().items():
-        command_help_list.append(f"{command.name:<14} - {help}")
+    for command, help_text in get_commands().items():
+        command_help_list.append(f"{command.name:<14} - {help_text}")
 
     return "\n".join(command_help_list)
 
@@ -382,11 +391,12 @@ def _ensure_file(file_path: str) -> None:
 
 
 def _validate_dirs(config_dir: str, cache_dir: str, data_dir: str) -> None:
-    for dir in [config_dir, cache_dir, data_dir]:
-        if os.path.isfile(dir):
-            raise error.MalformedConfigError(f"Provided directory '{dir}' is actually a file!")
+    for directory in [config_dir, cache_dir, data_dir]:
+        if os.path.isfile(directory):
+            raise error.MalformedConfigError(f"Provided directory '{directory}' "
+                                             "is actually a file!")
 
-        util.ensure_dir(dir)
+        util.ensure_dir(directory)
 
 
 class Command(enum.Enum):
@@ -401,3 +411,4 @@ class Command(enum.Enum):
     mark = 700
     unmark = 800
     download_queue = 900
+    reload_config = 1000

@@ -71,7 +71,7 @@ class Subscription(object):
 
         self.directory = _process_directory(directory)
 
-        self.settings = {
+        self.settings: Dict[str, Any] = {
             "use_title_as_filename": None,
             "backlog_limit": 0,
             "set_tags": False,
@@ -508,10 +508,8 @@ class Subscription(object):
         try:
             tag = stagger.read_tag(dest)
         except stagger.errors.NoTagError as e:
-            LOG.debug(f"No tag present: {e}")
+            LOG.debug(f"No tag present, creating one: {e}")
             tag = stagger.Tag24()
-
-        entry["metadata"] = {}
 
         # Process tags. If set to set_tags and tags are empty, write tags.
         # Pull tags into sub metadata if it's not set.
@@ -773,6 +771,7 @@ class _FeedState(object):
             new_entry["title"] = entry["title"]
 
             new_entry["urls"] = []
+            new_entry["metadata"] = {}
             for enclosure in entry["enclosures"]:
                 new_entry["urls"].append(enclosure["href"])
 

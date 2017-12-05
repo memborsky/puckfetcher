@@ -14,9 +14,11 @@ def test_simple_commands() -> None:
     # Test simple commands.
     main._handle_command("update", conf, None)
     main._handle_command("list", conf, None)
+    main._handle_command("reload_config", conf, None)
 
     conf.update.assert_called_once_with()
     conf.list.assert_called_once_with()
+    conf.reload_config.assert_called_once_with()
 
 # TODO split these out
 def test_list_commands() -> None:
