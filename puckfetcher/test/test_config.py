@@ -1,4 +1,5 @@
 """Tests for the config module."""
+import copy
 import os
 from typing import Any, List, Tuple
 
@@ -106,6 +107,30 @@ def test_save_works(default_config: config.Config, default_cache_file: str,
         subs = [subscription.Subscription.decode_subscription(sub) for sub in unpacked_contents]
 
     assert default_config.subscriptions == subs
+
+
+def test_reload_config(default_config: config.Config, default_conf_file: str,
+                                default_cache_file: str,
+                                subscriptions: List[subscription.Subscription],
+                                ) -> None:
+    """Test that reloading gets us new settings."""
+    write_subs_to_file(subs=subscriptions, out_file=default_cache_file, write_type="cache")
+    write_subs_to_file(subs=subscriptions, out_file=default_conf_file, write_type="config")
+
+    default_config.load_state()
+
+    assert default_config.subscriptions == subscriptions
+
+    new_subscriptions = copy.deepcopy(subscriptions)
+    for sub in new_subscriptions:
+        sub.metadata["artist"] = "foo"
+
+    write_subs_to_file(subs=new_subscriptions, out_file=default_conf_file, write_type="config")
+
+    default_config.load_state()
+
+    assert default_config.subscriptions != subscriptions
+    assert default_config.subscriptions == new_subscriptions
 
 
 # Helpers.

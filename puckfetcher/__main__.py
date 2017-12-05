@@ -120,6 +120,9 @@ def _handle_command(command: str, conf: config.Config,
             (sub_index, entry_nums) = _sub_list_command_wrapper(conf, command)
             conf.unmark(sub_index, entry_nums)
 
+        elif command == config.Command.reload_config.name:
+            conf.reload_config()
+
         else:
             LOG.error("Unknown command. Allowed commands are:")
             LOG.error(config.get_command_help())
