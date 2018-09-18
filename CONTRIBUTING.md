@@ -3,7 +3,7 @@
 We welcome contributions to this repo.
 By participating in this project, you agree to abide by the puckfetcher [code of conduct].
 
-  [code of conduct]: https://github.com/andrewmichaud/puckfetcher/blob/master/CODE_OF_CONDUCT.md
+  [code of conduct]: https://github.com/alixnovosi/puckfetcher/blob/master/CODE_OF_CONDUCT.md
 
 We expect everyone to follow the code of conduct anywhere in puckfetcher's project codebases, issue trackers, chatrooms, and
 mailing lists.

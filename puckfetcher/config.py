@@ -121,10 +121,10 @@ class Config(object):
             LOG.info(f"Working on sub number {i+1}/{num_subs} - '{sub.metadata['name']}'")
             update_successful = sub.attempt_update()
 
-            if not update_successful:
-                LOG.info(f"Unsuccessful update for sub '{sub.metadata['name']}'.\n")
-            else:
+            if update_successful:
                 LOG.info(f"Updated sub '{sub.metadata['name']}' successfully.\n")
+            else:
+                LOG.info(f"Unsuccessful update for sub '{sub.metadata['name']}'.\n")
 
             self.subscriptions[i] = sub
             self.save_cache()

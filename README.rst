@@ -12,13 +12,13 @@ puckfetcher
 .. image:: https://badge.fury.io/py/puckfetcher.svg
     :target: https://badge.fury.io/py/puckfetcher
 
-.. image:: https://badge.waffle.io/andrewmichaud/puckfetcher.png?label=ready&title=Ready
-    :target: https://waffle.io/andrewmichaud/puckfetcher
+.. image:: https://badge.waffle.io/alixnovosi/puckfetcher.png?label=ready&title=Ready
+    :target: https://waffle.io/alixnovosi/puckfetcher
     :alt: 'Stories in Ready'
 
 A simple command-line podcatcher.
 
-GitHub Project: (https://github.com/andrewmichaud/puckfetcher)
+GitHub Project: (https://github.com/alixnovosi/puckfetcher)
 
 Supports Python 3.6+. Please report any issues on the GitHub project or reach out over email.
 
@@ -64,9 +64,9 @@ Ideas for Future Releases
 
 .. |BSD3 License| image:: http://img.shields.io/badge/license-BSD3-brightgreen.svg
    :target: https://tldrlegal.com/license/bsd-3-clause-license-%28revised%29
-.. |Build Status| image:: https://travis-ci.org/andrewmichaud/puckfetcher.svg?branch=master
-   :target: https://travis-ci.org/andrewmichaud/puckfetcher
-.. |Coverage Status| image:: https://coveralls.io/repos/andrewmichaud/puckfetcher/badge.svg?branch=master&service=github
-   :target: https://coveralls.io/github/andrewmichaud/puckfetcher?branch=master
-.. |Issue Count| image:: https://codeclimate.com/github/andrewmichaud/puckfetcher/badges/issue_count.svg
-   :target: https://codeclimate.com/github/andrewmichaud/puckfetcher
+.. |Build Status| image:: https://travis-ci.org/alixnovosi/puckfetcher.svg?branch=master
+   :target: https://travis-ci.org/alixnovosi/puckfetcher
+.. |Coverage Status| image:: https://coveralls.io/repos/alixnovosi/puckfetcher/badge.svg?branch=master&service=github
+   :target: https://coveralls.io/github/alixnovosi/puckfetcher?branch=master
+.. |Issue Count| image:: https://codeclimate.com/github/alixnovosi/puckfetcher/badges/issue_count.svg
+   :target: https://codeclimate.com/github/alixnovosi/puckfetcher

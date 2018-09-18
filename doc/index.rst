@@ -39,8 +39,8 @@ Puckfetcher is available on pypi, and requires Python 3.6+.
 Contribute
 ----------
 
-- Issue Tracker: https://github.com/andrewmichaud/puckfetcher/
-- Source Code: https://github.com/andrewmichaud/puckfetcher/issues
+- Issue Tracker: https://github.com/alixnovosi/puckfetcher/
+- Source Code: https://github.com/alixnovosi/puckfetcher/issues
 
 Support
 -------

@@ -45,14 +45,12 @@ def main() -> None:
     config_dir = vars(args)["config"]
     command = vars(args)["command"]
     if command:
-        if command == "exit":
-            parser.exit()
-
-        elif command == "menu":
+        if command == "menu":
             pass
 
         else:
-            _handle_command(command, conf, command_options)
+            if command != "exit":
+                _handle_command(command, conf, command_options)
             parser.exit()
 
     LOG.info(f"{__package__} {constants.VERSION} started!")

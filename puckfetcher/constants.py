@@ -4,7 +4,7 @@ import pkg_resources
 
 APPDIRS = appdirs.AppDirs("puckfetcher")
 
-URL = "https://github.com/andrewmichaud/puckfetcher"
+URL = "https://github.com/alixnovosi/puckfetcher"
 
 VERSION = pkg_resources.require(__package__)[0].version
 

@@ -10,13 +10,13 @@ with open(path.join(HERE, "README.rst")) as f:
 with open(path.join(HERE, "VERSION")) as f:
     VERSION = f.read().strip()
 
-URL = "https://github.com/andrewmichaud/puckfetcher"
+URL = "https://github.com/alixnovosi/puckfetcher"
 
 INSTALL_REQUIRES = ["appdirs>=1.4.3, <2.0.0",
                     "clint>=0.5.1, <0.6.0",
                     "feedparser>=5.2.1, <6.0.0",
-                    "pyyaml>=3.12, <4.0.0",
-                    "requests>=2.18.4, <3.0.0",
+                    "pyyaml>=3.13, <4.0.0",
+                    "requests>=2.19.1, <3.0.0",
                     "u-msgpack-python>=2.5.0, <3.0.0",
                     "stagger>=1.0.0, <2.0.0",
                     "drewtilities>=1.0.5, <2.0.0",

@@ -14,6 +14,7 @@ class PuckError(Exception):
 class BadCommandError(PuckError):
     """
     Exception raised when a command is given bad arguments.
+
     Attributes:
         desc -- short message describing error.
     """
