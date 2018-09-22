@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+from logging import Logger
 from typing import Any, Dict, List, Tuple
 
 import drewtilities as util
@@ -11,7 +12,7 @@ import puckfetcher.constants as constants
 import puckfetcher.config as config
 import puckfetcher.error as error
 
-LOG = None
+LOG: Logger
 
 def main() -> None:
     """Run puckfetcher on the command line."""
@@ -50,7 +51,7 @@ def main() -> None:
 
         else:
             if command != "exit":
-                _handle_command(command, conf, command_options)
+                _handle_command(command, conf)
             parser.exit()
 
     LOG.info(f"{__package__} {constants.VERSION} started!")
@@ -62,7 +63,7 @@ def main() -> None:
             if command == "exit":
                 parser.exit()
 
-            _handle_command(command, conf, command_options)
+            _handle_command(command, conf)
 
         # TODO look into replacing with
         # https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
@@ -77,9 +78,7 @@ def main() -> None:
     parser.exit()
 
 # TODO find a way to simplify and/or push logic into Config.
-def _handle_command(command: str, conf: config.Config,
-                    command_options: List[Dict[str, Any]],
-                    ) -> None:
+def _handle_command(command: str, conf: config.Config) -> None:
     try:
         if command == config.Command.update.name:
             conf.update()
@@ -157,7 +156,7 @@ def _choose_entries() -> List[int]:
 
         if len(num_string) == 0:
             done = True
-            num_list = None
+            num_list: List[int] = []
             break
 
         num_list = util.parse_int_string(num_string)

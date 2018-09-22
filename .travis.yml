@@ -1,31 +1,43 @@
 language: python
 
 os:
-    - linux
+  - linux
 
-# TODO re-add PyPy when they get >=3.5 support.
-python:
-    - "3.6"
-    - "nightly"
-
+# TODO re-add PyPy when they get >=3.6 support.
 matrix:
-    allow_failures:
-        - python: "nightly"
+  include:
+    - python: "3.6"
+      env: "VERSION=3.6"
+    - python: "3.7"
+      dist: xenial
+      env: "VERSION=3.7"
+    - python: "nightly"
+      env: "VERSION=nightly"
+    - python: "pypy3"
+      env: "VERSION=pypy3"
+  allow_failures:
+    - env: "VERSION=3.7"
+    - env: "VERSION=nightly"
+    - env: "VERSION=pypy3"
 
 install:
-    - pip install .
-    - pip install coveralls
-    - pip install -U git+git://github.com/python/mypy.git
+  - pip install .
+  - pip install coveralls
+  - pip install -U git+git://github.com/python/mypy.git
 
 script:
-    - |
-      mypy \
-      puckfetcher \
-      --ignore-missing-imports --follow-imports=skip \
-      --disallow-untyped-defs --incremental --warn-no-return --show-column-numbers
+  - |
+    mypy \
+    puckfetcher \
+    --ignore-missing-imports \
+    --follow-imports=skip \
+    --disallow-untyped-defs \
+    --incremental \
+    --warn-no-return \
+    --show-column-numbers
 
-    - coverage run --source=puckfetcher setup.py test
-    - coverage report -m
+  - coverage run --source=puckfetcher setup.py pytest
+  - coverage report -m
 
 after_success:
-    - coveralls
+  - coveralls

@@ -9,7 +9,7 @@ import logging
 import os
 import platform
 import time
-from typing import Any, Dict, List, Mapping, Tuple, MutableSequence
+from typing import Any, Dict, List, Mapping, Optional, Tuple, MutableSequence
 
 import drewtilities as util
 import feedparser
@@ -45,7 +45,7 @@ class Subscription(object):
             raise error.MalformedSubscriptionError(msg)
 
         # Temporary storage for swapping around urls.
-        self.temp_url: str = None
+        self.temp_url: str = ""
 
         LOG.debug(f"Storing provided url '{url}'.")
         self.url = url
@@ -359,15 +359,18 @@ class Subscription(object):
                       f"ignoring update.")
             return
 
-        if directory is not None:
-            directory = util.expand(directory)
+        if config_dir is None:
+            config_dir = "."
 
-            if self.directory != directory:
-                if os.path.isabs(directory):
-                    self.directory = directory
+        if directory is not None:
+            d = util.expand(directory)
+
+            if self.directory != d:
+                if os.path.isabs(d):
+                    self.directory = d
 
                 else:
-                    self.directory = os.path.join(config_dir, directory)
+                    self.directory = os.path.join(config_dir, d)
 
                 util.ensure_dir(self.directory)
 
@@ -415,7 +418,7 @@ class Subscription(object):
         if self.latest() is not None:
             one_indexed_entry_num = self.latest() + 1
         else:
-            one_indexed_entry_num = None
+            one_indexed_entry_num = self.latest()
         return f"{padded_cur_num}/{total_subs} - '{self.metadata['name']}' " + \
                 f"|{one_indexed_entry_num}|"
 
@@ -647,7 +650,7 @@ class Subscription(object):
                       f"{self.metadata['name']}."
                      )
 
-            self.url = None
+            self.url = ""
             result = UpdateResult.FAILURE
 
         # Handle redirecting errors
@@ -800,12 +803,13 @@ class _FeedState(object):
 
 
 # "Private" file functions (messy internals).
-def _process_directory(directory: str) -> str:
+def _process_directory(d: Optional[str]) -> str:
     """Assign directory if none was given, and create directory if necessary."""
-    directory = util.expand(directory)
-    if directory is None:
-        LOG.debug(f"No directory provided, defaulting to {directory}.")
+    if d is None:
+        LOG.debug(f"No directory provided, creating a default one.")
         return util.expand(constants.APPDIRS.user_data_dir)
+
+    directory = util.expand(d)
 
     LOG.debug(f"Using directory {directory}.")
 

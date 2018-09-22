@@ -74,7 +74,7 @@ def test_permanent_redirect(strdir: str) -> None:
     If we are redirected permanently to a valid RSS feed, we should successfully parse that
     feed and change our url. The originally provided URL should be unchanged.
     """
-    _test_url_helper(strdir, PERM_REDIRECT, "301Test", RSS_ADDRESS, PERM_REDIRECT)
+    _test_url_helper(strdir, PERM_REDIRECT, "301Test", "", PERM_REDIRECT)
 
 def test_not_found_fails(strdir: str) -> None:
     """If the URL is Not Found, we should not change the saved URL."""
@@ -92,7 +92,7 @@ def test_gone_fails(strdir: str) -> None:
 
     test_sub.get_feed()
 
-    assert test_sub.url is None
+    assert test_sub.url is ""
     assert test_sub.original_url == GONE
 
 def test_new_attempt_update(strdir: str) -> None:
@@ -266,7 +266,7 @@ def _check_hi_contents(filename_num: int, directory: str) -> None:
 def generate_fake_downloader() -> Callable[[str, str], None]:
     """Fake downloader for test purposes."""
 
-    def _downloader(url: str=None, dest: str=None) -> None:
+    def _downloader(url: str, dest: str) -> None:
         contents = "hi"
 
         open(dest, "a", encoding="UTF-8").close()
