@@ -16,7 +16,6 @@ matrix:
     - python: "pypy3"
       env: "VERSION=pypy3"
   allow_failures:
-    - env: "VERSION=3.7"
     - env: "VERSION=nightly"
     - env: "VERSION=pypy3"
 

@@ -12,19 +12,21 @@ with open(path.join(HERE, "VERSION")) as f:
 
 URL = "https://github.com/alixnovosi/puckfetcher"
 
-INSTALL_REQUIRES = ["appdirs>=1.4.3, <2.0.0",
-                    "clint>=0.5.1, <0.6.0",
-                    "feedparser>=5.2.1, <6.0.0",
-                    "pyyaml>=3.13, <4.0.0",
-                    "requests>=2.19.1, <3.0.0",
-                    "u-msgpack-python>=2.5.0, <3.0.0",
-                    "stagger>=1.0.0, <2.0.0",
-                    "drewtilities>=1.0.5, <2.0.0",
-                   ]
+INSTALL_REQUIRES = [
+    "appdirs>=1.4.3, <2.0.0",
+    "clint>=0.5.1, <0.6.0",
+    "feedparser>=5.2.1, <6.0.0",
+    "pyyaml>=5.1, <6.0.0",
+    "requests>=2.21.0, <3.0.0",
+    "u-msgpack-python>=2.5.1, <3.0.0",
+    "stagger>=1.0.0, <2.0.0",
+    "drewtilities>=1.2.2, <2.0.0",
+]
 
-TEST_REQUIRES = ["coveralls>=1.3.0, <2.0.0",
-                 "pytest>=3.5.0, <4.0.0",
-                ]
+TEST_REQUIRES = [
+    "coveralls>=1.6.0, <2.0.0",
+    "pytest>=4.3.1, <5.0.0",
+]
 
 setup(author="Andrew Michaud",
       author_email="puckfetcher@mail.andrewmichaud.com",
@@ -37,6 +39,7 @@ setup(author="Andrew Michaud",
                    "Operating System :: MacOS :: MacOS X",
                    "Operating System :: POSIX :: Linux",
                    "Programming Language :: Python :: 3.6",
+                   "Programming Language :: Python :: 3.7",
                    "Programming Language :: Python :: Implementation :: CPython",
                    "Topic :: Multimedia :: Sound/Audio",
                    "Topic :: Internet :: WWW/HTTP",
@@ -65,4 +68,5 @@ setup(author="Andrew Michaud",
       long_description=LONG_DESCRIPTION,
       install_requires=INSTALL_REQUIRES,
       tests_require=TEST_REQUIRES,
-      version=VERSION)
+      version=VERSION,
+      )
