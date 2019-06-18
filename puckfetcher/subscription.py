@@ -862,7 +862,7 @@ class _FeedState(object):
             last_modified = feedstate_dict.get("last_modified", None)
             self.store_last_modified(last_modified)
 
-            self.etag = feedstate_dict.get("etag", None)
+            self.etag: str = feedstate_dict.get("etag", "")
             self.latest_entry_number = feedstate_dict.get("latest_entry_number", None)
 
         else:
@@ -875,7 +875,7 @@ class _FeedState(object):
             self.queue = collections.deque([])
             self.summary_queue = collections.deque([], SUMMARY_LIMIT)
             self.last_modified: Any = None
-            self.etag: str = None
+            self.etag = ""
             self.latest_entry_number = None
 
     def load_rss_info(self, parsed: feedparser.FeedParserDict) -> None:

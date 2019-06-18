@@ -22,7 +22,7 @@ matrix:
 install:
   - pip install .
   - pip install coveralls
-  - pip install -U git+git://github.com/python/mypy.git
+  - pip install mypy
 
 script:
   - |
