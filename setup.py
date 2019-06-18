@@ -44,6 +44,7 @@ setup(author="Andrew Michaud",
                    "Topic :: Multimedia :: Sound/Audio",
                    "Topic :: Internet :: WWW/HTTP",
                    "Topic :: Utilities",
+                   "Typing :: Typed",
                   ],
 
       name="puckfetcher",
