@@ -1,7 +1,9 @@
 """Tests for the subscription module."""
 import os
-from typing import Any, Callable, Dict
+import shutil
+from typing import Any, Callable, Dict, Mapping
 
+import stagger
 import pytest
 
 import puckfetcher.error as error
@@ -119,7 +121,6 @@ def test_attempt_update_new_entry(strdir: str) -> None:
     test_sub.attempt_update()
     assert test_sub.feed_state.latest_entry_number == 10
     assert len(os.listdir(test_dir)) == 1
-    _check_hi_contents(0, test_dir)
 
 def test_attempt_download_backlog(strdir: str) -> None:
     """Should download full backlog if backlog limit set to None."""
@@ -134,8 +135,6 @@ def test_attempt_download_backlog(strdir: str) -> None:
 
     assert len(test_sub.feed_state.entries) == 10
     assert len(os.listdir(test_sub.directory)) == 10
-    for i in range(1, 9):
-        _check_hi_contents(i, test_sub.directory)
 
 def test_attempt_download_partial_backlog(strdir: str) -> None:
     """Should download partial backlog if limit is specified."""
@@ -152,9 +151,6 @@ def test_attempt_download_partial_backlog(strdir: str) -> None:
     test_sub.settings["backlog_limit"] = 4
     test_sub.settings["use_title_as_filename"] = False
     test_sub.attempt_update()
-
-    for i in range(0, 4):
-        _check_hi_contents(i, test_sub.directory)
 
 def test_mark(sub_with_entries: subscription.Subscription) -> None:
     """Should mark subscription entries correctly."""
@@ -240,6 +236,42 @@ def test_url_sanitize() -> None:
                                   "/test")
     assert filename == "/test/p*%$^\\1uck.mp3"
 
+def test_tagging(strdir: str) -> None:
+    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+
+    test_sub.downloader = generate_fake_downloader()
+    test_sub.parser = generate_feedparser()
+
+    metadata = {
+        "name": test_sub.metadata["name"],
+        "artist": "hello-artist",
+        "album": test_sub.metadata["name"],
+        "album_artist": "hello-artist-album",
+    }
+
+    test_sub.metadata = metadata
+
+    test_sub.settings["backlog_limit"] = 4
+    test_sub.settings["set_tags"] = True
+
+    test_sub.attempt_update()
+
+    for i in range(0, 4):
+        _check_tag_presence(i, test_sub.directory, metadata=metadata)
+
+def test_tagging_skipped(strdir: str) -> None:
+    test_sub = subscription.Subscription(url=RSS_ADDRESS, name="testfeed", directory=strdir)
+
+    test_sub.downloader = generate_fake_downloader(filetype="m4a")
+    test_sub.parser = generate_feedparser(filetype="m4a")
+
+    test_sub.settings["backlog_limit"] = 4
+    test_sub.settings["set_tags"] = True
+
+    test_sub.attempt_update()
+
+    for i in range(0, 4):
+        _check_tag_absence(i, test_sub.directory)
 
 # Helpers.
 def _test_url_helper(strdir: str, given: str, name: str, expected_current: str,
@@ -255,29 +287,82 @@ def _test_url_helper(strdir: str, given: str, name: str, expected_current: str,
     assert test_sub.url == expected_current
     assert test_sub.original_url == expected_original
 
-def _check_hi_contents(filename_num: int, directory: str) -> None:
+def _check_tag_absence(
+    filename_num: int,
+    directory: str,
+):
+    file_path = os.path.join(directory, f"hi0{filename_num}.m4a")
+    try:
+        tag = stagger.read_tag(file_path)
+    except stagger.errors.NoTagError as e:
+        return
+
+    pytest.fail("Tag should not be present for this podcast!")
+
+def _check_tag_presence(
+    filename_num: int,
+    directory: str,
+    metadata: Mapping[str, str]={},
+) -> None:
     file_path = os.path.join(directory, f"hi0{filename_num}.mp3")
-    with open(file_path, "r", encoding="UTF-8") as enclosure:
-        data = enclosure.read().replace('\n', '')
+    try:
+        tag = stagger.read_tag(file_path)
+    except stagger.errors.NoTagError as e:
+        pytest.fail("Tag should be present for this podcast!")
 
-        # TODO find way to test ID3v2 tag.
-        assert data[-2:] == "hi"
+    if tag.artist != metadata["artist"]:
+        pytest.fail(f"artist tag should be {metadata['artist']} but is actually {tag.artist}")
 
-def generate_fake_downloader() -> Callable[[str, str], None]:
+    if tag.album != metadata["album"]:
+        pytest.fail(f"album tag should be {metadata['album']} but is actually {tag.album}")
+
+    if tag.album_artist != metadata["album_artist"]:
+        pytest.fail(
+            f"album_artist tag should be {metadata['album_artist']}, "
+            f"but is actually {tag.album_artist}"
+        )
+
+def generate_fake_downloader(
+    *,
+    filetype: str="mp3",
+
+) -> Callable[[str, str], None]:
     """Fake downloader for test purposes."""
 
-    def _downloader(url: str, dest: str) -> None:
-        contents = "hi"
+    def _mp3_downloader(url: str, dest: str) -> None:
+        HERE = os.path.dirname(os.path.realpath(__file__))
 
-        open(dest, "a", encoding="UTF-8").close()
-        # per http://stackoverflow.com/a/20943461
-        with open(dest, "w", encoding="UTF-8") as stream:
-            stream.write(contents)
-            stream.flush()
+        shutil.copyfile(
+            os.path.join(
+                HERE,
+                "test.mp3",
+            ),
+            dest,
+        )
 
-    return _downloader
+        tag = stagger.Tag24()
+        tag.write(dest)
 
-def generate_feedparser() -> Callable[[str, Any, Any], Dict[str, Any]]:
+    def _m4a_downloader(url: str, dest: str) -> None:
+        HERE = os.path.dirname(os.path.realpath(__file__))
+
+        shutil.copyfile(
+            os.path.join(
+                HERE,
+                "test.m4a",
+            ),
+            dest,
+        )
+
+    if filetype == "mp3":
+        return _mp3_downloader
+    else:
+        return _m4a_downloader
+
+def generate_feedparser(
+    *,
+    filetype: str="mp3",
+) -> Callable[[str, Any, Any], Dict[str, Any]]:
     """Feedparser wrapper without rate_limiting, for testing."""
 
     # pylint: disable=unused-argument
@@ -289,7 +374,12 @@ def generate_feedparser() -> Callable[[str, Any, Any], Dict[str, Any]]:
         for i in range(0, 10):
             entry: Dict[str, Any] = {}
             entry["title"] = "hi"
-            entry["enclosures"] = [{"href": f"hi0{i}.mp3"}]
+            entry["metadata"] = {}
+            entry["metadata"]["title"] = "hi"
+            entry["metadata"]["artist"] = "hi-artist"
+            entry["metadata"]["album"] = "hi-album"
+            entry["metadata"]["artist_album"] = "hi-artist-album"
+            entry["enclosures"] = [{"href": f"hi0{i}.{filetype}"}]
 
             entries.append(entry)
 
