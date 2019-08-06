@@ -16,16 +16,17 @@ INSTALL_REQUIRES = [
     "appdirs>=1.4.3, <2.0.0",
     "clint>=0.5.1, <0.6.0",
     "feedparser>=5.2.1, <6.0.0",
-    "pyyaml>=5.1, <6.0.0",
-    "requests>=2.21.0, <3.0.0",
+    "pyyaml>=5.1.2, <6.0.0",
+    "python-magic>=0.4.15, <0.5.0",
+    "requests>=2.22.0, <3.0.0",
     "u-msgpack-python>=2.5.1, <3.0.0",
     "stagger>=1.0.0, <2.0.0",
-    "drewtilities>=1.2.2, <2.0.0",
+    "drewtilities>=1.3.2, <2.0.0",
 ]
 
 TEST_REQUIRES = [
-    "coveralls>=1.6.0, <2.0.0",
-    "pytest>=4.3.1, <5.0.0",
+    "coveralls>=1.8.2, <2.0.0",
+    "pytest>=5.0.1, <6.0.0",
 ]
 
 setup(author="Andrew Michaud",

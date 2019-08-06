@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple, MutableSequence
 
 import drewtilities as util
 import feedparser
+import magic
 import requests
 import stagger
-from stagger.id3 import *
 
 import puckfetcher.constants as constants
 import puckfetcher.error as error
@@ -324,7 +324,7 @@ class Subscription(object):
                         dest = self._get_dest(url=url, title=entry["title"], directory=directory)
                         self.downloader(url=url, dest=dest)
 
-                        self.process_tags(dest, entry)
+                        self.check_tag_edit_safe(dest, entry)
 
                     if one_indexed_entry_num > self.feed_state.latest_entry_number:
                         self.feed_state.latest_entry_number = one_indexed_entry_num
@@ -604,6 +604,43 @@ class Subscription(object):
         :returns: List of name/number strings for items in the summary queue.
         """
         return [f"{item['name']} (#{item['number']})" for item in self.feed_state.summary_queue]
+
+    def check_tag_edit_safe(self, dest: str, entry: Mapping[str, Any]) -> None:
+        """
+        Check if we can safely edit ID3v2 tags.
+        Will do nothing if this is not an MP3 file.
+
+        :param dest: File to change tags on.
+        :param entry: Entry from RSS feed to use,
+            alongside metadata,
+            to populate ID3v2 tags.
+        """
+        # need to test this is an MP3 file first.
+        magic_res = magic.from_file(dest)
+
+        # love 2 parse files
+        # we're fairly conservative here, because I would rather not put tags in
+        # than accidentally break a file.
+        mp3_signifiers = [
+            "MPEG ADTS, layer III",
+            "Audio file with ID3",
+        ]
+
+        file_is_mp3 = False
+        for signifier in mp3_signifiers:
+            if signifier in magic_res:
+                file_is_mp3 = True
+                break
+
+        if not file_is_mp3:
+            LOG.info(
+                f"Skipping adding tags for {dest}, "
+                "because it doesn't seem to be an mp3 file."
+            )
+            return
+
+        LOG.info(f"Editing tags for {dest}.")
+        self.process_tags(dest, entry)
 
     def process_tags(self, dest: str, entry: Mapping[str, Any]) -> None:
         """
