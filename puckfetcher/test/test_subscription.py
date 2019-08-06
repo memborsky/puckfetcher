@@ -290,7 +290,7 @@ def _test_url_helper(strdir: str, given: str, name: str, expected_current: str,
 def _check_tag_absence(
     filename_num: int,
     directory: str,
-):
+) -> None:
     file_path = os.path.join(directory, f"hi0{filename_num}.m4a")
     try:
         tag = stagger.read_tag(file_path)
