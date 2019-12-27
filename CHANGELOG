@@ -1,3 +1,7 @@
+1.3.4 (2019-12-27):
+    * BUGFIXES
+        * Fix a typo in text output spacing.
+
 1.3.3 (2019-08-06):
     * BUGFIXES
         * Be more conservative about ID3 tag editing. Tested with a podcast recently that is .m4a

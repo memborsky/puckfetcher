@@ -256,7 +256,7 @@ class Subscription(object):
             return True
 
         number_to_download = number_feeds - self.latest()
-        LOG.info(f"Number of downloaded feeds for {self.metadata['name']} is {self.latest()}"
+        LOG.info(f"Number of downloaded feeds for {self.metadata['name']} is {self.latest()}, "
                  f"{number_to_download} less than feed entry count {number_feeds}."
                  f"\nDownloading {number_to_download} entries.")
 
