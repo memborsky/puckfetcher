@@ -13,20 +13,20 @@ with open(path.join(HERE, "VERSION")) as f:
 URL = "https://github.com/alixnovosi/puckfetcher"
 
 INSTALL_REQUIRES = [
-    "appdirs>=1.4.3, <2.0.0",
+    "appdirs>=1.4.4, <2.0.0",
     "clint>=0.5.1, <0.6.0",
-    "feedparser>=5.2.1, <6.0.0",
-    "pyyaml>=5.1.2, <6.0.0",
-    "python-magic>=0.4.15, <0.5.0",
-    "requests>=2.22.0, <3.0.0",
-    "u-msgpack-python>=2.5.1, <3.0.0",
+    "feedparser>=6.0.2, <7.0.0",
+    "pyyaml>=5.3.1, <6.0.0",
+    "python-magic>=0.4.18, <0.5.0",
+    "requests>=2.25.1, <3.0.0",
+    "u-msgpack-python>=2.7.1, <3.0.0",
     "stagger>=1.0.0, <2.0.0",
     "drewtilities>=1.3.2, <2.0.0",
 ]
 
 TEST_REQUIRES = [
-    "coveralls>=1.8.2, <2.0.0",
-    "pytest>=5.0.1, <6.0.0",
+    "coveralls>=3.0.0, <4.0.0",
+    "pytest>=6.2.1, <7.0.0",
 ]
 
 setup(author="Andrew Michaud",
@@ -41,6 +41,8 @@ setup(author="Andrew Michaud",
                    "Operating System :: POSIX :: Linux",
                    "Programming Language :: Python :: 3.6",
                    "Programming Language :: Python :: 3.7",
+                   "Programming Language :: Python :: 3.8",
+                   "Programming Language :: Python :: 3.9",
                    "Programming Language :: Python :: Implementation :: CPython",
                    "Topic :: Multimedia :: Sound/Audio",
                    "Topic :: Internet :: WWW/HTTP",
