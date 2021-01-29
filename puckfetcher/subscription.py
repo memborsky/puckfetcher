@@ -12,10 +12,10 @@ import time
 from typing import Any, Dict, List, Mapping, Optional, Tuple, MutableSequence
 
 import drewtilities as util
+import eyed3
 import feedparser
 import magic
 import requests
-import stagger
 
 import puckfetcher.constants as constants
 import puckfetcher.error as error
@@ -651,66 +651,62 @@ class Subscription(object):
             alongside metadata,
             to populate ID3v2 tags.
         """
-        try:
-            tag = stagger.read_tag(dest)
-        except stagger.errors.NoTagError as e:
-            LOG.debug(f"No tag present, creating one: {e}")
-            tag = stagger.Tag24()
+        audiofile = eyed3.load(dest)
 
         # Process tags. If set to set_tags and tags are empty, write tags.
         # Pull tags into sub metadata if it's not set.
         # Pull tags into entry unless they're empty, and then try sub.
-        LOG.info(f"Artist tag is '{tag.artist}'.")
-        if tag.artist == "" and self.settings["set_tags"]:
+        LOG.info(f"Artist tag is '{audiofile.tag.artist}'.")
+        if audiofile.tag.artist == "" and self.settings["set_tags"]:
             LOG.info(f"Setting artist tag to '{self.metadata['artist']}'.")
-            tag.artist = self.metadata["artist"]
+            audiofile.tag.artist = self.metadata["artist"]
 
         if self.metadata["artist"] == "":
-            self.metadata["artist"] = tag.artist
+            self.metadata["artist"] = audiofile.tag.artist
 
-        if tag.artist != "":
-            entry["metadata"]["artist"] = tag.artist
+        if audiofile.tag.artist != "":
+            entry["metadata"]["artist"] = audiofile.tag.artist
         else:
             entry["metadata"]["artist"] = self.metadata["artist"]
 
-        LOG.info(f"Album tag is '{tag.album}'.")
-        if tag.album == "":
+        LOG.info(f"Album tag is '{audiofile.tag.album}'.")
+        if audiofile.tag.album == "":
             LOG.info(f"Setting album tag to '{self.metadata['album']}'.")
-            tag.album = self.metadata["album"]
+            audiofile.tag.album = self.metadata["album"]
 
         if self.metadata["album"] == "":
-            self.metadata["album"] = tag.album
+            self.metadata["album"] = audiofile.tag.album
 
-        if tag.album != "":
-            entry["metadata"]["album"] = tag.album
+        if audiofile.tag.album != "":
+            entry["metadata"]["album"] = audiofile.tag.album
         else:
             entry["metadata"]["album"] = self.metadata["album"]
 
-        LOG.info(f"Album Artist tag is '{tag.album_artist}'.")
-        if tag.album_artist == "":
+        LOG.info(f"Album Artist tag is '{audiofile.tag.album_artist}'.")
+        if audiofile.tag.album_artist == "":
             LOG.info(f"Setting album_artist tag to '{self.metadata['album_artist']}'.")
-            tag.album_artist = self.metadata["album_artist"]
+            audiofile.tag.album_artist = self.metadata["album_artist"]
 
         if self.metadata["album_artist"] == "":
-            self.metadata["album_artist"] = tag.album_artist
+            self.metadata["album_artist"] = audiofile.tag.album_artist
 
-        if tag.album_artist != "":
-            entry["metadata"]["album_artist"] = tag.album_artist
+        if audiofile.tag.album_artist != "":
+            entry["metadata"]["album_artist"] = audiofile.tag.album_artist
         else:
             entry["metadata"]["album_artist"] = self.metadata["album_artist"]
 
-        LOG.info(f"Title tag is '{tag.title}'.")
+        LOG.info(f"Title tag is '{audiofile.tag.title}'.")
         LOG.info(f"Overwrite setting is set to '{self.settings['overwrite_title']}'.")
-        if tag.title == "" or self.settings["overwrite_title"]:
+        if audiofile.tag.title == "" or self.settings["overwrite_title"]:
             LOG.info(f"Setting title tag to '{entry['title']}'.")
-            tag.title = entry["title"]
+            audiofile.tag.title = entry["title"]
 
         # Store some extra tags on the entry. Doesn't matter if they're empty, they're empty on the
         # entry too.
-        entry["metadata"]["genre"] = tag.genre
-        entry["metadata"]["date"] = tag.date
+        entry["metadata"]["genre"] = audiofile.tag.genre.name
+        entry["metadata"]["date"] = str(audiofile.tag.getBestDate(prefer_recording_date=True))
 
-        tag.write(filename=dest)
+        audiofile.tag.save()
 
     def as_config_yaml(self) -> Mapping[str, Any]:
         """

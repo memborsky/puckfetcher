@@ -3,7 +3,8 @@ import os
 import shutil
 from typing import Any, Callable, Dict, Mapping
 
-import stagger
+import eyed3
+from eyed3.id3 import Tag
 import pytest
 
 import puckfetcher.error as error
@@ -94,7 +95,7 @@ def test_gone_fails(strdir: str) -> None:
 
     test_sub.get_feed()
 
-    assert test_sub.url is ""
+    assert test_sub.url == ""
     assert test_sub.original_url == GONE
 
 def test_new_attempt_update(strdir: str) -> None:
@@ -292,12 +293,10 @@ def _check_tag_absence(
     directory: str,
 ) -> None:
     file_path = os.path.join(directory, f"hi0{filename_num}.m4a")
-    try:
-        tag = stagger.read_tag(file_path)
-    except stagger.errors.NoTagError as e:
-        return
+    audiofile = eyed3.load(file_path)
 
-    pytest.fail("Tag should not be present for this podcast!")
+    if audiofile is not None:
+        pytest.fail("Tag should not be present for this podcast!")
 
 def _check_tag_presence(
     filename_num: int,
@@ -305,21 +304,22 @@ def _check_tag_presence(
     metadata: Mapping[str, str]={},
 ) -> None:
     file_path = os.path.join(directory, f"hi0{filename_num}.mp3")
-    try:
-        tag = stagger.read_tag(file_path)
-    except stagger.errors.NoTagError as e:
+
+    audiofile = eyed3.load(file_path)
+
+    if audiofile is None:
         pytest.fail("Tag should be present for this podcast!")
 
-    if tag.artist != metadata["artist"]:
-        pytest.fail(f"artist tag should be {metadata['artist']} but is actually {tag.artist}")
+    if audiofile.tag.artist != metadata["artist"]:
+        pytest.fail(f"artist tag should be {metadata['artist']} but is actually {audiofile.tag.artist}")
 
-    if tag.album != metadata["album"]:
-        pytest.fail(f"album tag should be {metadata['album']} but is actually {tag.album}")
+    if audiofile.tag.album != metadata["album"]:
+        pytest.fail(f"album tag should be {metadata['album']} but is actually {audiofile.tag.album}")
 
-    if tag.album_artist != metadata["album_artist"]:
+    if audiofile.tag.album_artist != metadata["album_artist"]:
         pytest.fail(
             f"album_artist tag should be {metadata['album_artist']}, "
-            f"but is actually {tag.album_artist}"
+            f"but is actually {audiofile.tag.album_artist}"
         )
 
 def generate_fake_downloader(
@@ -340,8 +340,9 @@ def generate_fake_downloader(
             dest,
         )
 
-        tag = stagger.Tag24()
-        tag.write(dest)
+        audiofile = eyed3.load(dest)
+        audiofile.tag = audiofile.initTag()
+        audiofile.tag.save()
 
     def _m4a_downloader(url: str, dest: str) -> None:
         HERE = os.path.dirname(os.path.realpath(__file__))

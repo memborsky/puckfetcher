@@ -20,7 +20,7 @@ INSTALL_REQUIRES = [
     "python-magic>=0.4.18, <0.5.0",
     "requests>=2.25.1, <3.0.0",
     "u-msgpack-python>=2.7.1, <3.0.0",
-    "stagger>=1.0.0, <2.0.0",
+    "eyed3>=0.9.6, <1.0.0",
     "drewtilities>=1.3.2, <2.0.0",
 ]
 
