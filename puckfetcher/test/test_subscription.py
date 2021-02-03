@@ -4,11 +4,10 @@ import shutil
 from typing import Any, Callable, Dict, Mapping
 
 import eyed3
-from eyed3.id3 import Tag
-import pytest
-
 import puckfetcher.error as error
 import puckfetcher.subscription as subscription
+import pytest
+from eyed3.id3 import Tag
 
 RSS_ADDRESS = "valid"
 PERM_REDIRECT = "301"
@@ -342,6 +341,9 @@ def generate_fake_downloader(
 
         audiofile = eyed3.load(dest)
         audiofile.tag = audiofile.initTag()
+        audiofile.tag.album = "testfeed"
+        audiofile.tag.artist = "hello-artist"
+        audiofile.tag.album_artist = "hello-artist-album"
         audiofile.tag.save()
 
     def _m4a_downloader(url: str, dest: str) -> None:
