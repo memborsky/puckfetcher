@@ -16,6 +16,7 @@ import eyed3
 import feedparser
 import magic
 import requests
+from eyed3.id3 import Genre
 
 import puckfetcher.constants as constants
 import puckfetcher.error as error
@@ -703,7 +704,14 @@ class Subscription(object):
 
         # Store some extra tags on the entry. Doesn't matter if they're empty, they're empty on the
         # entry too.
+
+        # If the genre tag is not set, default it to the Podcast genre. Genre id list can be found at:
+        # https://eyed3.readthedocs.io/en/latest/plugins/genres_plugin.html?highlight=genre
+        if audiofile.tag.genre is None:
+            audiofile.tag.genre = Genre(id=186)
+
         entry["metadata"]["genre"] = audiofile.tag.genre.name
+
         entry["metadata"]["date"] = str(audiofile.tag.getBestDate(prefer_recording_date=True))
 
         audiofile.tag.save()
